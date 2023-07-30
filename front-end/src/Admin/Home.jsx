@@ -29,104 +29,123 @@ function Home() {
       .catch((err) => console.log(err));
   }, []);
   return (
-    <div>
-      <div className="p-3 row justify-content-around mt-3">
-        <div className="col-sm-3">
-          <div className="px-3 pt-2 pb-3 border shadow-sm">
-            <div className="text-center pb-1">
-              <h4>Team Lead</h4>
+    <div className="mainBody">
+      <div className="mt-4">
+        <div className="row">
+          <div className="col-sm-3">
+            <div className="counterCard">
+              <div className="text-center pb-1">
+                <h4>Team Lead</h4>
+              </div>
+              <div className="count">
+                <h5>{adminCount}</h5>
+              </div>
             </div>
-            <hr />
-            <div className="">
-              <h5>Total: {adminCount}</h5>
+          </div>
+          <div className="col-sm-3">
+            <div className="counterCard">
+              <div className="text-center pb-1">
+                <h4>Employee</h4>
+              </div>
+              <div className="count">
+                <h5>{adminCount}</h5>
+              </div>
+            </div>
+          </div>
+          <div className="col-sm-3">
+            <div className="counterCard">
+              <div className="text-center pb-1">
+                <h4>Hr</h4>
+              </div>
+              <div className="count">
+                <h5>{adminCount}</h5>
+              </div>
+            </div>
+          </div>
+          <div className="col-sm-3">
+            <div className="counterCard">
+              <div className="text-center pb-1">
+                <h4>Projects</h4>
+              </div>
+              <div className="count">
+                <h5>{adminCount}</h5>
+              </div>
             </div>
           </div>
         </div>
-        <div className="col-sm-3">
-          <div className="px-3 pt-2 pb-3 border shadow-sm">
-            <div className="text-center pb-1">
-              <h4>Employee</h4>
-            </div>
-            <hr />
-            <div className="">
-              <h5>Total: {adminCount}</h5>
-            </div>
-          </div>
-        </div>
-        <div className="col-sm-3">
-          <div className="px-3 pt-2 pb-3 border shadow-sm">
-            <div className="text-center pb-1">
-              <h4>Hr</h4>
-            </div>
-            <hr />
-            <div className="">
-              <h5>Total: {adminCount}</h5>
-            </div>
-          </div>
-        </div>
-        <div className="col-sm-3">
-          <div className="px-3 pt-2 pb-3 border shadow-sm">
-            <div className="text-center pb-1">
-              <h4>Projects</h4>
-            </div>
-            <hr />
-            <div className="">
-              <h5>Total: {adminCount}</h5>
-            </div>
-          </div>
-        </div>
-        <div className="col-sm-12">
-          {/* List of admin  */}
-          <div className="mt-4 pt-3">
-            <h3>List of Lead</h3>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Project Name</th>
-                  <th>Project Start Date</th>
-                  <th>Project End Date</th>
-                  <th>Team Members</th>
-                  <th>Lead Id</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Mohan</td>
-                  <td>Water Supply</td>
-                  <td>01/08/23</td>
-                  <td>01/12/23</td>
-                  <td>23</td>
-                  <td>1</td>
-                </tr>
-                <tr>
-                  <td>Arun</td>
-                  <td>Water Supply</td>
-                  <td>01/08/23</td>
-                  <td>01/12/23</td>
-                  <td>23</td>
-                  <td>2</td>
-                </tr>
-                <tr>
-                  <td>kumar</td>
-                  <td>Water Supply</td>
-                  <td>01/08/23</td>
-                  <td>01/12/23</td>
-                  <td>23</td>
-                  <td>3</td>
-                </tr>
-                <tr>
-                  <td>Mohan</td>
-                  <td>Water Supply</td>
-                  <td>01/08/23</td>
-                  <td>01/12/23</td>
-                  <td>23</td>
-                  <td>4</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+      </div>
+      {/* List of admin  */}
+      <div className="mt-4">
+        {/* <h3 className="title">List of Projects</h3> */}
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Project Name</th>
+              <th>Lead Name</th>
+              <th>Team Members</th>
+              <th>Project Start Date</th>
+              <th>Project End Date</th>
+              <th>Total Hours</th>
+              <th>Remaining Hours</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Project 1</td>
+              <td>Wateer Supply</td>
+              <td>Admin</td>
+              <td>09/05/2023</td>
+              <td>08/011/2023</td>
+              <td>90</td>
+              <td>70</td>
+            </tr>
+            <tr>
+              <td>Project 1</td>
+              <td>Wateer Supply</td>
+              <td>Admin</td>
+              <td>09/05/2023</td>
+              <td>08/011/2023</td>
+              <td>90</td>
+              <td>70</td>
+            </tr>
+            <tr>
+              <td>Project 1</td>
+              <td>Wateer Supply</td>
+              <td>Admin</td>
+              <td>09/05/2023</td>
+              <td>08/011/2023</td>
+              <td>90</td>
+              <td>70</td>
+            </tr>
+            <tr>
+              <td>Project 1</td>
+              <td>Wateer Supply</td>
+              <td>Admin</td>
+              <td>09/05/2023</td>
+              <td>08/011/2023</td>
+              <td>90</td>
+              <td>70</td>
+            </tr>
+            <tr>
+              <td>Project 1</td>
+              <td>Wateer Supply</td>
+              <td>Admin</td>
+              <td>09/05/2023</td>
+              <td>08/011/2023</td>
+              <td>90</td>
+              <td>70</td>
+            </tr>
+            <tr>
+              <td>Project 1</td>
+              <td>Wateer Supply</td>
+              <td>Admin</td>
+              <td>09/05/2023</td>
+              <td>08/011/2023</td>
+              <td>90</td>
+              <td>70</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   );
