@@ -86,6 +86,7 @@ div#root {
     padding: 20px 40px 11px;
     height: 100vh;
     overflow: auto;
+    /* background-color: red; */
 }
 
 .headerBar {
@@ -118,6 +119,7 @@ form {
     background: white;
     padding: 20px;
     border-radius: 10px;
+    /* box-shadow: 10px 10px 5px #aaaaaa; */
 }
 .button {
     padding: 12px 23px;

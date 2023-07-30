@@ -41,25 +41,44 @@ function AddEmployee() {
 
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="gy-3 row">
-            <div className="col-sm-12">
+           
+          <div className="col-sm-12">
               <Controller
                 control={control}
-                name="name"
-                rules={{ required: "Nama is required." }}
+                name="EnterName"
+                rules={{ required: "Name is required." }}
                 render={({ field }) => (
                   <Box>
                     <TextField
                       fullWidth
                       id="outlined-basic fullWidth"
-                      label="Enter Name "
+                      label="Enter Name"
                       variant="outlined"
-                      InputLabelProps={{
-                        shrink: true,
-                      }}
+                      type="text"
                       {...field}
-                      error={Boolean(errors.name)}
-                      helperText={errors.name && errors.name.message}
-                      type="file"
+                      error={Boolean(errors.EnterName)}
+                      helperText={errors.EnterName && errors.EnterName.message}
+                    />
+                  </Box>
+                )}
+              />
+            </div>
+          <div className="col-sm-12">
+              <Controller
+                control={control}
+                name="EnterEMPID"
+                rules={{ required: "Name is required." }}
+                render={({ field }) => (
+                  <Box>
+                    <TextField
+                      fullWidth
+                      id="outlined-basic fullWidth"
+                      label="Employee ID"
+                      variant="outlined"
+                      type="number"
+                      {...field}
+                      error={Boolean(errors.EnterEMPID)}
+                      helperText={errors.EnterEMPID && errors.EnterEMPID.message}
                     />
                   </Box>
                 )}
@@ -99,6 +118,7 @@ function AddEmployee() {
                       id="outlined-basic fullWidth"
                       label="Enter Username "
                       variant="outlined"
+                      type="text"
                       {...field}
                       error={Boolean(errors.Username)}
                       helperText={errors.Username && errors.Username.message}
@@ -119,6 +139,7 @@ function AddEmployee() {
                       id="outlined-basic fullWidth"
                       label="Enter password "
                       variant="outlined"
+                      // type="password"
                       {...field}
                       error={Boolean(errors.password)}
                       helperText={errors.password && errors.password.message}
@@ -129,33 +150,39 @@ function AddEmployee() {
             </div>
 
             <div className="col-sm-12">
-              <Controller
-                control={control}
-                name="discipline"
-                rules={{ required: "discipline is Reqiured." }}
-                render={({ field }) => (
-                  <Box sx={{}}>
-                    <TextField
-                      fullWidth
-                      id="outlined-basic fullWidth"
-                      label="Enter discipline "
-                      variant="outlined"
-                      // type="password"
-                      {...field}
-                      error={Boolean(errors.discipline)}
-                      helperText={
-                        errors.discipline && errors.discipline.message
-                      }
-                    />
-                  </Box>
-                )}
-              />
+              <Box sx={{}}>
+                <FormControl fullWidth>
+                  <InputLabel id="demo-simple-select-label">Select Designation</InputLabel>
+                  <Controller 
+                    name="Discipline" // Make sure the name matches the field name in your form
+                    control={control}
+                    rules={{ required: "Date is Required." }}
+                    defaultValue="" // Set the default value here if needed
+                    render={({ field }) => (
+                      <Select
+                        labelId="demo-simple-select-label"
+                        id="demo-simple-select"
+                        label="Select Designation"
+                        {...field}
+                        error={Boolean(errors.Discipline)}
+                      >
+                        <MenuItem value={10}>Ten</MenuItem>
+                        <MenuItem value={20}>Twenty</MenuItem>
+                        <MenuItem value={30}>Thirty</MenuItem>
+                      </Select>
+                    )}
+                  />
+                  <FormHelperText>
+                    {errors.Discipline && errors.Discipline.message}
+                  </FormHelperText>
+                </FormControl>
+              </Box>
             </div>
             <div className="col-sm-12">
               <Box sx={{}}>
                 <FormControl fullWidth>
-                  <InputLabel id="demo-simple-select-label">Age</InputLabel>
-                  <Controller
+                  <InputLabel id="demo-simple-select-label">Select Designation</InputLabel>
+                  <Controller 
                     name="Designation" // Make sure the name matches the field name in your form
                     control={control}
                     rules={{ required: "Date is Required." }}
@@ -164,7 +191,7 @@ function AddEmployee() {
                       <Select
                         labelId="demo-simple-select-label"
                         id="demo-simple-select"
-                        label="Designation"
+                        label="Select Designation"
                         {...field}
                         error={Boolean(errors.Designation)}
                       >
@@ -180,7 +207,7 @@ function AddEmployee() {
                 </FormControl>
               </Box>
             </div>
-            <div className="col-sm-12">
+            {/* <div className="col-sm-12">
               <Controller
                 control={control}
                 name="date"
@@ -200,7 +227,7 @@ function AddEmployee() {
                   </Box>
                 )}
               />
-            </div>
+            </div> */}
             <div className="col-sm-12">
               <Box sx={{}}>
                 <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -211,7 +238,7 @@ function AddEmployee() {
                     rules={{ required: "File is Required." }}
                     render={({ field }) => (
                       <DatePicker
-                        label="Date"
+                        label="Date Of Jion"
                         {...field}
                         error={Boolean(errors.Date)}
                         helperText={errors.Date && errors.Date.message}
@@ -229,13 +256,38 @@ function AddEmployee() {
                 </FormHelperText>
               </Box>
             </div>
+
+            <div className="col-sm-12">
+              <Controller
+                control={control}
+                name="name"
+                rules={{ required: "File is required." }}
+                render={({ field }) => (
+                  <Box>
+                    <TextField
+                      fullWidth
+                      id="outlined-basic fullWidth"
+                      // label="Choose File "s
+                      variant="outlined"
+                      InputLabelProps={{
+                        shrink: true,
+                      }}
+                      {...field}
+                      error={Boolean(errors.name)}
+                      helperText={errors.name && errors.name.message}
+                      type="file"
+                    />
+                  </Box>
+                )}
+              />
+            </div>
           </div>
           <button type="submit" className="btn btn-primary button">
             Submit
           </button>
         </form>
       </div>
-    </div>
+    </div> 
   );
 }
 
