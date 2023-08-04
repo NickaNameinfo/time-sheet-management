@@ -11,44 +11,39 @@ import {
   MenuItem,
   Select,
 } from "@mui/material";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
-import dayjs from 'dayjs';
 
 function AddHr() {
   const {
     handleSubmit,
     control,
     formState: { errors },
-    setValue
+    setValue,
   } = useForm();
   const navigate = useNavigate();
   const onSubmit = (data) => {
     console.log(data, "tests213");
-    // Perform any other actions you want with the form data
-    // axios
-    //   .post("http://localhost:8081/create", data)
-    //   .then((res) => {
-    //     navigate("/Dashboard/employee");
-    //   })
-    //   .catch((err) => console.log(err));
+    axios
+      .post("http://localhost:8081/hr/create", data)
+      .then((res) => {
+        navigate("/Dashboard/hr");
+      })
+      .catch((err) => console.log(err));
   };
 
   return (
     <div className="mainBody">
       <div className="mt-4">
         <h2 className="heading">Manager HR</h2>
-
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="gy-3 row">
-           
-
-		  <div className="col-sm-12">
+            <div className="col-sm-12">
               <Box sx={{}}>
                 <FormControl fullWidth>
-                  <InputLabel id="demo-simple-select-label">Select Name</InputLabel>
-                  <Controller 
-                    name="Name" // Make sure the name matches the field name in your form
+                  <InputLabel id="demo-simple-select-label">
+                    Select Name
+                  </InputLabel>
+                  <Controller
+                    name="hrName" // Make sure the name matches the field name in your form
                     control={control}
                     rules={{ required: "Name is Required." }}
                     defaultValue="" // Set the default value here if needed
@@ -58,7 +53,7 @@ function AddHr() {
                         id="demo-simple-select"
                         label="Select Designation"
                         {...field}
-                        error={Boolean(errors.Name)}
+                        error={Boolean(errors.hrName)}
                       >
                         <MenuItem value={10}>sam</MenuItem>
                         <MenuItem value={20}>Samz</MenuItem>
@@ -71,7 +66,7 @@ function AddHr() {
                     )}
                   />
                   <FormHelperText>
-                    {errors.Name && errors.Name.message}
+                    {errors.hrName && errors.hrName.message}
                   </FormHelperText>
                 </FormControl>
               </Box>
@@ -79,7 +74,7 @@ function AddHr() {
             <div className="col-sm-12">
               <Controller
                 control={control}
-                name="Username"
+                name="userName"
                 rules={{ required: "Username is required." }}
                 render={({ field }) => (
                   <Box>
@@ -90,8 +85,8 @@ function AddHr() {
                       variant="outlined"
                       type="text"
                       {...field}
-                      error={Boolean(errors.Username)}
-                      helperText={errors.Username && errors.Username.message}
+                      error={Boolean(errors.userName)}
+                      helperText={errors.userName && errors.userName.message}
                     />
                   </Box>
                 )}
@@ -118,18 +113,13 @@ function AddHr() {
                 )}
               />
             </div>
-
-           
-           
-
-            
           </div>
           <button type="submit" className="btn btn-primary button">
             Submit
           </button>
         </form>
       </div>
-    </div> 
+    </div>
   );
 }
 

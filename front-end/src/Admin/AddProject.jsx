@@ -13,25 +13,25 @@ import {
 } from "@mui/material";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
-import dayjs from 'dayjs';
+import dayjs from "dayjs";
 
 function AddProject() {
   const {
     handleSubmit,
     control,
     formState: { errors },
-    setValue
+    setValue,
   } = useForm();
   const navigate = useNavigate();
   const onSubmit = (data) => {
     console.log(data, "tests213");
     // Perform any other actions you want with the form data
-    // axios
-    //   .post("http://localhost:8081/create", data)
-    //   .then((res) => {
-    //     navigate("/Dashboard/employee");
-    //   })
-    //   .catch((err) => console.log(err));
+    axios
+      .post("http://localhost:8081/project/create", data)
+      .then((res) => {
+        navigate("/Dashboard/Projects");
+      })
+      .catch((err) => console.log(err));
   };
 
   return (
@@ -41,13 +41,14 @@ function AddProject() {
 
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="gy-3 row">
-           
-		  <div className="col-sm-12">
+            <div className="col-sm-12">
               <Box sx={{}}>
                 <FormControl fullWidth>
-                  <InputLabel id="demo-simple-select-label">TLName is Required</InputLabel>
-                  <Controller 
-                    name="TLName" // Make sure the name matches the field name in your form
+                  <InputLabel id="demo-simple-select-label">
+                    TL Name is Required
+                  </InputLabel>
+                  <Controller
+                    name="tlName" // Make sure the name matches the field name in your form
                     control={control}
                     rules={{ required: "TLName is Required" }}
                     defaultValue="" // Set the default value here if needed
@@ -57,189 +58,7 @@ function AddProject() {
                         id="demo-simple-select"
                         label="TLName is Required"
                         {...field}
-                        error={Boolean(errors.TLName)}
-                      >
-                       <MenuItem value={10}>sam</MenuItem>
-                        <MenuItem value={20}>Samz</MenuItem>
-                        <MenuItem value={30}>Dark Rider</MenuItem>
-                        <MenuItem value={30}>Dark Rider Samz</MenuItem>
-                        <MenuItem value={30}>#Dark Rider Samz</MenuItem>
-                        <MenuItem value={30}>@Dark Rider Samz</MenuItem>
-                        <MenuItem value={30}>@Dark Rider Samz_YT</MenuItem>
-                      </Select>
-                    )}
-                  />
-                  <FormHelperText>
-                    {errors.TLName && errors.TLName.message}
-                  </FormHelperText>
-                </FormControl>
-              </Box>
-            </div>
-			<div className="col-sm-12">
-              <Controller
-                control={control}
-                name="Orderid"
-                rules={{ required: "Name is required." }}
-                render={({ field }) => (
-                  <Box>
-                    <TextField
-                      fullWidth
-                      id="outlined-basic fullWidth"
-                      label="Order ID"
-                      variant="outlined"
-                      type="number"
-                      {...field}
-                      error={Boolean(errors.Orderid)}
-                      helperText={errors.Orderid && errors.Orderid.message}
-                    />
-                  </Box>
-                )}
-              />
-            </div>
-			<div className="col-sm-12">
-              <Controller
-                control={control}
-                name="PositionNumber"
-                rules={{ required: "Position Number required." }}
-                render={({ field }) => (
-                  <Box>
-                    <TextField
-                      fullWidth
-                      id="outlined-basic fullWidth"
-                      label="Position Number"
-                      variant="outlined"
-                      type="number"
-                      {...field}
-                      error={Boolean(errors.PositionNumber)}
-                      helperText={errors.PositionNumber && errors.PositionNumber.message}
-                    />
-                  </Box>
-                )}
-              />
-            </div>
-			<div className="col-sm-12">
-              <Controller
-                control={control}
-                name="SubPositionNumber"
-                rules={{ required: "SubPosition Number is required." }}
-                render={({ field }) => (
-                  <Box>
-                    <TextField
-                      fullWidth
-                      id="outlined-basic fullWidth"
-                      label="SubPosition Number"
-                      variant="outlined"
-                      type="number"
-                      {...field}
-                      error={Boolean(errors.SubPositionNumber)}
-                      helperText={errors.SubPositionNumber && errors.SubPositionNumber.message}
-                    />
-                  </Box>
-                )}
-              />
-            </div>
-			<div className="col-sm-12">
-              <Controller
-                control={control}
-                name="ProjectNo"
-                rules={{ required: "Project No is required." }}
-                render={({ field }) => (
-                  <Box>
-                    <TextField
-                      fullWidth
-                      id="outlined-basic fullWidth"
-                      label="Project No"
-                      variant="outlined"
-                      type="number"
-                      {...field}
-                      error={Boolean(errors.ProjectNo)}
-                      helperText={errors.ProjectNo && errors.ProjectNo.message}
-                    />
-                  </Box>
-                )}
-              />
-            </div>
-			<div className="col-sm-12">
-              <Controller
-                control={control}
-                name="TaskJobNo"
-                rules={{ required: "Task/ Job No is required." }}
-                render={({ field }) => (
-                  <Box>
-                    <TextField
-                      fullWidth
-                      id="outlined-basic fullWidth"
-                      label="Task/ Job No"
-                      variant="outlined"
-                      type="number"
-                      {...field}
-                      error={Boolean(errors.TaskJobNo)}
-                      helperText={errors.TaskJobNo && errors.TaskJobNo.message}
-                    />
-                  </Box>
-                )}
-              />
-            </div>
-
-          <div className="col-sm-12">
-              <Controller
-                control={control}
-                name="PrjectName"
-                rules={{ required: "Prject Name is required." }}
-                render={({ field }) => (
-                  <Box>
-                    <TextField
-                      fullWidth
-                      id="outlined-basic fullWidth"
-                      label="Enter Prject Name"
-                      variant="outlined"
-                      type="text"
-                      {...field}
-                      error={Boolean(errors.PrjectName)}
-                      helperText={errors.PrjectName && errors.PrjectName.message}
-                    />
-                  </Box>
-                )}
-              />
-            </div>
-        
-            <div className="col-sm-12">
-              <Controller
-                control={control}
-                name="SubDivision,"
-                rules={{ required: "Sub Division is required." }}
-                render={({ field }) => (
-                  <Box sx={{}}>
-                    <TextField
-                      fullWidth
-                      id="outlined-basic fullWidth"
-                      label="Sub Division"
-                      type="text"
-                      variant="outlined"
-                      {...field}
-                      error={Boolean(errors.SubDivision)}
-                      helperText={errors.SubDivision && errors.SubDivision.message}
-                    />
-                  </Box>
-                )}
-              />
-            </div>                     
-            <div className="col-sm-12">
-              <Box sx={{}}>
-                <FormControl fullWidth>
-                  <InputLabel id="demo-simple-select-label">Start Date/ Order released Daten</InputLabel>
-                  <Controller 
-                    name="StartDateOrderreleasedDate" // Make sure the name matches the field name in your form
-                    control={control}
-                    rules={{ required: "Start Date/ Order released Date is Required." }}
-                    defaultValue="" // Set the default value here if needed
-                    render={({ field }) => (
-                      <Select
-                        labelId="demo-simple-select-label"
-                        id="demo-simple-select"
-                        label="Start Date/ Order released Date" 
-                        {...field}
-                        error={Boolean(errors.StartDateOrderreleasedDate)}
+                        error={Boolean(errors.tlName)}
                       >
                         <MenuItem value={10}>sam</MenuItem>
                         <MenuItem value={20}>Samz</MenuItem>
@@ -252,17 +71,204 @@ function AddProject() {
                     )}
                   />
                   <FormHelperText>
-                    {errors.StartDateOrderreleasedDate && errors.StartDateOrderreleasedDate.message}
+                    {errors.tlName && errors.tlName.message}
                   </FormHelperText>
                 </FormControl>
               </Box>
             </div>
-           
+            <div className="col-sm-12">
+              <Controller
+                control={control}
+                name="orderId"
+                defaultValue=""
+                rules={{ required: "Name is required." }}
+                render={({ field }) => (
+                  <TextField
+                    fullWidth
+                    id="outlined-basic fullWidth"
+                    label="Order ID"
+                    variant="outlined"
+                    type="number"
+                    {...field}
+                    error={Boolean(errors.orderId)}
+                    helperText={errors.orderId && errors.orderId.message}
+                  />
+                )}
+              />
+            </div>
+            <div className="col-sm-12">
+              <Controller
+                control={control}
+                name="positionNumber"
+                defaultValue=""
+                rules={{ required: "Position Number required." }}
+                render={({ field }) => (
+                  <TextField
+                    fullWidth
+                    id="outlined-basic fullWidth"
+                    label="Position Number"
+                    variant="outlined"
+                    type="number"
+                    {...field}
+                    error={Boolean(errors.positionNumber)}
+                    helperText={
+                      errors.positionNumber && errors.positionNumber.message
+                    }
+                  />
+                )}
+              />
+            </div>
+            <div className="col-sm-12">
+              <Controller
+                control={control}
+                name="subPositionNumber"
+                defaultValue=""
+                rules={{ required: "SubPosition Number is required." }}
+                render={({ field }) => (
+                  <TextField
+                    fullWidth
+                    id="outlined-basic fullWidth"
+                    label="SubPosition Number"
+                    variant="outlined"
+                    type="number"
+                    {...field}
+                    error={Boolean(errors.subPositionNumber)}
+                    helperText={
+                      errors.subPositionNumber &&
+                      errors.subPositionNumber.message
+                    }
+                  />
+                )}
+              />
+            </div>
+            <div className="col-sm-12">
+              <Controller
+                control={control}
+                name="projectNo"
+                defaultValue=""
+                rules={{ required: "Project No is required." }}
+                render={({ field }) => (
+                  <TextField
+                    fullWidth
+                    id="outlined-basic fullWidth"
+                    label="Project No"
+                    variant="outlined"
+                    type="number"
+                    {...field}
+                    error={Boolean(errors.projectNo)}
+                    helperText={errors.projectNo && errors.projectNo.message}
+                  />
+                )}
+              />
+            </div>
+            <div className="col-sm-12">
+              <Controller
+                control={control}
+                name="taskJobNo"
+                defaultValue=""
+                rules={{ required: "Task/ Job No is required." }}
+                render={({ field }) => (
+                  <TextField
+                    fullWidth
+                    id="outlined-basic fullWidth"
+                    label="Task/ Job No"
+                    variant="outlined"
+                    type="number"
+                    {...field}
+                    error={Boolean(errors.taskJobNo)}
+                    helperText={errors.taskJobNo && errors.taskJobNo.message}
+                  />
+                )}
+              />
+            </div>
+
+            <div className="col-sm-12">
+              <Controller
+                control={control}
+                name="prjectName"
+                defaultValue=""
+                rules={{ required: "Prject Name is required." }}
+                render={({ field }) => (
+                  <TextField
+                    fullWidth
+                    id="outlined-basic fullWidth"
+                    label="Enter Prject Name"
+                    variant="outlined"
+                    type="text"
+                    {...field}
+                    error={Boolean(errors.prjectName)}
+                    helperText={errors.prjectName && errors.prjectName.message}
+                  />
+                )}
+              />
+            </div>
+
+            <div className="col-sm-12">
+              <Controller
+                control={control}
+                name="subDivision"
+                defaultValue=""
+                rules={{ required: "Sub Division is required." }}
+                render={({ field }) => (
+                  <TextField
+                    fullWidth
+                    id="outlined-basic fullWidth"
+                    label="Sub Division"
+                    type="text"
+                    variant="outlined"
+                    {...field}
+                    error={Boolean(errors.subDivision)}
+                    helperText={
+                      errors.subDivision && errors.subDivision.message
+                    }
+                  />
+                )}
+              />
+            </div>
+            <div className="col-sm-12">
+              <Box sx={{}}>
+                <FormControl fullWidth>
+                  <InputLabel id="demo-simple-select-label">
+                    Start Date/ Order released Daten
+                  </InputLabel>
+                  <Controller
+                    name="startDateOrderreleasedDate" // Make sure the name matches the field name in your form
+                    control={control}
+                    rules={{
+                      required: "Start Date/ Order released Date is Required.",
+                    }}
+                    defaultValue="" // Set the default value here if needed
+                    render={({ field }) => (
+                      <Select
+                        labelId="demo-simple-select-label"
+                        id="demo-simple-select"
+                        label="Start Date/ Order released Date"
+                        {...field}
+                        error={Boolean(errors.startDateOrderreleasedDate)}
+                      >
+                        <MenuItem value={10}>sam</MenuItem>
+                        <MenuItem value={20}>Samz</MenuItem>
+                        <MenuItem value={30}>Dark Rider</MenuItem>
+                        <MenuItem value={30}>Dark Rider Samz</MenuItem>
+                        <MenuItem value={30}>#Dark Rider Samz</MenuItem>
+                        <MenuItem value={30}>@Dark Rider Samz</MenuItem>
+                        <MenuItem value={30}>@Dark Rider Samz_YT</MenuItem>
+                      </Select>
+                    )}
+                  />
+                  <FormHelperText>
+                    {errors.startDateOrderreleasedDate &&
+                      errors.startDateOrderreleasedDate.message}
+                  </FormHelperText>
+                </FormControl>
+              </Box>
+            </div>
+
             <div className="col-sm-12">
               <Box sx={{}}>
                 <LocalizationProvider dateAdapter={AdapterDayjs}>
                   <Controller
-                    name="TargetDate" // Make sure the name matches the field name in your form
+                    name="targetDate" // Make sure the name matches the field name in your form
                     control={control}
                     defaultValue="" // Set the default value here if needed
                     rules={{ required: "Target Date is Required." }}
@@ -270,19 +276,26 @@ function AddProject() {
                       <DatePicker
                         label="Target Date"
                         {...field}
-                        error={Boolean(errors.TargetDate)}
-                        helperText={errors.TargetDate && errors.TargetDate.message}
+                        error={Boolean(errors.targetDate)}
+                        helperText={
+                          errors.targetDate && errors.targetDate.message
+                        }
                         renderInput={(props) => (
                           <TextField {...props} fullWidth />
                         )}
-                        onChange={(newValue) =>setValue("Date", dayjs(newValue).format('YYYY-MM-DD')) }
+                        onChange={(newValue) =>
+                          setValue(
+                            "targetDate",
+                            dayjs(newValue).format("YYYY-MM-DD")
+                          )
+                        }
                         format="YYYY-MM-DD"
                       />
                     )}
                   />
                 </LocalizationProvider>
-                <FormHelperText> 
-                  {errors.TargetDate && errors.TargetDate.message}
+                <FormHelperText>
+                  {errors.targetDate && errors.targetDate.message}
                 </FormHelperText>
               </Box>
             </div>
@@ -290,24 +303,22 @@ function AddProject() {
             <div className="col-sm-12">
               <Controller
                 control={control}
-                name=" AllotatedHours"
-                rules={{ required: " Allotated Hours is required." }}
+                name="allotatedHours"
+                defaultValue=""
+                rules={{ required: "Allotated Hours is required." }}
                 render={({ field }) => (
-                  <Box>
-                    <TextField
-                      fullWidth
-                      id="outlined-basic fullWidth"
-                      label=" Allotated Hours"
-                      variant="outlined"
-                      InputLabelProps={{
-                        shrink: true,
-                      }}
-                      {...field}
-                      error={Boolean(errors.AllotatedHours)}
-                      helperText={errors.AllotatedHours && errors.AllotatedHours.message}
-                      type="number"
-                    />
-                  </Box>
+                  <TextField
+                    fullWidth
+                    id="outlined-basic fullWidth"
+                    label="Allotated Hours"
+                    variant="outlined"
+                    {...field}
+                    error={Boolean(errors.allotatedHours)}
+                    helperText={
+                      errors.allotatedHours && errors.allotatedHours.message
+                    }
+                    type="number"
+                  />
                 )}
               />
             </div>
@@ -317,7 +328,7 @@ function AddProject() {
           </button>
         </form>
       </div>
-    </div> 
+    </div>
   );
 }
 

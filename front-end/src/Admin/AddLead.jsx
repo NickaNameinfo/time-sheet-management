@@ -13,25 +13,24 @@ import {
 } from "@mui/material";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
-import dayjs from 'dayjs';
+import dayjs from "dayjs";
 
 function AddLead() {
   const {
     handleSubmit,
     control,
     formState: { errors },
-    setValue
+    setValue,
   } = useForm();
   const navigate = useNavigate();
   const onSubmit = (data) => {
     console.log(data, "tests213");
-    // Perform any other actions you want with the form data
-    // axios
-    //   .post("http://localhost:8081/create", data)
-    //   .then((res) => {
-    //     navigate("/Dashboard/employee");
-    //   })
-    //   .catch((err) => console.log(err));
+    axios
+      .post("http://localhost:8081/lead/create", data)
+      .then((res) => {
+        navigate("/Dashboard/lead");
+      })
+      .catch((err) => console.log(err));
   };
 
   return (
@@ -41,14 +40,14 @@ function AddLead() {
 
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="gy-3 row">
-           
-
-		  <div className="col-sm-12">
+            <div className="col-sm-12">
               <Box sx={{}}>
                 <FormControl fullWidth>
-                  <InputLabel id="demo-simple-select-label">Select Name</InputLabel>
-                  <Controller 
-                    name="Name" // Make sure the name matches the field name in your form
+                  <InputLabel id="demo-simple-select-label">
+                    Select Name
+                  </InputLabel>
+                  <Controller
+                    name="leadName" // Make sure the name matches the field name in your form
                     control={control}
                     rules={{ required: "Name is Required." }}
                     defaultValue="" // Set the default value here if needed
@@ -58,7 +57,7 @@ function AddLead() {
                         id="demo-simple-select"
                         label="Select Designation"
                         {...field}
-                        error={Boolean(errors.Name)}
+                        error={Boolean(errors.leadName)}
                       >
                         <MenuItem value={10}>sam</MenuItem>
                         <MenuItem value={20}>Samz</MenuItem>
@@ -71,15 +70,15 @@ function AddLead() {
                     )}
                   />
                   <FormHelperText>
-                    {errors.Name && errors.Name.message}
+                    {errors.leadName && errors.leadName.message}
                   </FormHelperText>
                 </FormControl>
               </Box>
             </div>
-          <div className="col-sm-12">
+            <div className="col-sm-12">
               <Controller
                 control={control}
-                name="Teamname"
+                name="teamName"
                 rules={{ required: "Name is required." }}
                 render={({ field }) => (
                   <Box>
@@ -90,8 +89,8 @@ function AddLead() {
                       variant="outlined"
                       type="text"
                       {...field}
-                      error={Boolean(errors.Teamname)}
-                      helperText={errors.Teamname && errors.Teamname.message}
+                      error={Boolean(errors.teamName)}
+                      helperText={errors.teamName && errors.teamName.message}
                     />
                   </Box>
                 )}
@@ -101,7 +100,7 @@ function AddLead() {
             <div className="col-sm-12">
               <Controller
                 control={control}
-                name="Username"
+                name="userName"
                 rules={{ required: "Username is required." }}
                 render={({ field }) => (
                   <Box>
@@ -112,8 +111,8 @@ function AddLead() {
                       variant="outlined"
                       type="text"
                       {...field}
-                      error={Boolean(errors.Username)}
-                      helperText={errors.Username && errors.Username.message}
+                      error={Boolean(errors.userName)}
+                      helperText={errors.userName && errors.userName.message}
                     />
                   </Box>
                 )}
@@ -140,18 +139,13 @@ function AddLead() {
                 )}
               />
             </div>
-
-           
-           
-
-            
           </div>
           <button type="submit" className="btn btn-primary button">
             Submit
           </button>
         </form>
       </div>
-    </div> 
+    </div>
   );
 }
 

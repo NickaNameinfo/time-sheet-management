@@ -51,6 +51,29 @@ con.connect(function (err) {
   }
 });
 
+app.post("/create", upload.single("employeeImage"), (req, res) => {
+  const sql =
+    "INSERT INTO employee (`employeeName`,`EMPID`,`employeeEmail`, `userName`,`password`, `discipline`,`designation`, `date`, `employeeImage`) VALUES (?)";
+  bcrypt.hash(req.body.password.toString(), 10, (err, hash) => {
+    if (err) return res.json({ Error: "Error in hashing password" });
+    const values = [
+      req.body.employeeName,
+      req.body.EMPID,
+      req.body.employeeEmail,
+      req.body.userName,
+      hash,
+      req.body.discipline,
+      req.body.designation,
+      req.body.date,
+      req.file.filename,
+    ];
+    con.query(sql, [values], (err, result) => {
+      if (err) return res.json({ Error: "Inside singup query" });
+      return res.json({ Status: "Success" });
+    });
+  });
+});
+
 app.get("/getEmployee", (req, res) => {
   const sql = "SELECT * FROM employee";
   con.query(sql, (err, result) => {
@@ -70,8 +93,8 @@ app.get("/get/:id", (req, res) => {
 
 app.put("/update/:id", (req, res) => {
   const id = req.params.id;
-  const sql = "UPDATE employee set salary = ? WHERE id = ?";
-  con.query(sql, [req.body.salary, id], (err, result) => {
+  const sql = "UPDATE employee set userNname = ? WHERE id = ?";
+  con.query(sql, [req.body.userNname, id], (err, result) => {
     if (err) return res.json({ Error: "update employee error in sql" });
     return res.json({ Status: "Success" });
   });
@@ -113,14 +136,6 @@ app.get("/adminCount", (req, res) => {
 });
 app.get("/employeeCount", (req, res) => {
   const sql = "Select count(id) as employee from employee";
-  con.query(sql, (err, result) => {
-    if (err) return res.json({ Error: "Error in runnig query" });
-    return res.json(result);
-  });
-});
-
-app.get("/salary", (req, res) => {
-  const sql = "Select sum(salary) as sumOfSalary from employee";
   con.query(sql, (err, result) => {
     if (err) return res.json({ Error: "Error in runnig query" });
     return res.json(result);
@@ -178,6 +193,105 @@ app.post("/employeelogin", (req, res) => {
   });
 });
 
+//teamLead Oprationss
+
+app.post("/lead/create", upload.single("image"), (req, res) => {
+  const sql =
+    "INSERT INTO team_lead (`leadName`,`teamName`,`userName`, `password`) VALUES (?)";
+  bcrypt.hash(req.body.password.toString(), 10, (err, hash) => {
+    if (err) return res.json({ Error: "Error in hashing password" });
+    const values = [
+      req.body.leadName,
+      req.body.teamName,
+      req.body.userName,
+      hash,
+    ];
+    con.query(sql, [values], (err, result) => {
+      if (err) return res.json({ Error: "Inside singup query" });
+      return res.json({ Status: "Success" });
+    });
+  });
+});
+
+app.get("/getLead", (req, res) => {
+  const sql = "SELECT * FROM team_lead";
+  con.query(sql, (err, result) => {
+    if (err) return res.json({ Error: "Get employee error in sql" });
+    return res.json({ Status: "Success", Result: result });
+  });
+});
+
+app.delete("/lead/delete/:id", (req, res) => {
+  const id = req.params.id;
+  const sql = "Delete FROM team_lead WHERE id = ?";
+  con.query(sql, [id], (err, result) => {
+    if (err) return res.json({ Error: "delete employee error in sql" });
+    return res.json({ Status: "Success" });
+  });
+});
+
+app.post("/teamLeadlogin", (req, res) => {
+  const sql = "SELECT * FROM team_lead Where email = ?";
+  con.query(sql, [req.body.email], (err, result) => {
+    if (err)
+      return res.json({ Status: "Error", Error: "Error in runnig query" });
+    if (result.length > 0) {
+      bcrypt.compare(
+        req.body.password.toString(),
+        result[0].password,
+        (err, response) => {
+          if (err) return res.json({ Error: "password error" });
+          if (response) {
+            const token = jwt.sign(
+              { role: "teamLead", id: result[0].id },
+              "jwt-secret-key",
+              { expiresIn: "1d" }
+            );
+            res.cookie("token", token);
+            return res.json({ Status: "Success", id: result[0].id });
+          } else {
+            return res.json({
+              Status: "Error",
+              Error: "Wrong Email or Password",
+            });
+          }
+        }
+      );
+    } else {
+      return res.json({ Status: "Error", Error: "Wrong Email or Password" });
+    }
+  });
+});
+
+//Hr Api
+app.post("/hr/create", (req, res) => {
+  const sql = "INSERT INTO hr (`hrName`,`userName`,`password`) VALUES (?)";
+  bcrypt.hash(req.body.password.toString(), 10, (err, hash) => {
+    if (err) return res.json({ Error: "Error in hashing password" });
+    const values = [req.body.hrName, req.body.userName, hash];
+    con.query(sql, [values], (err, result) => {
+      if (err) return res.json({ Error: "Inside singup query" });
+      return res.json({ Status: "Success" });
+    });
+  });
+});
+
+app.get("/getHr", (req, res) => {
+  const sql = "SELECT * FROM hr";
+  con.query(sql, (err, result) => {
+    if (err) return res.json({ Error: "Get employee error in sql" });
+    return res.json({ Status: "Success", Result: result });
+  });
+});
+
+app.delete("/hr/delete/:id", (req, res) => {
+  const id = req.params.id;
+  const sql = "Delete FROM hr WHERE id = ?";
+  con.query(sql, [id], (err, result) => {
+    if (err) return res.json({ Error: "delete hr error in sql" });
+    return res.json({ Status: "Success" });
+  });
+});
 
 app.post("/hrLogin", (req, res) => {
   const sql = "SELECT * FROM hr Where email = ?";
@@ -212,132 +326,26 @@ app.post("/hrLogin", (req, res) => {
   });
 });
 
-// app.get('/employee/:id', (req, res) => {
-//     const id = req.params.id;
-//     const sql = "SELECT * FROM employee where id = ?";
-//     con.query(sql, [id], (err, result) => {
-//         if(err) return res.json({Error: "Get employee error in sql"});
-//         return res.json({Status: "Success", Result: result})
-//     })
-// })
-
-app.get("/logout", (req, res) => {
-  res.clearCookie("token");
-  return res.json({ Status: "Success" });
-});
-
-app.post("/create", upload.single("image"), (req, res) => {
-  const sql =
-    "INSERT INTO employee (`name`,`email`,`password`, `address`, `salary`,`image`) VALUES (?)";
-  bcrypt.hash(req.body.password.toString(), 10, (err, hash) => {
-    if (err) return res.json({ Error: "Error in hashing password" });
-    const values = [
-      req.body.name,
-      req.body.email,
-      hash,
-      req.body.address,
-      req.body.salary,
-      req.file.filename,
-    ];
-    con.query(sql, [values], (err, result) => {
-      if (err) return res.json({ Error: "Inside singup query" });
-      return res.json({ Status: "Success" });
-    });
-  });
-});
-
-app.listen(8081, () => {
-  console.log("Running");
-});
-
-
-//teamLead Oprationss
-app.post("/teamLeadlogin", (req, res) => {
-  const sql = "SELECT * FROM team_lead Where email = ?";
-  con.query(sql, [req.body.email], (err, result) => {
-    if (err)
-      return res.json({ Status: "Error", Error: "Error in runnig query" });
-    if (result.length > 0) {
-      bcrypt.compare(
-        req.body.password.toString(),
-        result[0].password,
-        (err, response) => {
-          if (err) return res.json({ Error: "password error" });
-          if (response) {
-            const token = jwt.sign(
-              { role: "teamLead", id: result[0].id },
-              "jwt-secret-key",
-              { expiresIn: "1d" }
-            );
-            res.cookie("token", token);
-            return res.json({ Status: "Success", id: result[0].id });
-          } else {
-            return res.json({
-              Status: "Error",
-              Error: "Wrong Email or Password",
-            });
-          }
-        }
-      );
-    } else {
-      return res.json({ Status: "Error", Error: "Wrong Email or Password" });
-    }
-  });
-});
-
-app.post("/lead/create", upload.single("image"), (req, res) => {
-  const sql =
-    "INSERT INTO team_lead (`name`,`email`,`password`, `address`,`image`) VALUES (?)";
-  bcrypt.hash(req.body.password.toString(), 10, (err, hash) => {
-    if (err) return res.json({ Error: "Error in hashing password" });
-    const values = [
-      req.body.name,
-      req.body.email,
-      hash,
-      req.body.address,
-      req.file.filename,
-    ];
-    con.query(sql, [values], (err, result) => {
-      if (err) return res.json({ Error: "Inside singup query" });
-      return res.json({ Status: "Success" });
-    });
-  });
-});
-
-app.get("/getLead", (req, res) => {
-  const sql = "SELECT * FROM team_lead";
-  con.query(sql, (err, result) => {
-    if (err) return res.json({ Error: "Get employee error in sql" });
-    return res.json({ Status: "Success", Result: result });
-  });
-});
-
-app.delete("/lead/delete/:id", (req, res) => {
-  const id = req.params.id;
-  const sql = "Delete FROM team_lead WHERE id = ?";
-  con.query(sql, [id], (err, result) => {
-    if (err) return res.json({ Error: "delete employee error in sql" });
-    return res.json({ Status: "Success" });
-  });
-});
-
 //Projects Apis
-app.post("/project/create", upload.single("image"), (req, res) => {
+app.post("/project/create", (req, res) => {
   const sql =
-    "INSERT INTO project (`name`,`email`,`password`, `address`,`image`) VALUES (?)";
-  bcrypt.hash(req.body.password.toString(), 10, (err, hash) => {
-    if (err) return res.json({ Error: "Error in hashing password" });
-    const values = [
-      req.body.name,
-      req.body.email,
-      hash,
-      req.body.address,
-      req.file.filename,
-    ];
-    con.query(sql, [values], (err, result) => {
-      if (err) return res.json({ Error: "Inside singup query" });
-      return res.json({ Status: "Success" });
-    });
+    "INSERT INTO project (`tlName`,`orderId`,`positionNumber`, `subPositionNumber`,`projectNo`,`taskJobNo`,`prjectName`,`subDivision`,`startDateOrderreleasedDate`,`targetDate`,`allotatedHours`) VALUES (?)";
+  const values = [
+    req.body.tlName,
+    req.body.orderId,
+    req.body.positionNumber,
+    req.body.subPositionNumber,
+    req.body.projectNo,
+    req.body.taskJobNo,
+    req.body.prjectName,
+    req.body.subDivision,
+    req.body.startDateOrderreleasedDate,
+    req.body.targetDate,
+    req.body.allotatedHours,
+  ];
+  con.query(sql, [values], (err, result) => {
+    if (err) return res.json({ Error: "Inside singup query" });
+    return res.json({ Status: "Success" });
   });
 });
 
@@ -358,42 +366,11 @@ app.delete("/project/delete/:id", (req, res) => {
   });
 });
 
-
-//Hr 
-
-
-app.post("/hr/create", upload.single("image"), (req, res) => {
-  const sql =
-    "INSERT INTO hr (`name`,`email`,`password`, `address`,`image`) VALUES (?)";
-  bcrypt.hash(req.body.password.toString(), 10, (err, hash) => {
-    if (err) return res.json({ Error: "Error in hashing password" });
-    const values = [
-      req.body.name,
-      req.body.email,
-      hash,
-      req.body.address,
-      req.file.filename,
-    ];
-    con.query(sql, [values], (err, result) => {
-      if (err) return res.json({ Error: "Inside singup query" });
-      return res.json({ Status: "Success" });
-    });
-  });
+app.get("/logout", (req, res) => {
+  res.clearCookie("token");
+  return res.json({ Status: "Success" });
 });
 
-app.get("/getHr", (req, res) => {
-  const sql = "SELECT * FROM hr";
-  con.query(sql, (err, result) => {
-    if (err) return res.json({ Error: "Get employee error in sql" });
-    return res.json({ Status: "Success", Result: result });
-  });
-});
-
-app.delete("/hr/delete/:id", (req, res) => {
-  const id = req.params.id;
-  const sql = "Delete FROM hr WHERE id = ?";
-  con.query(sql, [id], (err, result) => {
-    if (err) return res.json({ Error: "delete hr error in sql" });
-    return res.json({ Status: "Success" });
-  });
+app.listen(8081, () => {
+  console.log("Running");
 });
