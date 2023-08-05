@@ -14,7 +14,7 @@ function Dashboard() {
           navigate("/Dashboard");
         }
       } else {
-        // navigate('/start')
+        navigate('/start')
       }
     });
   }, []);

@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 
 function HrLogin() {
   const [values, setValues] = useState({
-    email: "",
+    userName: "",
     password: "",
   });
   axios.defaults.withCredentials = true;
@@ -36,13 +36,13 @@ function HrLogin() {
         <form onSubmit={handleSubmit}>
           <div className="mb-3">
             <label htmlFor="email">
-              <strong>Email</strong>
+              <strong>User Name</strong>
             </label>
             <input
-              type="email"
+              type="userName"
               placeholder="Enter Email"
-              name="email"
-              onChange={(e) => setValues({ ...values, email: e.target.value })}
+              name="userName"
+              onChange={(e) => setValues({ ...values, userName: e.target.value })}
               className="form-control rounded-0"
               autoComplete="off"
             />

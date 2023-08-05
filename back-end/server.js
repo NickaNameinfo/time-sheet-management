@@ -143,8 +143,8 @@ app.get("/employeeCount", (req, res) => {
 });
 
 app.post("/login", (req, res) => {
-  const sql = "SELECT * FROM users Where email = ? AND  password = ?";
-  con.query(sql, [req.body.email, req.body.password], (err, result) => {
+  const sql = "SELECT * FROM users Where userName = ? AND  password = ?";
+  con.query(sql, [req.body.userName, req.body.password], (err, result) => {
     if (err)
       return res.json({ Status: "Error", Error: "Error in runnig query" });
     if (result.length > 0) {
@@ -155,14 +155,14 @@ app.post("/login", (req, res) => {
       res.cookie("token", token);
       return res.json({ Status: "Success" });
     } else {
-      return res.json({ Status: "Error", Error: "Wrong Email or Password" });
+      return res.json({ Status: "Error", Error: "Wrong userName or Password" });
     }
   });
 });
 
 app.post("/employeelogin", (req, res) => {
-  const sql = "SELECT * FROM employee Where email = ?";
-  con.query(sql, [req.body.email], (err, result) => {
+  const sql = "SELECT * FROM employee Where userName = ?";
+  con.query(sql, [req.body.userName], (err, result) => {
     if (err)
       return res.json({ Status: "Error", Error: "Error in runnig query" });
     if (result.length > 0) {
@@ -231,8 +231,8 @@ app.delete("/lead/delete/:id", (req, res) => {
 });
 
 app.post("/teamLeadlogin", (req, res) => {
-  const sql = "SELECT * FROM team_lead Where email = ?";
-  con.query(sql, [req.body.email], (err, result) => {
+  const sql = "SELECT * FROM team_lead Where userName = ?";
+  con.query(sql, [req.body.userName], (err, result) => {
     if (err)
       return res.json({ Status: "Error", Error: "Error in runnig query" });
     if (result.length > 0) {
@@ -294,8 +294,9 @@ app.delete("/hr/delete/:id", (req, res) => {
 });
 
 app.post("/hrLogin", (req, res) => {
-  const sql = "SELECT * FROM hr Where email = ?";
-  con.query(sql, [req.body.email], (err, result) => {
+  const sql = "SELECT * FROM hr Where userName = ?";
+  con.query(sql, [req.body.userName], (err, result) => {
+    console.log(result, "resultresult")
     if (err)
       return res.json({ Status: "Error", Error: "Error in runnig query" });
     if (result.length > 0) {
@@ -315,7 +316,7 @@ app.post("/hrLogin", (req, res) => {
           } else {
             return res.json({
               Status: "Error",
-              Error: "Wrong Email or Password",
+              Error: "Wrong userName or Password",
             });
           }
         }
