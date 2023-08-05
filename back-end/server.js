@@ -52,25 +52,59 @@ con.connect(function (err) {
 });
 
 app.post("/create", upload.single("employeeImage"), (req, res) => {
+  // Check if the userName already exists in the database
+  const checkUserNameSql =
+    "SELECT COUNT(*) AS count FROM employee WHERE `userName` = ?";
+  con.query(checkUserNameSql, [req.body.userName], (err, result) => {
+    if (err) {
+      return res.json({ Error: "Error in checking userName" });
+    }
+    if (result[0].count > 0) {
+      // If the userName already exists, return an error message
+      return res.json({ Error: "userName already exists" });
+    } else {
+      // If the userName doesn't exist, proceed with the insert operation
+      const sql =
+        "INSERT INTO employee (`employeeName`, `EMPID`, `employeeEmail`, `userName`, `password`, `discipline`, `designation`, `date`, `employeeImage`) VALUES (?)";
+      bcrypt.hash(req.body.password.toString(), 10, (err, hash) => {
+        if (err) return res.json({ Error: "Error in hashing password" });
+        const values = [
+          req.body.employeeName,
+          req.body.EMPID,
+          req.body.employeeEmail,
+          req.body.userName,
+          hash,
+          req.body.discipline,
+          req.body.designation,
+          req.body.date,
+          req.file.filename,
+        ];
+        con.query(sql, [values], (err, result) => {
+          if (err) return res.json({ Error: "Error in signup query" });
+          return res.json({ Status: "Success" });
+        });
+      });
+    }
+  });
+});
+
+app.post("/applyLeave", (req, res) => {
   const sql =
-    "INSERT INTO employee (`employeeName`,`EMPID`,`employeeEmail`, `userName`,`password`, `discipline`,`designation`, `date`, `employeeImage`) VALUES (?)";
-  bcrypt.hash(req.body.password.toString(), 10, (err, hash) => {
-    if (err) return res.json({ Error: "Error in hashing password" });
-    const values = [
-      req.body.employeeName,
-      req.body.EMPID,
-      req.body.employeeEmail,
-      req.body.userName,
-      hash,
-      req.body.discipline,
-      req.body.designation,
-      req.body.date,
-      req.file.filename,
-    ];
-    con.query(sql, [values], (err, result) => {
-      if (err) return res.json({ Error: "Inside singup query" });
-      return res.json({ Status: "Success" });
-    });
+    "INSERT INTO leavedetails (`leaveType`,`leaveFrom`,`leaveTo`, `leaveHours`,`reason`, `leaveStatus`,`employeeName`, `totalLeaves`) VALUES (?)";
+  if (err) return res.json({ Error: "Error in hashing password" });
+  const values = [
+    req.body.leaveType,
+    req.body.leaveFrom,
+    req.body.leaveTo,
+    req.body.leaveHours,
+    req.body.reason,
+    req.body.leaveStatus,
+    req.body.employeeName,
+    req.file.totalLeaves,
+  ];
+  con.query(sql, [values], (err, result) => {
+    if (err) return res.json({ Error: "Inside Leave Query" });
+    return res.json({ Status: "Success" });
   });
 });
 
@@ -196,20 +230,31 @@ app.post("/employeelogin", (req, res) => {
 //teamLead Oprationss
 
 app.post("/lead/create", upload.single("image"), (req, res) => {
-  const sql =
-    "INSERT INTO team_lead (`leadName`,`teamName`,`userName`, `password`) VALUES (?)";
-  bcrypt.hash(req.body.password.toString(), 10, (err, hash) => {
-    if (err) return res.json({ Error: "Error in hashing password" });
-    const values = [
-      req.body.leadName,
-      req.body.teamName,
-      req.body.userName,
-      hash,
-    ];
-    con.query(sql, [values], (err, result) => {
-      if (err) return res.json({ Error: "Inside singup query" });
-      return res.json({ Status: "Success" });
-    });
+  const checkUserNameSql =
+    "SELECT COUNT(*) AS count FROM team_lead WHERE  `userName` = ?";
+  con.query(checkUserNameSql, [req.body.userName], (err, result) => {
+    if (err) {
+      return res.json({ Error: "Error in checking UserName" });
+    }
+    if (result[0]?.count > 0) {
+      return res.json({ Error: "userName already exists" });
+    } else {
+      const sql =
+        "INSERT INTO team_lead (`leadName`,`teamName`,`userName`, `password`) VALUES (?)";
+      bcrypt.hash(req.body.password.toString(), 10, (err, hash) => {
+        if (err) return res.json({ Error: "Error in hashing password" });
+        const values = [
+          req.body.leadName,
+          req.body.teamName,
+          req.body.userName,
+          hash,
+        ];
+        con.query(sql, [values], (err, result) => {
+          if (err) return res.json({ Error: "Inside singup query" });
+          return res.json({ Status: "Success" });
+        });
+      });
+    }
   });
 });
 
@@ -252,27 +297,38 @@ app.post("/teamLeadlogin", (req, res) => {
           } else {
             return res.json({
               Status: "Error",
-              Error: "Wrong Email or Password",
+              Error: "Wrong userName or Password",
             });
           }
         }
       );
     } else {
-      return res.json({ Status: "Error", Error: "Wrong Email or Password" });
+      return res.json({ Status: "Error", Error: "Wrong userName or Password" });
     }
   });
 });
 
 //Hr Api
 app.post("/hr/create", (req, res) => {
-  const sql = "INSERT INTO hr (`hrName`,`userName`,`password`) VALUES (?)";
-  bcrypt.hash(req.body.password.toString(), 10, (err, hash) => {
-    if (err) return res.json({ Error: "Error in hashing password" });
-    const values = [req.body.hrName, req.body.userName, hash];
-    con.query(sql, [values], (err, result) => {
-      if (err) return res.json({ Error: "Inside singup query" });
-      return res.json({ Status: "Success" });
-    });
+  const checkUserNameSql =
+    "SELECT COUNT(*) AS count FORM hr WHERE `userName` = ?";
+  con.query(checkUserNameSql, [req.body.userName], (err, result) => {
+    if (err) {
+      return res.json({ Error: "Error in checking userName" });
+    }
+    if (result[0].count > 0) {
+      return res.json.apply({ Error: "userName aleady exists" });
+    } else {
+      const sql = "INSERT INTO hr (`hrName`,`userName`,`password`) VALUES (?)";
+      bcrypt.hash(req.body.password.toString(), 10, (err, hash) => {
+        if (err) return res.json({ Error: "Error in hashing password" });
+        const values = [req.body.hrName, req.body.userName, hash];
+        con.query(sql, [values], (err, result) => {
+          if (err) return res.json({ Error: "Inside singup query" });
+          return res.json({ Status: "Success" });
+        });
+      });
+    }
   });
 });
 
@@ -296,7 +352,7 @@ app.delete("/hr/delete/:id", (req, res) => {
 app.post("/hrLogin", (req, res) => {
   const sql = "SELECT * FROM hr Where userName = ?";
   con.query(sql, [req.body.userName], (err, result) => {
-    console.log(result, "resultresult")
+    console.log(result, "resultresult");
     if (err)
       return res.json({ Status: "Error", Error: "Error in runnig query" });
     if (result.length > 0) {
@@ -346,6 +402,25 @@ app.post("/project/create", (req, res) => {
   ];
   con.query(sql, [values], (err, result) => {
     if (err) return res.json({ Error: "Inside singup query" });
+    return res.json({ Status: "Success" });
+  });
+});
+
+app.post("/project/addWorkDetails", (req, res) => {
+  const sql =
+    "INSERT INTO workdetails (`employeeName`,`projectName`,`tlName`, `taskNo`,`areaofWork`,`workDate`,`workHour`,`totalHours`) VALUES (?)";
+  const values = [
+    req.body.employeeName,
+    req.body.projectName,
+    req.body.tlName,
+    req.body.taskNo,
+    req.body.areaofWork,
+    req.body.workDate,
+    req.body.workHour,
+    req.body.totalHours,
+  ];
+  con.query(sql, [values], (err, result) => {
+    if (err) return res.json({ Error: "Inside Work Details Project Query" });
     return res.json({ Status: "Success" });
   });
 });

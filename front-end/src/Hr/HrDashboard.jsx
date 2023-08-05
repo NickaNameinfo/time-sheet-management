@@ -23,7 +23,7 @@ function HrDashboard() {
   return (
     <div className="container-fluid">
       <div className="row flex-nowrap">
-        <div className="col-auto col-md-3 col-xl-2 px-sm-2 px-0 bg-dark">
+        <div className="col-auto col-md-3 col-xl-2 px-sm-2 px-0 sideBar">
         <div className="text-center">
             <img src="./src/assets/logo.png" width={100} />
           </div>

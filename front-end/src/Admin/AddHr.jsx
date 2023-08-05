@@ -25,7 +25,11 @@ function AddHr() {
     axios
       .post("http://localhost:8081/hr/create", data)
       .then((res) => {
-        navigate("/Dashboard/hr");
+        if (res.data.Error) {
+          alert(res.data.Error);
+        } else {
+          navigate("/Dashboard/hr");
+        }
       })
       .catch((err) => console.log(err));
   };

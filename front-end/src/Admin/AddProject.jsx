@@ -29,7 +29,11 @@ function AddProject() {
     axios
       .post("http://localhost:8081/project/create", data)
       .then((res) => {
-        navigate("/Dashboard/Projects");
+        if (res.data.Error) {
+          alert(res.data.Error);
+        } else {
+          navigate("/Dashboard/Projects");
+        }
       })
       .catch((err) => console.log(err));
   };
