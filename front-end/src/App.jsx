@@ -29,6 +29,7 @@ import HrHome from "./Hr/HrHome";
 import EmployeeHr from "./Hr/EmployeeHr";
 import AddEmployeeHr from "./Hr/AddEmployeeHr";
 import EditEmployeeHr from "./Hr/EditEmployeeHr";
+import AddProjectDetails from "./Employee/addProjectDetails";
 
 function App() {
   return (
@@ -55,7 +56,7 @@ function App() {
 
         <Route path="/Employee" element={<EmployeeDashboard />}>
           <Route path="" index element={<EmployeeHome />}></Route>
-          <Route path="/Employee/ProjectDetails" element={<p>Project Details</p>}></Route>
+          <Route path="/Employee/ProjectDetails" element={<AddProjectDetails />}></Route>
           <Route path="/Employee/Leaves" element={<p>Leave Details</p>}></Route>
         </Route>
 

@@ -28,7 +28,11 @@ function AddLead() {
     axios
       .post("http://localhost:8081/lead/create", data)
       .then((res) => {
-        navigate("/Dashboard/lead");
+        if (res.data.Error) {
+          alert(res.data.Error);
+        } else {
+          navigate("/Dashboard/lead");
+        }
       })
       .catch((err) => console.log(err));
   };

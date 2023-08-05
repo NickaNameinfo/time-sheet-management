@@ -23,7 +23,6 @@ function AddEmployee() {
     setValue,
   } = useForm();
   const navigate = useNavigate();
-
   const onSubmit = (data) => {
     const formdata = new FormData();
     // Append all fields except for the file input
@@ -39,7 +38,12 @@ function AddEmployee() {
     axios
       .post("http://localhost:8081/create", formdata)
       .then((res) => {
-        navigate("/Dashboard/employee");
+        if (res.data.Error) {
+          alert(res.data.Error)
+        } else {
+          navigate("/Dashboard/employee");
+        }
+        console.log(res.data.Error, "sadfasd");
       })
       .catch((err) => console.log(err));
   };

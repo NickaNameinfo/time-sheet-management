@@ -23,7 +23,7 @@ function TeamLeadDashboard() {
   return (
     <div className="container-fluid">
       <div className="row flex-nowrap">
-        <div className="col-auto col-md-3 col-xl-2 px-sm-2 px-0 bg-dark">
+        <div className="col-auto col-md-3 col-xl-2 px-sm-2 px-0 sideBar">
           <div className="text-center">
             <img src="./src/assets/logo.png" width={100} />
           </div>
@@ -84,9 +84,9 @@ function TeamLeadDashboard() {
           </div>
         </div>
         <div class="col p-0 m-0">
-          <div className="p-2 d-flex justify-content-center shadow">
+          {/* <div className="p-2 d-flex justify-content-center shadow">
             <h4>Employee Management System</h4>
-          </div>
+          </div> */}
           <Outlet />
         </div>
       </div>
