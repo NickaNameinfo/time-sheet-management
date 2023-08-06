@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
@@ -23,6 +23,22 @@ function AddLead() {
     setValue,
   } = useForm();
   const navigate = useNavigate();
+  const [empList, setEmpList] = useState(null);
+  console.log(empList, "empList");
+  useEffect((params) => {
+    axios
+      .get("http://localhost:8081/getEmployee")
+      .then((res) => {
+        if (res.data.Status === "Success") {
+          console.log(res.data.Result, "setEmpListsetEmpList");
+          setEmpList(res.data.Result.map((employee) => employee.employeeName));
+        } else {
+          alert("Error");
+        }
+      })
+      .catch((err) => console.log(err));
+  }, []);
+
   const onSubmit = (data) => {
     console.log(data, "tests213");
     axios
@@ -63,13 +79,9 @@ function AddLead() {
                         {...field}
                         error={Boolean(errors.leadName)}
                       >
-                        <MenuItem value={10}>sam</MenuItem>
-                        <MenuItem value={20}>Samz</MenuItem>
-                        <MenuItem value={30}>Dark Rider</MenuItem>
-                        <MenuItem value={30}>Dark Rider Samz</MenuItem>
-                        <MenuItem value={30}>#Dark Rider Samz</MenuItem>
-                        <MenuItem value={30}>@Dark Rider Samz</MenuItem>
-                        <MenuItem value={30}>@Dark Rider Samz_YT</MenuItem>
+                        {empList?.map((res) => (
+                          <MenuItem value={res}>{res}</MenuItem>
+                        ))}
                       </Select>
                     )}
                   />

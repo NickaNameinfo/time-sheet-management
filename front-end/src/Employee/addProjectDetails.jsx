@@ -41,7 +41,7 @@ function AddProjectDetails() {
   return (
     <div className="mainBody">
       <div className="mt-4">
-        <h2 className="heading">Manage Project</h2>
+        <h2 className="heading">Add Project Work Details </h2>
 
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="gy-3 row">

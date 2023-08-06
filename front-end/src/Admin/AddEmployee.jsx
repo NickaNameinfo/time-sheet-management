@@ -43,7 +43,6 @@ function AddEmployee() {
         } else {
           navigate("/Dashboard/employee");
         }
-        console.log(res.data.Error, "sadfasd");
       })
       .catch((err) => console.log(err));
   };

@@ -125,3 +125,19 @@ form {
     padding: 12px 23px;
     margin: 20px 0px;
 }
+
+.min-vh-91 {
+    min-height: 90.7vh!important;
+}
+.addBtn a {
+    color: white;
+    background: #F44336;
+}
+.addBtn {
+    text-align: right;
+    margin: 10px 0px;
+    display: flex;
+    justify-content: space-between;
+    padding: 0px 10px;
+}
+
