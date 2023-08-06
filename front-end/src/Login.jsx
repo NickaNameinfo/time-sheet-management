@@ -2,20 +2,23 @@ import React, { useState } from "react";
 import "./style.css";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { Box, Button, TextField } from "@mui/material";
+import { Controller, useForm } from "react-hook-form";
 
 function Login() {
-  const [values, setValues] = useState({
-    userName: "",
-    password: "",
-  });
+  const {
+    handleSubmit,
+    control,
+    formState: { errors },
+  } = useForm();
   const navigate = useNavigate();
   axios.defaults.withCredentials = true;
   const [error, setError] = useState("");
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
+  const Submit = (data) => {
+    // event.preventDefault();
     axios
-      .post("http://localhost:8081/login", values, {
+      .post("http://localhost:8081/login", data, {
         withCredentials: true,
       })
       .then((res) => {
@@ -32,41 +35,65 @@ function Login() {
   return (
     <div className="d-flex justify-content-center align-items-center vh-100 loginPage">
       <div className="p-3 rounded w-25 border loginForm">
-        <div className="text-danger">{error && error}</div>
-        <h2>Login</h2>
-        <form onSubmit={handleSubmit}>
+        <h2 className="d-flex justify-content-center align-items-center">
+          Login
+        </h2>
+        <form onSubmit={handleSubmit(Submit)}>
           <div className="mb-3">
-            <label htmlFor="userName">
-              <strong>User Name</strong>
-            </label>
-            <input
-              type="userName"
-              placeholder="Enter userName"
+            <Controller
+              control={control}
               name="userName"
-              onChange={(e) => setValues({ ...values, userName: e.target.value })}
-              className="form-control rounded-0"
-              autoComplete="off"
+              rules={{ required: "UserName is required." }}
+              render={({ field }) => (
+                <Box>
+                  <TextField
+                    fullWidth
+                    id="outlined-basic fullWidth"
+                    label="UserName Email "
+                    variant="outlined"
+                    className="form-control rounded-0"
+                    type="email"
+                    {...field}
+                    error={Boolean(errors.userName)}
+                    helperText={errors.userName && errors.userName.message}
+                  />
+                </Box>
+              )}
             />
           </div>
           <div className="mb-3">
-            <label htmlFor="password">
-              <strong>Password</strong>
-            </label>
-            <input
-              type="password"
-              placeholder="Enter Password"
+            <Controller
+              control={control}
               name="password"
-              onChange={(e) =>
-                setValues({ ...values, password: e.target.value })
-              }
-              className="form-control rounded-0"
+              rules={{ required: "password is Reqiured." }}
+              render={({ field }) => (
+                <Box sx={{}}>
+                  <TextField
+                    fullWidth
+                    id="outlined-basic fullWidth"
+                    label="Enter password "
+                    variant="outlined"
+                    className="form-control rounded-0"
+                    type="password"
+                    {...field}
+                    error={Boolean(errors.password)}
+                    helperText={errors.password && errors.password.message}
+                  />
+                </Box>
+              )}
             />
           </div>
-          <button type="submit" className="btn btn-success w-100 rounded-0">
-            {" "}
+          <small className="text-danger mb-2 d-flex justify-content-center align-items-center">
+            {error && error}
+          </small>
+
+          <Button
+            variant="contained"
+            type="submit"
+            className="btn btn-success w-100 rounded-0"
+          >
             Log in
-          </button>
-          <p>You are agree to aour terms and policies</p>
+          </Button>
         </form>
       </div>
     </div>

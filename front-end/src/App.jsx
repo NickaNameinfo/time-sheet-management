@@ -30,6 +30,7 @@ import EmployeeHr from "./Hr/EmployeeHr";
 import AddEmployeeHr from "./Hr/AddEmployeeHr";
 import EditEmployeeHr from "./Hr/EditEmployeeHr";
 import AddProjectDetails from "./Employee/addProjectDetails";
+import AddLeaveDetails from "./Employee/addLeaveDetails";
 
 function App() {
   return (
@@ -57,7 +58,8 @@ function App() {
         <Route path="/Employee" element={<EmployeeDashboard />}>
           <Route path="" index element={<EmployeeHome />}></Route>
           <Route path="/Employee/ProjectDetails" element={<AddProjectDetails />}></Route>
-          <Route path="/Employee/Leaves" element={<p>Leave Details</p>}></Route>
+          <Route path="/Employee/Leaves" element={<AddLeaveDetails/>}></Route>
+          
         </Route>
 
         <Route path="/TeamLead" element={<TeamLeadDashboard />}>
