@@ -9,7 +9,7 @@ div#root {
 }
 .loginPage {
     background: url('./assets/back.jpg');
-    background: linear-gradient(rgba(11, 11, 11, 0.5), rgba(10, 10, 10, 0.5)), url("./assets/back.jpg");
+    background:linear-gradient(-125deg, #fe350073 47%, #514c4eb5 41%), url(/src/assets/back.jpg);
     background-position: center;
     background-repeat: no-repeat;
     background-size: 100% 120%;
@@ -58,10 +58,6 @@ div#root {
     width: 100%;
     margin-top: 10px;
     border-radius: 10px;
-}
-.btn-primary {
-    background: #fe3500 !important;
-    border: none !important;
 }
 
 .counterCard {
@@ -127,7 +123,7 @@ form {
 }
 
 .min-vh-91 {
-    min-height: 90.7vh!important;
+    min-height: 89vh!important;
 }
 .addBtn a {
     color: white;
@@ -135,9 +131,47 @@ form {
 }
 .addBtn {
     text-align: right;
-    margin: 10px 0px;
     display: flex;
     justify-content: space-between;
     padding: 0px 10px;
 }
-
+.startDesign {
+    background: linear-gradient(45deg, #ffffff 51%, #514c4e 10%);
+    border-radius: 10px;
+    padding: 35px;
+}
+.loginSection button {
+    width: 43%;
+    margin: 35px 10px;
+}
+.btn-success {
+    background: white !important;
+    color: #514c4e !important;
+    border: none !important;
+    font-weight: bold !important;
+    font-size: 16px !important;
+}
+.btn-primary {
+    background: #fe3500 !important;
+    border: none !important;
+    font-weight: bold !important;
+    font-size: 16px !important;
+}
+.actions i {
+    color: #fdfdfd;
+    background: #fe3500;
+    font-size: 20px;
+    padding: 4px;
+    margin: 2px;
+    cursor: pointer;
+    border-radius: 3px;
+}
+.actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 100%;
+}
+.formDesign{
+    margin: 0px !important;
+}

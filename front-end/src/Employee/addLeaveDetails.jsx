@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
@@ -21,18 +21,39 @@ function addLeaveDetails() {
     control,
     formState: { errors },
     setValue,
+    watch,
   } = useForm();
   const navigate = useNavigate();
+  let formData = watch();
+
+  console.log(formData, "formData");
+
+  useEffect(() => {
+    axios.get("http://localhost:8081/dashboard").then((res) => {
+      setValue("employeeName", res?.data?.userName);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (formData.leaveFrom !== "" && formData?.leaveTo !== "") {
+      const timeDifference = Math.abs(
+        new Date(formData.leaveTo) - new Date(formData.leaveFrom)
+      );
+      let Difference_In_Days = timeDifference / (1000 * 3600 * 24);
+      setValue("leaveHours", Difference_In_Days);
+    }
+  }, [formData.leaveFrom, formData.leaveTo]);
+
   const onSubmit = (data) => {
     console.log(data, "tests213");
     // Perform any other actions you want with the form data
     axios
-      .post("http://localhost:8081/project/applyLeave", data)
+      .post("http://localhost:8081/applyLeave", data)
       .then((res) => {
         if (res.data.Error) {
           alert(res.data.Error);
         } else {
-          navigate("/Dashboard/Projects");
+          navigate("/employee");
         }
       })
       .catch((err) => console.log(err));
@@ -64,11 +85,8 @@ function addLeaveDetails() {
                         {...field}
                         error={Boolean(errors.leaveType)}
                       >
-                        <MenuItem value={10}>Vecation</MenuItem>
-                        <MenuItem value={20}>Sick Leave</MenuItem>
-                        <MenuItem value={30}>Sick</MenuItem>
-                        <MenuItem value={40}>COVID-19 Family Care</MenuItem>
-                        <MenuItem value={50}>COVID-19 Self Care</MenuItem>
+                        <MenuItem value={"Vecation"}>Vecation</MenuItem>
+                        <MenuItem value={"Sick Leave"}>Sick Leave</MenuItem>
                       </Select>
                     )}
                   />
@@ -78,8 +96,8 @@ function addLeaveDetails() {
                 </FormControl>
               </Box>
             </div>
-            <div className="col-sm-12 d-flex justify-content-center align-items-center">
-              <div className="col-sm-6 ">
+            <div className="col-sm-12 d-flex align-items-center">
+              <div className="col-sm-4">
                 <Box sx={{}}>
                   <LocalizationProvider dateAdapter={AdapterDayjs}>
                     <Controller
@@ -115,7 +133,7 @@ function addLeaveDetails() {
                   </FormHelperText>
                 </Box>
               </div>
-              <div className="col-sm-6 ">
+              <div className="col-sm-4">
                 <Box>
                   <LocalizationProvider dateAdapter={AdapterDayjs}>
                     <Controller
@@ -123,10 +141,10 @@ function addLeaveDetails() {
                       name="leaveTo" // Make sure the name matches the field name in your form
                       control={control}
                       defaultValue="" // Set the default value here if needed
-                      rules={{ required: "Work Date To is Required." }}
+                      rules={{ required: "Leave To is Required." }}
                       render={({ field }) => (
                         <DatePicker
-                          label="Work Date To"
+                          label="Leave To"
                           {...field}
                           error={Boolean(errors.leaveTo)}
                           helperText={errors.leaveTo && errors.leaveTo.message}

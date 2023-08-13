@@ -22,12 +22,12 @@ function HrDashboard() {
   };
   return (
     <div className="container-fluid">
-      <div className="row flex-nowrap">
+      <div className="row flex-nowrap min-vh-91">
         <div className="col-auto col-md-3 col-xl-2 px-sm-2 px-0 sideBar">
         <div className="text-center">
-            <img src="./src/assets/logo.png" width={100} />
+            <img src="http://localhost:5173/src/assets/logo.png" width={100} />
           </div>
-          <div className="d-flex flex-column align-items-center align-items-sm-start px-3 pt-2 text-white min-vh-100">
+          <div className="d-flex flex-column align-items-center align-items-sm-start px-3 pt-2 text-white">
             <a
               href="/Hr"
               className="d-flex align-items-center pb-3 mb-md-1  me-md-auto text-white text-decoration-none"

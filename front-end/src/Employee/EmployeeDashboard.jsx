@@ -6,6 +6,7 @@ import axios from "axios";
 function EmployeeDashboard() {
   const navigate = useNavigate();
   axios.defaults.withCredentials = true;
+  
   useEffect(() => {
     axios.get("http://localhost:8081/dashboard").then((res) => {
       console.log(res, "resresresres");
@@ -22,14 +23,14 @@ function EmployeeDashboard() {
   };
   return (
     <div className="container-fluid">
-      <div className="row flex-nowrap">
+      <div className="row flex-nowrap min-vh-91">
         <div className="col-auto col-md-3 col-xl-2 px-sm-2 px-0 sideBar">
-        <div className="text-center">
-            <img src="./src/assets/logo.png" width={100} />
+          <div className="text-center">
+            <img src="http://localhost:5173/src/assets/logo.png" width={100} />
           </div>
-          <div className="d-flex flex-column align-items-center align-items-sm-start px-3 pt-2 text-white min-vh-100">
+          <div className="d-flex flex-column align-items-center align-items-sm-start px-3 pt-2 text-white">
             <a
-              href="/Dashboard"
+              href="#"
               className="d-flex align-items-center pb-3 mb-md-1 me-md-auto text-white text-decoration-none"
             >
               <span className="fs-5 fw-bolder d-none d-sm-inline text-center">
@@ -56,9 +57,7 @@ function EmployeeDashboard() {
                   className="nav-link px-0 align-middle text-white"
                 >
                   <i className="fs-4 bi-people"></i>{" "}
-                  <span className="ms-1 d-none d-sm-inline">
-                    Project Allotted
-                  </span>{" "}
+                  <span className="ms-1 d-none d-sm-inline">Add Work</span>{" "}
                 </Link>
               </li>
               <li>
@@ -67,9 +66,7 @@ function EmployeeDashboard() {
                   className="nav-link px-0 align-middle text-white"
                 >
                   <i className="fs-4 bi-people"></i>{" "}
-                  <span className="ms-1 d-none d-sm-inline">
-                    Leave Details
-                  </span>{" "}
+                  <span className="ms-1 d-none d-sm-inline">Apply Leave</span>{" "}
                 </Link>
               </li>
               {/* <li>
@@ -85,10 +82,7 @@ function EmployeeDashboard() {
             </ul>
           </div>
         </div>
-        <div class="col p-0 m-0">
-          {/* <div className="p-2 d-flex justify-content-center shadow">
-            <h4>Employee Management System</h4>
-          </div> */}
+        <div className="col p-0 m-0">
           <Outlet />
         </div>
       </div>

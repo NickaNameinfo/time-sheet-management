@@ -24,7 +24,7 @@ function AddLead() {
   } = useForm();
   const navigate = useNavigate();
   const [empList, setEmpList] = useState(null);
-  console.log(empList, "empList");
+  
   useEffect((params) => {
     axios
       .get("http://localhost:8081/getEmployee")
@@ -56,7 +56,7 @@ function AddLead() {
   return (
     <div className="mainBody">
       <div className="mt-4">
-        <h2 className="heading">Add Lead</h2>
+        <h2 className="heading">Manage Lead</h2>
 
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="gy-3 row">

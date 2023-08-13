@@ -23,11 +23,11 @@ function TeamLeadDashboard() {
   return (
     <div className="container-fluid">
       <div className="row flex-nowrap">
-        <div className="col-auto col-md-3 col-xl-2 px-sm-2 px-0 sideBar">
+        <div className="col-auto col-md-3 col-xl-2 px-sm-2 px-0 sideBar min-vh-91">
           <div className="text-center">
-            <img src="./src/assets/logo.png" width={100} />
+            <img src="http://localhost:5173/src/assets/logo.png" width={100} />
           </div>
-          <div className="d-flex flex-column align-items-center align-items-sm-start px-3 pt-2 text-white min-vh-100">
+          <div className="d-flex flex-column align-items-center align-items-sm-start px-3 pt-2 text-white">
             <a
               href="/TeamLead/Dashboard"
               className="d-flex align-items-center pb-3 mb-md-1 me-md-auto text-white text-decoration-none"
@@ -52,22 +52,11 @@ function TeamLeadDashboard() {
               </li>
               <li>
                 <Link
-                  to="/TeamLead/ProjectDetails"
+                  to="/TeamLead/ProjectWorkDetails"
                   className="nav-link px-0 align-middle text-white"
                 >
                   <i className="fs-4 bi-people"></i>{" "}
-                  <span className="ms-1 d-none d-sm-inline">
-                    Project Allotted
-                  </span>{" "}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/TeamLead/Leaves"
-                  className="nav-link px-0 align-middle text-white"
-                >
-                  <i className="fs-4 bi-people"></i>{" "}
-                  <span className="ms-1 d-none d-sm-inline">Leave Details</span>{" "}
+                  <span className="ms-1 d-none d-sm-inline">Project Work Details</span>{" "}
                 </Link>
               </li>
               {/* <li>

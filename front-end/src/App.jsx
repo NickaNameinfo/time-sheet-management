@@ -31,6 +31,7 @@ import AddEmployeeHr from "./Hr/AddEmployeeHr";
 import EditEmployeeHr from "./Hr/EditEmployeeHr";
 import AddProjectDetails from "./Employee/addProjectDetails";
 import AddLeaveDetails from "./Employee/addLeaveDetails";
+import ProjectWorkDetails from "./TeamLead/ProjectWorkDetails";
 
 function App() {
   return (
@@ -65,7 +66,7 @@ function App() {
         <Route path="/TeamLead" element={<TeamLeadDashboard />}>
           <Route path="" index element={<TeamLeadHome />}></Route>
           <Route path="/TeamLead/ProjectDetails" element={<ProjectsList />}></Route>
-          <Route path="/TeamLead/Leaves" element={<Leaves />}></Route>
+          <Route path="/TeamLead/ProjectWorkDetails" element={<ProjectWorkDetails />}></Route>
         </Route>
 
         <Route path="/Hr" element={<HrDashboard />}>

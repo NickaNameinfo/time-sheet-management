@@ -49,10 +49,10 @@ function Login() {
                   <TextField
                     fullWidth
                     id="outlined-basic fullWidth"
-                    label="UserName Email "
+                    label="User Name"
                     variant="outlined"
                     className="form-control rounded-0"
-                    type="email"
+                    type="text"
                     {...field}
                     error={Boolean(errors.userName)}
                     helperText={errors.userName && errors.userName.message}

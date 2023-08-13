@@ -1,39 +1,116 @@
-import axios from 'axios'
-import React, { useEffect, useState } from 'react'
+import axios from "axios";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { AgGridReact } from "ag-grid-react";
+import "ag-grid-community/styles/ag-grid.css";
+import "ag-grid-community/styles/ag-theme-alpine.css";
 
 function TeamLeadHome() {
+  const containerStyle = { width: "100%", height: "100%" };
+  const gridStyle = { height: "100%", width: "100%" };
+  const [rowData, setRowData] = useState([]);
+  console.log(rowData, "rowDatarowData")
+  axios.defaults.withCredentials = true;
+
+  const columnDefs = useMemo(
+    () => [
+      {
+        field: "projectName",
+        minWidth: 170,
+        checkboxSelection: true,
+        headerCheckboxSelection: true,
+      },
+      { field: "orderId" },
+      { field: "positionNumber" },
+      { field: "projectNo" },
+      { field: "allotatedHours" },
+      { field: "startDate" },
+      { field: "subDivision" },
+      { field: "subPositionNumber" },
+      { field: "targetDate" },
+      { field: "taskJobNo" },
+    ],
+    []
+  );
+
+  const autoGroupColumnDef = useMemo(
+    () => ({
+      headerName: "Group",
+      minWidth: 170,
+      field: "athlete",
+      valueGetter: (params) => {
+        if (params.node.group) {
+          return params.node.key;
+        } else {
+          return params.data[params.colDef.field];
+        }
+      },
+      headerCheckboxSelection: false,
+      cellRenderer: "agGroupCellRenderer",
+      cellRendererParams: {
+        checkbox: false,
+      },
+    }),
+    []
+  );
+
+  const defaultColDef = useMemo(
+    () => ({
+      editable: false,
+      enableRowGroup: true,
+      enablePivot: true,
+      enableValue: true,
+      sortable: true,
+      resizable: true,
+      filter: true,
+      floatingFilter: true,
+      flex: 1,
+      minWidth: 100,
+    }),
+    []
+  );
+  const onGridReady = useCallback((params) => {
+    axios
+      .get("http://localhost:8081/getProject")
+      .then(async (res) => {
+        let userDetails = await axios.get("http://localhost:8081/dashboard");
+        console.log(res, "resres324", userDetails);
+        if (res.data.Status === "Success") {
+          let filterData = res.data.Result.filter(
+            (items) => items.tlName === userDetails.data.tlName
+          );
+          setRowData(filterData);
+        } else {
+          alert("Error");
+        }
+      })
+      .catch((err) => console.log(err));
+  }, []);
+
   return (
-    <div>
-      <div className='p-3 d-flex justify-content-around mt-3'>
-        <div className='px-3 pt-2 pb-3 border shadow-sm w-25'>
-          <div className='text-center pb-1'>
-            <h4>Assigned Projects</h4>
-          </div>
-          <hr />
-          <div className=''>
-            <h5>Total:2 </h5>
-          </div>
-        </div>
-        <div className='px-3 pt-2 pb-3 border shadow-sm w-25'>
-          <div className='text-center pb-1'>
-            <h4>Applied Leaves</h4>
-          </div>
-          <hr />
-          <div className=''>
-            <h5>Total: 3</h5>
-          </div>
-        </div>
-        <div className='px-3 pt-2 pb-3 border shadow-sm w-25'>
-          <div className='text-center pb-1'>
-            <h4>Remaining  Leaves</h4>
-          </div>
-          <hr />
-          <div className=''>
-            <h5>Total: 1</h5>
-          </div>
+    <>
+      <div className="text-center pb-1 my-3">
+        <h4>Project Details</h4>
+      </div>
+      <div style={containerStyle}>
+        <div style={gridStyle} className="ag-theme-alpine">
+          <AgGridReact
+            rowData={rowData}
+            columnDefs={columnDefs}
+            autoGroupColumnDef={autoGroupColumnDef}
+            defaultColDef={defaultColDef}
+            suppressRowClickSelection={true}
+            groupSelectsChildren={true}
+            rowSelection={"single"}
+            rowGroupPanelShow={"always"}
+            pivotPanelShow={"always"}
+            pagination={true}
+            onGridReady={onGridReady}
+            onSelectionChanged={(event) => onSelectionChanged(event)}
+          />
         </div>
       </div>
-    </div>
-  )
+    </>
+  );
 }
-export default TeamLeadHome
+
+export default TeamLeadHome;
