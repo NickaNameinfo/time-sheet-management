@@ -14,6 +14,7 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import AddProjectDetails from "./addProjectDetails";
 import { DialogTitle } from "@mui/material";
+import { grey } from "@mui/material/colors";
 function EmployeeHome() {
   const containerStyle = { width: "100%", height: "100%" };
   const gridStyle = { height: "100%", width: "100%" };
@@ -236,12 +237,50 @@ function EmployeeHome() {
 
   return (
     <>
-      <div className="text-center pb-1 my-3 d-flex align-items-center justify-content-between px-3">
-        <h4>Work Details</h4>
+      {/* <div className="text-center pb-1 my-3 d-flex align-items-center justify-content-between px-3"> */}
+      <div className=" pb-1 my-3 d-flex align-items-center  px-3">
+        <div className="container">
+          <div className="row p-0">
+            <div className="col-4 ">
+              <p>
+                HOME : <span>SAMPATH</span>
+              </p> <p></p>
+            </div>
+            <div className="col-4">
+              <p>
+                EMPLOYEE ID : <span>34</span>
+              </p>
+            </div>
+            <div className="col-4">
+              <p>
+                MONTH & YEAR :<span>2023 agust</span>
+              </p>
+            </div>
+          </div>
+          <div className="row p-0" >
+            <div className="col" >
+              <p>
+                DESIGNATION : <span>SOFTWER ENGINEER</span>
+              </p>
+            </div>
+            <div className="col">
+              <p>
+                DESCIPLINE : <span>PARTS</span>
+              </p>
+            </div>
+            <div className="col">
+              <p>
+                CALENDAR WEEK :<span> agust</span>
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="actions">
           <i class="fa-solid fa-plus" onClick={() => handleClickOpen()}></i>
         </div>
       </div>
+
       <div style={containerStyle}>
         <div style={gridStyle} className="ag-theme-alpine">
           <AgGridReact
