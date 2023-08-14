@@ -1,16 +1,76 @@
-import axios from "axios";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
+import Button from "@mui/material/Button";
 import { Link } from "react-router-dom";
+import axios from "axios";
+import { AgGridReact } from "ag-grid-react";
+import "ag-grid-community/styles/ag-grid.css";
 
 function Leaves() {
-  const [data, setData] = useState([]);
+  const containerStyle = { width: "100%", height: "100%" };
+  const gridStyle = { height: "100%", width: "100%" };
+  const [rowData, setRowData] = useState([]);
+  const [selectedRows, setSelectedRows] = useState(null);
 
-  useEffect(() => {
+  const columnDefs = useMemo(
+    () => [
+      {
+        field: "employeeName",
+        minWidth: 170,
+      },
+      { field: "leaveType" },
+      { field: "leaveFrom" },
+      { field: "leaveTo" },
+      { field: "leaveHours" },
+      { field: "reason" },
+      { field: "leaveStatus" },
+      { field: "totalLeaves" },
+    ],
+    []
+  );
+
+  const autoGroupColumnDef = useMemo(
+    () => ({
+      headerName: "Group",
+      minWidth: 170,
+      field: "athlete",
+      valueGetter: (params) => {
+        if (params.node.group) {
+          return params.node.key;
+        } else {
+          return params.data[params.colDef.field];
+        }
+      },
+      headerCheckboxSelection: false,
+      cellRenderer: "agGroupCellRenderer",
+      cellRendererParams: {
+        checkbox: false,
+      },
+    }),
+    []
+  );
+
+  const defaultColDef = useMemo(
+    () => ({
+      editable: false,
+      enableRowGroup: true,
+      enablePivot: true,
+      enableValue: true,
+      sortable: true,
+      resizable: true,
+      filter: true,
+      floatingFilter: true,
+      flex: 1,
+      minWidth: 100,
+    }),
+    []
+  );
+
+  const onGridReady = useCallback((params) => {
     axios
-      .get("http://localhost:8081/getHr")
+      .get("http://localhost:8081/getLeaveDetails")
       .then((res) => {
         if (res.data.Status === "Success") {
-          setData(res.data.Result);
+          setRowData(res.data.Result);
         } else {
           alert("Error");
         }
@@ -18,104 +78,30 @@ function Leaves() {
       .catch((err) => console.log(err));
   }, []);
 
-  const handleDelete = (id) => {
-    axios
-      .delete("http://localhost:8081/hr/delete/" + id)
-      .then((res) => {
-        if (res.data.Status === "Success") {
-          window.location.reload(true);
-        } else {
-          alert("Error");
-        }
-      })
-      .catch((err) => console.log(err));
-  };
-
   return (
-    <div className="px-5 py-3">
-      <div className="d-flex justify-content-center mt-2">
-        <h3>Leave List</h3>
+    <>
+      <div className="text-center pb-1 my-3">
+        <h4>Leave Details</h4>
       </div>
-      <div className="mt-3">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Image</th>
-              <th>Email</th>
-              <th>Address</th>
-              <th>Requested Date</th>
-              <th>Approved Date</th>
-              <th>Total Hours</th>
-              <th>Remaning Hours</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Arun</td>
-              <td>-</td>
-              <td>Arun@gmail.com</td>
-              <td>t nager</td>
-              <td>10/11/23</td>
-              <td>2/12/23</td>
-              <td>80</td>
-              <td>40</td>
-              <td><p className="statustd">Approved</p></td>
-              <td>
-                <button>Approve</button>
-                <button>Reject</button>
-              </td>
-            </tr>
-            <tr>
-              <td>Arun</td>
-              <td>-</td>
-              <td>Arun@gmail.com</td>
-              <td>t nager</td>
-              <td>10/11/23</td>
-              <td>2/12/23</td>
-              <td>80</td>
-              <td>40</td>
-              <td><p className="statustd">Approved</p></td>
-              <td>
-                <button>Approve</button>
-                <button>Reject</button>
-              </td>
-            </tr>
-            <tr>
-              <td>Arun</td>
-              <td>-</td>
-              <td>Arun@gmail.com</td>
-              <td>t nager</td>
-              <td>10/11/23</td>
-              <td>2/12/23</td>
-              <td>80</td>
-              <td>40</td>
-              <td><p className="statustd">Approved</p></td>
-              <td>
-                <button>Approve</button>
-                <button>Reject</button>
-              </td>
-            </tr>
-            {/* {data.map((employee, index) => {
-              return <tr key={index}>
-                  <td>{employee.name}</td>
-                  <td>{
-                    <img src={`http://localhost:8081/images/`+employee.image} alt="" className='employee_image'/>
-                    }</td>
-                  <td>{employee.email}</td>
-                  <td>{employee.address}</td>
-                  <td>
-                    {/* <Link to={`/Dashboard/employeeEdit/`+employee.id} className='btn btn-primary btn-sm me-2'>edit</Link> */}
-            {/* <button onClick={e => handleDelete(employee.id)} className='btn btn-sm btn-danger'>delete</button>
-                  </td> */}
-            {/* </tr> */}
-            {/* })} */}
-          </tbody>
-        </table>
+      <div style={containerStyle}>
+        <div style={gridStyle} className="ag-theme-alpine">
+          <AgGridReact
+            rowData={rowData}
+            columnDefs={columnDefs}
+            autoGroupColumnDef={autoGroupColumnDef}
+            defaultColDef={defaultColDef}
+            suppressRowClickSelection={true}
+            groupSelectsChildren={true}
+            rowSelection={"single"}
+            rowGroupPanelShow={"always"}
+            pivotPanelShow={"always"}
+            pagination={true}
+            onGridReady={onGridReady}
+            onSelectionChanged={(event) => onSelectionChanged(event)}
+          />
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

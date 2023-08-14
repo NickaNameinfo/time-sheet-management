@@ -89,22 +89,45 @@ app.post("/create", upload.single("employeeImage"), (req, res) => {
 });
 
 app.post("/applyLeave", (req, res) => {
-  const sql =
-    "INSERT INTO leavedetails (`leaveType`,`leaveFrom`,`leaveTo`, `leaveHours`,`reason`, `leaveStatus`,`employeeName`, `totalLeaves`) VALUES (?)";
-  if (err) return res.json({ Error: "Error in hashing password" });
+  const baseSql =
+    "INSERT INTO leavedetails (`leaveType`,`leaveFrom`,`leaveTo`, `leaveHours`,`reason`, `employeeName`";
+  let sql = baseSql;
   const values = [
     req.body.leaveType,
     req.body.leaveFrom,
     req.body.leaveTo,
     req.body.leaveHours,
     req.body.reason,
-    req.body.leaveStatus,
     req.body.employeeName,
-    req.file.totalLeaves,
   ];
+
+  // Optional fields that are not required
+  if (req.body.leaveStatus !== undefined) {
+    sql += ", `leaveStatus`";
+    values.push(req.body.leaveStatus);
+  }
+  if (req.body.totalLeaves !== undefined) {
+    sql += ", `totalLeaves`";
+    values.push(req.body.totalLeaves);
+  }
+  sql += ") VALUES (?)";
+
   con.query(sql, [values], (err, result) => {
-    if (err) return res.json({ Error: "Inside Leave Query" });
-    return res.json({ Status: "Success" });
+    if (err) {
+      // Handle error
+      return res.json({ Error: err });
+    } else {
+      // Handle success
+      return res.json({ Status: "Success", Result: result });
+    }
+  });
+});
+
+app.get("/getLeaveDetails", (req, res) => {
+  const sql = "SELECT * FROM leavedetails";
+  con.query(sql, (err, result) => {
+    if (err) return res.json({ Error: "Get leavedetails error in sql" });
+    return res.json({ Status: "Success", Result: result });
   });
 });
 
@@ -149,16 +172,29 @@ const verifyUser = (req, res, next) => {
     return res.json({ Error: "You are no Authenticated" });
   } else {
     jwt.verify(token, "jwt-secret-key", (err, decoded) => {
+      console.log(decoded, "decodeddecoded");
       if (err) return res.json({ Error: "Token wrong" });
-      req.role = decoded.role;
+      req.userName = decoded.userName;
       req.id = decoded.id;
+      req.role = decoded.role;
+      req.employeeName = decoded.employeeName;
+      req.tlName = decoded.tlName;
+      req.hrName = decoded.hrName;
       next();
     });
   }
 };
 
 app.get("/dashboard", verifyUser, (req, res) => {
-  return res.json({ Status: "Success", role: req.role, id: req.id });
+  return res.json({
+    Status: "Success",
+    role: req.role,
+    id: req.id,
+    userName: req.userName,
+    employeeName: req?.employeeName,
+    tlName: req?.tlName,
+    hrName: req?.hrName,
+  });
 });
 
 app.get("/adminCount", (req, res) => {
@@ -183,9 +219,13 @@ app.post("/login", (req, res) => {
       return res.json({ Status: "Error", Error: "Error in runnig query" });
     if (result.length > 0) {
       const id = result[0].id;
-      const token = jwt.sign({ role: "admin" }, "jwt-secret-key", {
-        expiresIn: "1d",
-      });
+      const token = jwt.sign(
+        { role: "admin", userName: result[0].userName },
+        "jwt-secret-key",
+        {
+          expiresIn: "1d",
+        }
+      );
       res.cookie("token", token);
       return res.json({ Status: "Success" });
     } else {
@@ -200,6 +240,7 @@ app.post("/employeelogin", (req, res) => {
     if (err)
       return res.json({ Status: "Error", Error: "Error in runnig query" });
     if (result.length > 0) {
+      console.log(result, "resultresult");
       bcrypt.compare(
         req.body.password.toString(),
         result[0].password,
@@ -207,7 +248,12 @@ app.post("/employeelogin", (req, res) => {
           if (err) return res.json({ Error: "password error" });
           if (response) {
             const token = jwt.sign(
-              { role: "employee", id: result[0].id },
+              {
+                role: "employee",
+                id: result[0].id,
+                userName: result[0].userName,
+                employeeName: result[0].employeeName,
+              },
               "jwt-secret-key",
               { expiresIn: "1d" }
             );
@@ -281,6 +327,7 @@ app.post("/teamLeadlogin", (req, res) => {
     if (err)
       return res.json({ Status: "Error", Error: "Error in runnig query" });
     if (result.length > 0) {
+      console.log(result, "resultresult");
       bcrypt.compare(
         req.body.password.toString(),
         result[0].password,
@@ -288,7 +335,12 @@ app.post("/teamLeadlogin", (req, res) => {
           if (err) return res.json({ Error: "password error" });
           if (response) {
             const token = jwt.sign(
-              { role: "teamLead", id: result[0].id },
+              {
+                role: "teamLead",
+                id: result[0].id,
+                userName: result[0].userName,
+                tlName: result[0].leadName,
+              },
               "jwt-secret-key",
               { expiresIn: "1d" }
             );
@@ -356,6 +408,7 @@ app.post("/hrLogin", (req, res) => {
     if (err)
       return res.json({ Status: "Error", Error: "Error in runnig query" });
     if (result.length > 0) {
+      console.log(result, "resultresult");
       bcrypt.compare(
         req.body.password.toString(),
         result[0].password,
@@ -363,7 +416,12 @@ app.post("/hrLogin", (req, res) => {
           if (err) return res.json({ Error: "password error" });
           if (response) {
             const token = jwt.sign(
-              { role: "hr", id: result[0].id },
+              {
+                role: "hr",
+                id: result[0].id,
+                userName: result[0].userName,
+                hrName: result[0].hrName,
+              },
               "jwt-secret-key",
               { expiresIn: "1d" }
             );
@@ -386,7 +444,7 @@ app.post("/hrLogin", (req, res) => {
 //Projects Apis
 app.post("/project/create", (req, res) => {
   const sql =
-    "INSERT INTO project (`tlName`,`orderId`,`positionNumber`, `subPositionNumber`,`projectNo`,`taskJobNo`,`prjectName`,`subDivision`,`startDateOrderreleasedDate`,`targetDate`,`allotatedHours`) VALUES (?)";
+    "INSERT INTO project (`tlName`,`orderId`,`positionNumber`, `subPositionNumber`,`projectNo`,`taskJobNo`,`projectName`,`subDivision`,`startDate`,`targetDate`,`allotatedHours`) VALUES (?)";
   const values = [
     req.body.tlName,
     req.body.orderId,
@@ -394,34 +452,117 @@ app.post("/project/create", (req, res) => {
     req.body.subPositionNumber,
     req.body.projectNo,
     req.body.taskJobNo,
-    req.body.prjectName,
+    req.body.projectName,
     req.body.subDivision,
-    req.body.startDateOrderreleasedDate,
+    req.body.startDate,
     req.body.targetDate,
     req.body.allotatedHours,
   ];
   con.query(sql, [values], (err, result) => {
-    if (err) return res.json({ Error: "Inside singup query" });
+    console.log(err, "error");
+    if (err) return res.json({ Error: "Inside add Project query" });
     return res.json({ Status: "Success" });
   });
 });
 
 app.post("/project/addWorkDetails", (req, res) => {
-  const sql =
-    "INSERT INTO workdetails (`employeeName`,`projectName`,`tlName`, `taskNo`,`areaofWork`,`workDate`,`workHour`,`totalHours`) VALUES (?)";
+  const baseSql =
+    "INSERT INTO workdetails (`employeeName`,`projectName`,`tlName`, `taskNo`,`areaofWork`, `totalHours`";
+  let sql = baseSql;
   const values = [
     req.body.employeeName,
     req.body.projectName,
     req.body.tlName,
     req.body.taskNo,
     req.body.areaofWork,
-    req.body.workDate,
-    req.body.workHour,
     req.body.totalHours,
   ];
+
+  // Optional fields that are not required
+  const optionalFields = [
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+    "status",
+    "sentDate",
+    "approvedDate",
+  ];
+  optionalFields.forEach((field) => {
+    if (req.body[field] !== undefined) {
+      sql += `, \`${field}\``;
+      values.push(req.body[field]);
+    }
+  });
+  sql += ") VALUES (?)";
+
   con.query(sql, [values], (err, result) => {
-    if (err) return res.json({ Error: "Inside Work Details Project Query" });
-    return res.json({ Status: "Success" });
+    if (err) {
+      console.error("Error inserting work details:", err);
+      return res.json({ Status: "Error", Error: err });
+    } else {
+      console.log("Work details inserted successfully");
+      return res.json({ Status: "Success", Result: result });
+    }
+  });
+});
+
+app.put("/project/updateWorkDetails/:id", (req, res) => {
+  const id = req.params.id;
+  const {
+    employeeName,
+    projectName,
+    tlName,
+    taskNo,
+    areaofWork,
+    totalHours,
+    ...optionalFields
+  } = req.body;
+
+  const updateFields = [];
+  const values = [];
+
+  // Collect values and update fields for optional columns
+  Object.keys(optionalFields).forEach((field) => {
+    if (optionalFields[field] !== undefined) {
+      updateFields.push(`\`${field}\` = ?`);
+      values.push(optionalFields[field]);
+    }
+  });
+
+  // Optional fields that are not required
+  const mandatoryFields = [
+    "employeeName",
+    "projectName",
+    "tlName",
+    "taskNo",
+    "areaofWork",
+    "totalHours",
+  ];
+  mandatoryFields.forEach((field) => {
+    updateFields.push(`\`${field}\` = ?`);
+    values.push(req.body[field]);
+  });
+
+  // Construct the SQL query
+  const updateSql = `UPDATE workdetails SET ${updateFields.join(
+    ", "
+  )} WHERE id = ?`;
+
+  // Add the id value to the values array
+  values.push(id);
+
+  con.query(updateSql, values, (err, result) => {
+    if (err) {
+      console.error("Error updating work details:", err);
+      return res.json({ Status: "Error", Error: err });
+    } else {
+      console.log("Work details updated successfully");
+      return res.json({ Status: "Success", Result: result });
+    }
   });
 });
 
@@ -429,6 +570,14 @@ app.get("/getProject", (req, res) => {
   const sql = "SELECT * FROM project";
   con.query(sql, (err, result) => {
     if (err) return res.json({ Error: "Get employee error in sql" });
+    return res.json({ Status: "Success", Result: result });
+  });
+});
+
+app.get("/getWrokDetails", (req, res) => {
+  const sql = "SELECT * FROM workdetails";
+  con.query(sql, (err, result) => {
+    if (err) return res.json({ Error: "Get workdetails error in sql" });
     return res.json({ Status: "Success", Result: result });
   });
 });

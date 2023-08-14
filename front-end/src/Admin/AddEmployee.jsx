@@ -50,7 +50,7 @@ function AddEmployee() {
   return (
     <div className="mainBody">
       <div className="mt-4">
-        <h2 className="heading">Add Employee</h2>
+        <h2 className="heading">Manage Employee</h2>
 
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="gy-3 row">

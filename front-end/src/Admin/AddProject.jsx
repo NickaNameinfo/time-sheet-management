@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
@@ -23,9 +23,23 @@ function AddProject() {
     setValue,
   } = useForm();
   const navigate = useNavigate();
+  const [empList, setEmpList] = useState(null);
+
+  useEffect(() => {
+    axios
+      .get("http://localhost:8081/getEmployee")
+      .then((res) => {
+        if (res.data.Status === "Success") {
+          console.log(res.data.Result, "setEmpListsetEmpList");
+          setEmpList(res.data.Result.map((employee) => employee.employeeName));
+        } else {
+          alert("Error");
+        }
+      })
+      .catch((err) => console.log(err));
+  }, []);
+
   const onSubmit = (data) => {
-    console.log(data, "tests213");
-    // Perform any other actions you want with the form data
     axios
       .post("http://localhost:8081/project/create", data)
       .then((res) => {
@@ -64,13 +78,9 @@ function AddProject() {
                         {...field}
                         error={Boolean(errors.tlName)}
                       >
-                        <MenuItem value={10}>sam</MenuItem>
-                        <MenuItem value={20}>Samz</MenuItem>
-                        <MenuItem value={30}>Dark Rider</MenuItem>
-                        <MenuItem value={30}>Dark Rider Samz</MenuItem>
-                        <MenuItem value={30}>#Dark Rider Samz</MenuItem>
-                        <MenuItem value={30}>@Dark Rider Samz</MenuItem>
-                        <MenuItem value={30}>@Dark Rider Samz_YT</MenuItem>
+                        {empList?.map((res) => (
+                          <MenuItem value={res}>{res}</MenuItem>
+                        ))}
                       </Select>
                     )}
                   />
@@ -189,19 +199,21 @@ function AddProject() {
             <div className="col-sm-12">
               <Controller
                 control={control}
-                name="prjectName"
+                name="projectName"
                 defaultValue=""
-                rules={{ required: "Prject Name is required." }}
+                rules={{ required: "ProjectName Name is required." }}
                 render={({ field }) => (
                   <TextField
                     fullWidth
                     id="outlined-basic fullWidth"
-                    label="Enter Prject Name"
+                    label="Enter Project Name"
                     variant="outlined"
                     type="text"
                     {...field}
-                    error={Boolean(errors.prjectName)}
-                    helperText={errors.prjectName && errors.prjectName.message}
+                    error={Boolean(errors.projectName)}
+                    helperText={
+                      errors.projectName && errors.projectName.message
+                    }
                   />
                 )}
               />
@@ -229,46 +241,43 @@ function AddProject() {
                 )}
               />
             </div>
-            <div className="col-sm-12">
+            <div className="col-sm-4">
               <Box sx={{}}>
-                <FormControl fullWidth>
-                  <InputLabel id="demo-simple-select-label">
-                    Start Date/ Order released Daten
-                  </InputLabel>
+                <LocalizationProvider dateAdapter={AdapterDayjs}>
                   <Controller
-                    name="startDateOrderreleasedDate" // Make sure the name matches the field name in your form
+                    name="startDate" // Make sure the name matches the field name in your form
                     control={control}
-                    rules={{
-                      required: "Start Date/ Order released Date is Required.",
-                    }}
                     defaultValue="" // Set the default value here if needed
+                    rules={{ required: "Start Date is Required." }}
                     render={({ field }) => (
-                      <Select
-                        labelId="demo-simple-select-label"
-                        id="demo-simple-select"
-                        label="Start Date/ Order released Date"
+                      <DatePicker
+                        label="Start Date"
                         {...field}
-                        error={Boolean(errors.startDateOrderreleasedDate)}
-                      >
-                        <MenuItem value={10}>sam</MenuItem>
-                        <MenuItem value={20}>Samz</MenuItem>
-                        <MenuItem value={30}>Dark Rider</MenuItem>
-                        <MenuItem value={30}>Dark Rider Samz</MenuItem>
-                        <MenuItem value={30}>#Dark Rider Samz</MenuItem>
-                        <MenuItem value={30}>@Dark Rider Samz</MenuItem>
-                        <MenuItem value={30}>@Dark Rider Samz_YT</MenuItem>
-                      </Select>
+                        error={Boolean(errors.startDate)}
+                        helperText={
+                          errors.startDate && errors.startDate.message
+                        }
+                        renderInput={(props) => (
+                          <TextField {...props} fullWidth />
+                        )}
+                        onChange={(newValue) =>
+                          setValue(
+                            "startDate",
+                            dayjs(newValue).format("YYYY-MM-DD")
+                          )
+                        }
+                        format="YYYY-MM-DD"
+                      />
                     )}
                   />
-                  <FormHelperText>
-                    {errors.startDateOrderreleasedDate &&
-                      errors.startDateOrderreleasedDate.message}
-                  </FormHelperText>
-                </FormControl>
+                </LocalizationProvider>
+                <FormHelperText>
+                  {errors.startDate && errors.startDate.message}
+                </FormHelperText>
               </Box>
             </div>
 
-            <div className="col-sm-12">
+            <div className="col-sm-4">
               <Box sx={{}}>
                 <LocalizationProvider dateAdapter={AdapterDayjs}>
                   <Controller

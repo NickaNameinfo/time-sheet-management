@@ -17,8 +17,6 @@ function Employee() {
       {
         field: "employeeName",
         minWidth: 170,
-        checkboxSelection: true,
-        headerCheckboxSelection: true,
       },
       { field: "EMPID" },
       { field: "employeeEmail" },
@@ -98,9 +96,10 @@ function Employee() {
     const selectedItem = event.api.getSelectedRows();
     setSelectedRows(selectedItem);
   };
+  
   return (
     <>
-      <div className="addBtn">
+      <div className="addBtn pb-1 my-3">
         <Link to="/Dashboard/create" className="btn">
           Add Employee
         </Link>

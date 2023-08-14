@@ -4,7 +4,8 @@ import { Link, Outlet, useNavigate } from "react-router-dom";
 import axios from "axios";
 
 function Dashboard() {
-  const navigate = useNavigate();
+  const navigate = useNavigate()
+  ;
   axios.defaults.withCredentials = true;
   useEffect(() => {
     axios.get("http://localhost:8081/dashboard").then((res) => {
@@ -29,12 +30,12 @@ function Dashboard() {
   };
   return (
     <div className="container-fluid">
-      <div className="row flex-nowrap">
+      <div className="row flex-nowrap min-vh-91">
         <div className="col-auto col-md-3 col-xl-2 px-sm-2 px-0 sideBar">
           <div className="text-center my-3">
-            <img src="./src/assets/logo.png" width={100} />
+            <img src="http://localhost:5173/src/assets/logo.png" width={100} />
           </div>
-          <div className="d-flex flex-column align-items-center align-items-sm-start px-3 pt-2 text-white min-vh-100">
+          <div className="d-flex flex-column align-items-center align-items-sm-start px-3 pt-2 text-white">
             <a
               href="/Dashboard"
               className="d-flex align-items-center pb-3 mb-md-1 me-md-auto text-white text-decoration-none"
