@@ -9,7 +9,7 @@ div#root {
 }
 .loginPage {
     background: url('./assets/back.jpg');
-    background:linear-gradient(-125deg, #fe350073 47%, #514c4eb5 41%), url(/src/assets/back.jpg);
+    background:linear-gradient(-125deg, #514c4e 47%, #514c4e 41%), url(/src/assets/back.jpg);
     background-position: center;
     background-repeat: no-repeat;
     background-size: 100% 120%;
@@ -136,12 +136,42 @@ form {
     padding: 0px 10px;
 }
 .startDesign {
-    background: linear-gradient(45deg, #ffffff 51%, #514c4e 10%);
+    background: linear-gradient(212deg, #ffffff 48%, #514c4e 35%);
     border-radius: 10px;
     padding: 35px;
+    height: 100%;
+    display: flex;
+}
+.loginSection {
+    margin-top: 45px;
+}
+marquee {
+    padding: 15px;
+    height: 95%;
+}
+.carousel-inner {
+    height: 300px;
+}
+.flashUpdate {
+    height: 50%;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 5px solid #514c4e;
+    border-radius: 10px;
+}
+.updates {
+    background: #c5c5c5;
+    padding: 10px;
+    border-radius: 10px;
+    display: flex;
+    color: black;
+    margin-bottom: 20px;
+    align-items: center;
 }
 .loginSection button {
-    width: 43%;
+    width: 42%;
     margin: 35px 10px;
 }
 .btn-success {

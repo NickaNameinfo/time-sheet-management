@@ -43,7 +43,7 @@ function EmployeeDashboard() {
             >
               <li>
                 <Link
-                  to="/employee"
+                  to="/"
                   data-bs-toggle="collapse"
                   className="nav-link text-white px-0 align-middle"
                 >
@@ -53,11 +53,11 @@ function EmployeeDashboard() {
               </li>
               <li>
                 <Link
-                  to="/employee/ProjectDetails"
+                  to="#"
                   className="nav-link px-0 align-middle text-white"
                 >
                   <i className="fs-4 bi-people"></i>{" "}
-                  <span className="ms-1 d-none d-sm-inline">Add Work</span>{" "}
+                  <span className="ms-1 d-none d-sm-inline">Notifications</span>{" "}
                 </Link>
               </li>
               <li>
