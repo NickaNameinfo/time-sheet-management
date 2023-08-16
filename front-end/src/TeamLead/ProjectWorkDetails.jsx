@@ -60,6 +60,7 @@ function ProjectWorkDetails() {
       { field: "saturday" },
       { field: "sunday" },
       { field: "totalHours", filter: false },
+      { field: "Week Number", filter: false },
       {
         field: "status",
         filter: false,

@@ -77,6 +77,7 @@ function EmployeeHome() {
       { field: "saturday" },
       { field: "sunday" },
       { field: "totalHours" },
+      { field: "Week Number" },
       {
         field: "status",
         pinned: "right",
@@ -243,34 +244,34 @@ function EmployeeHome() {
           <div className="row p-0">
             <div className="col-4 ">
               <p>
-                HOME : <span>SAMPATH</span>
+                NAME : <b>test</b>
               </p> <p></p>
             </div>
             <div className="col-4">
               <p>
-                EMPLOYEE ID : <span>34</span>
+                EMPLOYEE ID : <b>34</b>
               </p>
             </div>
             <div className="col-4">
               <p>
-                MONTH & YEAR :<span>2023 agust</span>
+                MONTH & YEAR :<b>2023 agust</b>
               </p>
             </div>
           </div>
           <div className="row p-0" >
             <div className="col" >
               <p>
-                DESIGNATION : <span>SOFTWER ENGINEER</span>
+                DESIGNATION : <b>ENGINEER</b>
               </p>
             </div>
             <div className="col">
               <p>
-                DESCIPLINE : <span>PARTS</span>
+                DESCIPLINE : <b>PARTS</b>
               </p>
             </div>
             <div className="col">
               <p>
-                CALENDAR WEEK :<span> agust</span>
+                CALENDAR WEEK :<b> 12</b>
               </p>
             </div>
           </div>
@@ -318,7 +319,7 @@ function EmployeeHome() {
           className="d-flex align-items-center justify-content-between"
         >
           <h2>{"Add Work Details"}</h2>
-          <i class="fa-solid fa-xmark cursor-pointer" onClick={handleClose}></i>
+          <i class="fa-solid fa-xmark cursor-pointer" onClick={() => setOpen(false)} style={{cursor: "pointer"}}></i>
         </DialogTitle>
         <AddProjectDetails onSubmitValue={(value) => setOpen(false)} />
       </Dialog>
