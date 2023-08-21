@@ -185,7 +185,7 @@ function AddProject() {
                   <TextField
                     fullWidth
                     id="outlined-basic fullWidth"
-                    label="Task/ Job No"
+                    label="Task / Job No"
                     variant="outlined"
                     type="number"
                     {...field}
@@ -195,7 +195,28 @@ function AddProject() {
                 )}
               />
             </div>
-
+            <div className="col-sm-12">
+              <Controller
+                control={control}
+                name="referenceNo"
+                defaultValue=""
+                rules={{ required: "Reference No is required." }}
+                render={({ field }) => (
+                  <TextField
+                    fullWidth
+                    id="outlined-basic fullWidth"
+                    label="Reference No"
+                    variant="outlined"
+                    type="number"
+                    {...field}
+                    error={Boolean(errors.referenceNo)}
+                    helperText={
+                      errors.referenceNo && errors.referenceNo.message
+                    }
+                  />
+                )}
+              />
+            </div>
             <div className="col-sm-12">
               <Controller
                 control={control}

@@ -23,7 +23,28 @@ function Leaves() {
       { field: "leaveHours" },
       { field: "reason" },
       { field: "leaveStatus" },
-      { field: "totalLeaves" },
+      {
+        headerName: "Action",
+        pinned: "right",
+        minWidth: 100,
+        width: 100,
+        field: "id",
+        filter: false,
+        editable: false,
+        cellRenderer: (params, index) => (
+          <div className="actions">
+            <i
+              style={{ color: "color", backgroundColor: "green" }}
+              class="fa-solid fa-check"
+              onClick={() => updateProjectDetails("approved", params)}
+            ></i>
+            <i
+              class="fa-regular fa-circle-xmark"
+              onClick={() => updateProjectDetails("rejected", params)}
+            ></i>
+          </div>
+        ),
+      },
     ],
     []
   );

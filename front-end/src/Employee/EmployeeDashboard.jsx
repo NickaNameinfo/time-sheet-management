@@ -6,7 +6,7 @@ import axios from "axios";
 function EmployeeDashboard() {
   const navigate = useNavigate();
   axios.defaults.withCredentials = true;
-  
+  const [isExpand, setIsExpand] = React.useState(false);
   useEffect(() => {
     axios.get("http://localhost:8081/dashboard").then((res) => {
       console.log(res, "resresresres");
@@ -22,9 +22,15 @@ function EmployeeDashboard() {
       .catch((err) => console.log(err));
   };
   return (
-    <div className="container-fluid">
-      <div className="row flex-nowrap min-vh-91">
-        <div className="col-auto col-md-3 col-xl-2 px-sm-2 px-0 sideBar">
+    <div className="container-fluid h-100">
+      <div
+        className={isExpand ? "colaps expandMenu" : "expandMenu"}
+        onClick={() => setIsExpand((prev) => !prev)}
+      >
+        <i class="fa-solid fa-up-right-and-down-left-from-center"></i>
+      </div>
+      <div className="row h-100">
+        <div className={isExpand ? "d-none" : "col-sm-2 px-sm-2 px-0 sideBar"}>
           <div className="text-center">
             <img src="http://localhost:5173/src/assets/logo.png" width={100} />
           </div>
@@ -43,8 +49,7 @@ function EmployeeDashboard() {
             >
               <li>
                 <Link
-                  to="/"
-                  data-bs-toggle="collapse"
+                  to="/Employee"
                   className="nav-link text-white px-0 align-middle"
                 >
                   <i className="fs-4 bi-speedometer2"></i>{" "}
@@ -52,10 +57,7 @@ function EmployeeDashboard() {
                 </Link>
               </li>
               <li>
-                <Link
-                  to="#"
-                  className="nav-link px-0 align-middle text-white"
-                >
+                <Link to="#" className="nav-link px-0 align-middle text-white">
                   <i className="fs-4 bi-people"></i>{" "}
                   <span className="ms-1 d-none d-sm-inline">Notifications</span>{" "}
                 </Link>
@@ -82,7 +84,7 @@ function EmployeeDashboard() {
             </ul>
           </div>
         </div>
-        <div className="col p-0 m-0">
+        <div className={isExpand ? "col-sm-12 p-0 m-0" : "col-sm-10 p-0 m-0"}>
           <Outlet />
         </div>
       </div>
