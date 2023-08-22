@@ -172,7 +172,6 @@ const verifyUser = (req, res, next) => {
     return res.json({ Error: "You are no Authenticated" });
   } else {
     jwt.verify(token, "jwt-secret-key", (err, decoded) => {
-      console.log(decoded, "decodeddecoded");
       if (err) return res.json({ Error: "Token wrong" });
       req.userName = decoded.userName;
       req.id = decoded.id;
@@ -444,7 +443,7 @@ app.post("/hrLogin", (req, res) => {
 //Projects Apis
 app.post("/project/create", (req, res) => {
   const sql =
-    "INSERT INTO project (`tlName`,`orderId`,`positionNumber`, `subPositionNumber`,`projectNo`,`taskJobNo`,`projectName`,`subDivision`,`startDate`,`targetDate`,`allotatedHours`) VALUES (?)";
+    "INSERT INTO project (`tlName`,`orderId`,`positionNumber`, `subPositionNumber`,`projectNo`,`taskJobNo`, `referenceNo`, `projectName`,`subDivision`,`startDate`,`targetDate`,`allotatedHours`) VALUES (?)";
   const values = [
     req.body.tlName,
     req.body.orderId,
@@ -452,6 +451,7 @@ app.post("/project/create", (req, res) => {
     req.body.subPositionNumber,
     req.body.projectNo,
     req.body.taskJobNo,
+    req.body.referenceNo,
     req.body.projectName,
     req.body.subDivision,
     req.body.startDate,
@@ -467,19 +467,23 @@ app.post("/project/create", (req, res) => {
 
 app.post("/project/addWorkDetails", (req, res) => {
   const baseSql =
-    "INSERT INTO workdetails (`employeeName`,`projectName`,`tlName`, `taskNo`,`areaofWork`, `totalHours`";
+    "INSERT INTO workdetails (`employeeName`,`referenceNo`,`projectName`,`tlName`, `taskNo`,`areaofWork`, `subDivision`, `totalHours`, `weekNumber`";
   let sql = baseSql;
   const values = [
     req.body.employeeName,
+    req.body.referenceNo,
     req.body.projectName,
     req.body.tlName,
     req.body.taskNo,
     req.body.areaofWork,
+    req.body.subDivision,
     req.body.totalHours,
+    req.body.weekNumber,
   ];
 
   // Optional fields that are not required
   const optionalFields = [
+    "subDivisionList",
     "monday",
     "tuesday",
     "wednesday",
@@ -514,6 +518,7 @@ app.put("/project/updateWorkDetails/:id", (req, res) => {
   const id = req.params.id;
   const {
     employeeName,
+    referenceNo,
     projectName,
     tlName,
     taskNo,
@@ -536,6 +541,7 @@ app.put("/project/updateWorkDetails/:id", (req, res) => {
   // Optional fields that are not required
   const mandatoryFields = [
     "employeeName",
+    "referenceNo",
     "projectName",
     "tlName",
     "taskNo",

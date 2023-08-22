@@ -8,7 +8,7 @@ function TeamLeadHome() {
   const containerStyle = { width: "100%", height: "100%" };
   const gridStyle = { height: "100%", width: "100%" };
   const [rowData, setRowData] = useState([]);
-  console.log(rowData, "rowDatarowData")
+  console.log(rowData, "rowDatarowData");
   axios.defaults.withCredentials = true;
 
   const columnDefs = useMemo(
@@ -19,15 +19,16 @@ function TeamLeadHome() {
         checkboxSelection: true,
         headerCheckboxSelection: true,
       },
-      { field: "orderId" },
-      { field: "positionNumber" },
-      { field: "projectNo" },
-      { field: "allotatedHours" },
-      { field: "startDate" },
-      { field: "subDivision" },
-      { field: "subPositionNumber" },
-      { field: "targetDate" },
-      { field: "taskJobNo" },
+      { field: "referenceNo", minWidth: 170 },
+      { field: "orderId", minWidth: 170 },
+      { field: "positionNumber", minWidth: 170 },
+      { field: "projectNo", minWidth: 170 },
+      { field: "allotatedHours", minWidth: 170 },
+      { field: "startDate", minWidth: 170 },
+      { field: "subDivision", minWidth: 170 },
+      { field: "subPositionNumber", minWidth: 170 },
+      { field: "targetDate", minWidth: 170 },
+      { field: "taskJobNo", minWidth: 170 },
     ],
     []
   );
@@ -89,7 +90,7 @@ function TeamLeadHome() {
   return (
     <>
       <div className="text-center pb-1 my-3">
-        <h4>Project Details</h4>
+        <h4>Allotated Project Details</h4>
       </div>
       <div style={containerStyle}>
         <div style={gridStyle} className="ag-theme-alpine">

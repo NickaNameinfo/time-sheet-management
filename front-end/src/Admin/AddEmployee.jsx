@@ -169,7 +169,7 @@ function AddEmployee() {
               <Box sx={{}}>
                 <FormControl fullWidth>
                   <InputLabel id="demo-simple-select-label">
-                    Select Designation
+                    Select Discipline
                   </InputLabel>
                   <Controller
                     name="discipline" // Make sure the name matches the field name in your form

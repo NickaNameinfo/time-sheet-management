@@ -43,7 +43,6 @@ function TeamLeadDashboard() {
               <li>
                 <Link
                   to="/TeamLead"
-                  data-bs-toggle="collapse"
                   className="nav-link text-white px-0 align-middle"
                 >
                   <i className="fs-4 bi-speedometer2"></i>{" "}

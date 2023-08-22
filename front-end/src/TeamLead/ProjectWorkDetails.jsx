@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
+import { Dialog, DialogTitle, TextField } from "@mui/material";
 
 function ProjectWorkDetails() {
   const containerStyle = { width: "100%", height: "100%" };
@@ -10,6 +11,7 @@ function ProjectWorkDetails() {
   const [rowData, setRowData] = useState([]);
   const [refresh, setRefresh] = React.useState(false);
   const [isUpdate, setIsUpdate] = React.useState(false);
+  const [open, setOpen] = React.useState(false);
   axios.defaults.withCredentials = true;
   const gridRef = React.createRef();
   console.log(rowData, "rowDatarowData");
@@ -25,8 +27,8 @@ function ProjectWorkDetails() {
     []
   );
 
-  const updateProjectDetails = (params) => {
-    let apiTemp = { ...params.data, approvedDate: new Date() };
+  const updateProjectDetails = (status, params) => {
+    let apiTemp = { ...params.data, approvedDate: new Date(), status: status };
     console.log(apiTemp, "apiTempapiTempapiTemp", params.data);
     axios
       .put(
@@ -49,29 +51,22 @@ function ProjectWorkDetails() {
         minWidth: 170,
         filter: true,
       },
-      { field: "areaofWork" },
-      { field: "projectName" },
-      { field: "taskNo" },
-      { field: "monday" },
-      { field: "tuesday" },
-      { field: "wednesday" },
-      { field: "thursday" },
-      { field: "friday" },
-      { field: "saturday" },
-      { field: "sunday" },
-      { field: "totalHours", filter: false },
-      { field: "Week Number", filter: false },
+      { field: "areaofWork", minWidth: 170 },
+      { field: "projectName", minWidth: 170 },
+      { field: "referenceNo", minWidth: 170 },
+      { field: "taskNo", minWidth: 170 },
+      { field: "monday", minWidth: 170 },
+      { field: "tuesday", minWidth: 170 },
+      { field: "wednesday", minWidth: 170 },
+      { field: "thursday", minWidth: 170 },
+      { field: "friday", minWidth: 170 },
+      { field: "saturday", minWidth: 170 },
+      { field: "sunday", minWidth: 170 },
+      { field: "totalHours", filter: false, minWidth: 170 },
+      { field: "weekNumber", filter: false, minWidth: 170 },
+      { field: "sentDate", filter: false, minWidth: 170 },
       {
-        field: "status",
-        filter: false,
-        headerName: "Update Status",
-        pinned: "right",
-        editable: true,
-        minWidth: 80,
-        width: 100,
-      },
-      {
-        field: "Current Status",
+        field: "Status",
         pinned: "right",
         minWidth: 80,
         width: 50,
@@ -85,10 +80,21 @@ function ProjectWorkDetails() {
                 style={{ fontSize: "20px", color: "green" }}
               ></i>
             ) : params?.data?.status?.toLowerCase() === "rejected" ? (
-              <i
-                class="fa-regular fa-circle-xmark"
-                style={{ fontSize: "20px", color: "red" }}
-              ></i>
+              <>
+                <i
+                  class="fa-regular fa-circle-xmark"
+                  style={{ fontSize: "20px", color: "red" }}
+                ></i>
+                <i
+                  class="fa-regular fa-comment"
+                  style={{
+                    fontSize: "20px",
+                    color: "green",
+                    marginLeft: "20px",
+                  }}
+                  onClick={() => setOpen(true)}
+                ></i>
+              </>
             ) : (
               <i
                 class="fa-solid fa-circle"
@@ -109,8 +115,13 @@ function ProjectWorkDetails() {
         cellRenderer: (params, index) => (
           <div className="actions">
             <i
-              class="fa-solid fa-floppy-disk"
-              onClick={() => updateProjectDetails(params)}
+              style={{ color: "color", backgroundColor: "green" }}
+              class="fa-solid fa-check"
+              onClick={() => updateProjectDetails("approved", params)}
+            ></i>
+            <i
+              class="fa-regular fa-circle-xmark"
+              onClick={() => updateProjectDetails("rejected", params)}
             ></i>
           </div>
         ),
@@ -174,6 +185,10 @@ function ProjectWorkDetails() {
       .catch((err) => console.log(err));
   }, []);
 
+  const handleClose = () => {
+    setOpen(false);
+  };
+
   return (
     <>
       <div className="text-center pb-1 my-3">
@@ -203,6 +218,37 @@ function ProjectWorkDetails() {
           />
         </div>
       </div>
+
+      <Dialog
+        fullWidth
+        open={open}
+        maxWidth="md"
+        onClose={handleClose}
+        aria-labelledby="responsive-dialog-title"
+      >
+        <DialogTitle
+          id="alert-dialog-title"
+          className="d-flex align-items-center justify-content-between"
+        >
+          <h2>{"Add Command"}</h2>
+          <i
+            class="fa-solid fa-xmark cursor-pointer"
+            onClick={() => setOpen(false)}
+            style={{ cursor: "pointer" }}
+          ></i>
+        </DialogTitle>
+        <div className="p-3">
+          <TextField
+            fullWidth
+            variant="outlined"
+            // value={formData?.[index]?.sunday}
+            type="number"
+          />
+        </div>
+        <button type="submit" className="btn btn-primary button w-auto">
+          Submit
+        </button>
+      </Dialog>
     </>
   );
 }

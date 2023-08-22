@@ -6,188 +6,122 @@ import React, {
   useState,
   useRef,
 } from "react";
-import { AgGridReact } from "ag-grid-react";
-import "ag-grid-community/styles/ag-grid.css";
-import "ag-grid-community/styles/ag-theme-alpine.css";
-import Dialog from "@mui/material/Dialog";
-import useMediaQuery from "@mui/material/useMediaQuery";
-import { useTheme } from "@mui/material/styles";
-import AddProjectDetails from "./addProjectDetails";
-import { DialogTitle } from "@mui/material";
-import { grey } from "@mui/material/colors";
+import { startOfWeek, addDays } from "date-fns";
+import {
+  FormControl,
+  FormHelperText,
+  InputLabel,
+  MenuItem,
+  Select,
+  TextField,
+} from "@mui/material";
+
 function EmployeeHome() {
-  const containerStyle = { width: "100%", height: "100%" };
-  const gridStyle = { height: "100%", width: "100%" };
-  const [rowData, setRowData] = useState([]);
-  const [refresh, setRefresh] = React.useState(false);
-  const [isUpdate, setIsUpdate] = React.useState(false);
-  axios.defaults.withCredentials = true;
-  const gridRef = React.createRef();
-  console.log(rowData, "rowDatarowData");
+  const [projectDetails, setProjectDetails] = React.useState(null);
+  const [projectList, setProjectList] = useState(null);
+  const [projectWorkList, setProjectWorkList] = useState(null);
+  const [formData, setFormData] = React.useState(null);
+  const [referenceNoList, setReferenceNoList] = React.useState(null);
+  const [getUserDetails, setUserDetails] = React.useState(null);
+  const [weekData, setWeekDate] = React.useState(null);
+  const [employeeName, setEmployeeName] = React.useState(null);
+  const [isDisable, setIsDisable] = React.useState(null);
+  const [errorMessage, setErrorMessage] = React.useState(null);
+  const [leaveDetails, setLeaveDetails] = React.useState(null);
+  console.log(leaveDetails, "formStateformState", weekData);
 
-  const [open, setOpen] = React.useState(false);
-  const theme = useTheme();
-  const fullScreen = useMediaQuery(theme.breakpoints.down("md"));
+  console.log(projectDetails, "projectDetails");
 
-  const handleClickOpen = () => {
-    setOpen(true);
-  };
+  useEffect(() => {
+    initData();
+    getCurrentWeekNumber();
+    getProjectList();
+    getLeaveDetails();
+    const currentYear = new Date().getFullYear();
+    let datesss = getWeekDates(getCurrentWeekNumber(), currentYear);
+    setWeekDate(datesss);
+  }, []);
 
-  const handleClose = () => {
-    setRefresh(true);
-  };
+  useEffect(() => {
+    if (projectList?.length > 0) {
+      setReferenceNoList(projectList?.map((item) => item.referenceNo));
+    }
+  }, [projectList]);
 
   React.useEffect(() => {
-    initData();
-  }, [open]);
-
-  const onHandleDelete = (index, data) => {
-    let deletData = [...data];
-    deletData.splice(index, 1);
-    console.log(deletData, "deletDatadeletData23", index);
-
-    setRowData(deletData);
-    setRefresh(true);
-  };
-
-  const onBtStartEditing = (index) => {
-    if (gridRef.current) {
-      const api = gridRef.current.api;
-      api?.setFocusedCell(1, "projectName");
-      api?.startEditingCell({ rowIndex: index, colKey: "projectName" });
+    if (projectWorkList) {
+      let tempObj = [];
+      projectWorkList?.map((result, index) => {
+        console.log(result, "resultresult");
+        tempObj.push({
+          employeeName: result?.employeeName,
+          referenceNo: result?.referenceNo,
+          projectName: result?.projectName,
+          tlName: result?.tlName,
+          taskNo: result?.taskNo,
+          subDivisionList: result?.subDivisionList,
+          areaofWork: result?.areaofWork,
+          subDivision: result?.subDivision,
+          monday: result?.monday,
+          tuesday: result?.tuesday,
+          wednesday: result?.wednesday,
+          thursday: result?.thursday,
+          friday: result?.friday,
+          saturday: result?.saturday,
+          sunday: result?.sunday,
+          totalHours: result?.totalHours,
+          sentDate: result?.sentDate,
+          approvedDate: result?.approvedDate,
+          id: result?.id,
+          status: result?.status,
+        });
+        console.log(tempObj, "tempObjtempObj");
+        setFormData(tempObj);
+      });
     }
+  }, [projectWorkList]);
+
+  const getCurrentWeekNumber = () => {
+    const now = new Date();
+    const startOfYear = new Date(now.getFullYear(), 0, 0);
+    const diff = now - startOfYear;
+    const oneWeekInMilliseconds = 7 * 24 * 60 * 60 * 1000;
+    const weekNumber = Math.floor(diff / oneWeekInMilliseconds);
+
+    return weekNumber;
   };
 
-  const columnDefs = useMemo(
-    () => [
-      {
-        field: "projectName",
-        minWidth: 100,
-        pinned: "left",
-        editable: false,
-      },
-      { field: "tlName", editable: false },
-      { field: "taskNo" },
-      { field: "areaofWork" },
-      { field: "monday" },
-      { field: "tuesday" },
-      { field: "wednesday" },
-      { field: "thursday" },
-      { field: "friday" },
-      { field: "saturday" },
-      { field: "sunday" },
-      { field: "totalHours" },
-      { field: "Week Number" },
-      {
-        field: "status",
-        pinned: "right",
-        minWidth: 80,
-        width: 50,
-        filter: false,
-        editable: false,
-        cellRenderer: (params) => (
-          <div className="d-flex justify-content-center align-items-center h-100">
-            {params?.data?.status?.toLowerCase() === "approved" ? (
-              <i
-                class="fa-regular fa-circle-check"
-                style={{ fontSize: "20px", color: "green" }}
-              ></i>
-            ) : params?.data?.status?.toLowerCase() === "rejected" ? (
-              <i
-                class="fa-regular fa-circle-xmark"
-                style={{ fontSize: "20px", color: "red" }}
-              ></i>
-            ) : (
-              <i
-                class="fa-solid fa-circle"
-                style={{ fontSize: "20px", color: "orange" }}
-              ></i>
-            )}
-          </div>
-        ),
-      },
-      {
-        headerName: "Action",
-        pinned: "right",
-        minWidth: 100,
-        width: 100,
-        field: "id",
-        filter: false,
-        editable: false,
-        cellRenderer: (params, index) => (
-          <div className="actions">
-            {params?.data?.newItem ? (
-              <>
-                <i class="fa-regular fa-paper-plane"></i>
-                <i
-                  class="fa-solid fa-trash"
-                  onClick={() => onHandleDelete(params?.rowIndex, rowData)}
-                ></i>
-              </>
-            ) : (
-              <>
-                {isUpdate && (
-                  <i
-                    class="fa-solid fa-floppy-disk"
-                    onClick={() => updateProjectDetails(params)}
-                  ></i>
-                )}
-                <i
-                  class="fa-solid fa-pen-to-square"
-                  onClick={() => onBtStartEditing(params?.rowIndex)}
-                ></i>
-              </>
-            )}
-          </div>
-        ),
-      },
-    ],
-    [isUpdate, rowData]
-  );
+  const getWeekDates = (weekNumber, year) => {
+    const startDate = startOfWeek(new Date(year, 0, 1)); // January 1st of the year
+    const daysToAdd = (weekNumber - 1) * 7; // Adjust for the selected week number
+    const dates = [];
+    for (let i = 0; i < 7; i++) {
+      const dateWithoutTime = addDays(startDate, daysToAdd + i);
+      dates.push(dateWithoutTime.toLocaleDateString());
+    }
+    console.log(dates, "datesdates123234123");
+    return dates;
+  };
 
-  const autoGroupColumnDef = useMemo(
+  const columns = useMemo(
     () => ({
-      headerName: "Group",
-      minWidth: 170,
-      field: "athlete",
-      valueGetter: (params) => {
-        if (params.node.group) {
-          return params.node.key;
-        } else {
-          return params.data[params.colDef.field];
-        }
-      },
-      headerCheckboxSelection: false,
-      cellRenderer: "agGroupCellRenderer",
-      cellRendererParams: {
-        checkbox: false,
-      },
-    }),
-    []
-  );
-
-  const gridOptions = useMemo(
-    () => ({
-      editType: "fullRow",
-      rowIndex: 1,
-      editable: true,
-      rowPinned: true,
-    }),
-    []
-  );
-
-  const defaultColDef = useMemo(
-    () => ({
-      editable: true,
-      enableRowGroup: true,
-      enablePivot: true,
-      enableValue: true,
-      sortable: true,
-      resizable: true,
-      filter: true,
-      floatingFilter: true,
-      flex: 1,
-      minWidth: 100,
+      referenceNo: "",
+      projectName: "",
+      tlName: "",
+      taskNo: "",
+      areaofWork: "",
+      subDivision: "",
+      monday: "",
+      tuesday: "",
+      wednesday: "",
+      thursday: "",
+      friday: "",
+      saturday: "",
+      sunday: "",
+      totalHours: "",
+      status: "",
+      sentDate: "",
+      approvedDate: "",
     }),
     []
   );
@@ -197,12 +131,20 @@ function EmployeeHome() {
       .get("http://localhost:8081/getWrokDetails")
       .then(async (res) => {
         let userDetails = await axios.get("http://localhost:8081/dashboard");
-        console.log(res, "resres324", userDetails);
+        let employeeDetails = await axios.get(
+          "http://localhost:8081/getEmployee"
+        );
+        setProjectWorkList(res?.data?.Result);
         if (res.data.Status === "Success") {
-          let filterData = res.data.Result.filter(
+          let filterProjectData = res.data.Result.filter(
             (items) => items.employeeName === userDetails.data.employeeName
           );
-          setRowData(filterData);
+          let filterUserData = employeeDetails.data?.Result?.filter(
+            (items) => items.employeeName === userDetails.data.employeeName
+          );
+          setEmployeeName(filterUserData?.[0]?.employeeName);
+          setProjectDetails(filterProjectData);
+          setUserDetails(filterUserData);
         } else {
           alert("Error");
         }
@@ -210,30 +152,131 @@ function EmployeeHome() {
       .catch((err) => console.log(err));
   };
 
-  const updateProjectDetails = (params) => {
+  const onSubmit = (data, index) => {
+    let errorMessages = {};
+    if (formData[index]?.areaofWork === "") {
+      errorMessages["areaofWork"] = "This fiedl is required";
+    }
+    if (formData[index]?.subDivision === "") {
+      errorMessages["subDivision"] = "This fiedl is required";
+    }
+    if (formData[index]?.monday === "") {
+      errorMessages["monday"] = "This fiedl is required";
+    }
+    if (formData[index]?.referenceNo === "") {
+      errorMessages["referenceNo"] = "This fiedl is required";
+    }
+    console.log(errorMessages, "errorMessageerrorMessage", errorMessage, index);
+    setErrorMessage(() => ({
+      [index]: errorMessages,
+    }));
+
+    if (Object.keys(errorMessages).length === 0) {
+      setErrorMessage([]);
+      let tempObjec = {
+        employeeName: employeeName,
+        sentDate: new Date(),
+        weekNumber: getCurrentWeekNumber(),
+      };
+      let submitData = { ...data, ...tempObjec };
+      delete submitData.id;
+      axios
+        .post("http://localhost:8081/project/addWorkDetails", submitData)
+        .then((res) => {
+          if (res.data.Error) {
+            alert(res.data.Error);
+          } else {
+            setIsDisable((prev) => ({
+              ...prev,
+              [index]: {
+                disable: true,
+              },
+            }));
+            location.reload();
+          }
+        })
+        .catch((err) => console.log(err));
+    } else {
+      alert("Plese fill all required fields");
+    }
+  };
+
+  const updateProjectDetails = (params, id) => {
     axios
-      .put(
-        `http://localhost:8081/project/updateWorkDetails/` + params.data.id,
-        params.data
-      )
+      .put(`http://localhost:8081/project/updateWorkDetails/` + id, params)
       .then(async (res) => {
-        setRefresh(true);
-        setIsUpdate(false);
+        location.reload();
         alert("Update Successfully");
       });
-    console.log(params.data, "datadatadatadata");
   };
 
-  const onSelectionChanged = (event) => {
-    const selectedItem = event.api.getSelectedRows();
-    console.log(selectedItem, "selectedItemselectedItem");
+  const handleClickOpen = () => {
+    setFormData((prev) => [...prev, columns]);
   };
 
-  const onChangeValue = (value) => {
-    console.log(value, "valuevalue", isUpdate);
-    if (value.value) {
-      setIsUpdate(true);
+  const getProjectList = () => {
+    axios
+      .get("http://localhost:8081/getProject")
+      .then((res) => {
+        if (res.data.Status === "Success") {
+          setProjectList(res.data.Result);
+        } else {
+          alert("Error");
+        }
+      })
+      .catch((err) => console.log(err));
+  };
+
+  const getLeaveDetails = () => {
+    axios
+      .get("http://localhost:8081/getLeaveDetails")
+      .then((res) => {
+        if (res.data.Status === "Success") {
+          setLeaveDetails(res.data.Result);
+        } else {
+          alert("Error");
+        }
+      })
+      .catch((err) => console.log(err));
+  };
+
+  const handleOnChange = (name, value, index) => {
+    if (name === "referenceNo") {
+      let tempProject = projectList?.filter(
+        (item) => item?.referenceNo === value
+      );
+      let tempFormData = [...formData];
+      tempFormData[index] = {
+        ...formData[index],
+        referenceNo: value,
+        projectName: tempProject?.[0]?.projectName,
+        tlName: tempProject?.[0]?.tlName,
+        taskNo: tempProject?.[0]?.taskJobNo,
+        subDivisionList: tempProject?.[0]?.subDivision,
+      };
+      setFormData(tempFormData);
+    } else {
+      let tempFormData = [...formData];
+      tempFormData[index] = {
+        ...formData[index],
+        [name]: value,
+      };
+      setFormData(tempFormData);
     }
+  };
+
+  const getDateYear = (value) => {
+    const dateObject = new Date(value);
+    const year = dateObject.getFullYear();
+    const month = dateObject.getMonth() + 1; // Months are 0-indexed, so adding 1
+    const day = dateObject.getDate();
+    const formattedDate = `${year}-${month}-${day}`;
+    return formattedDate;
+  };
+
+  const onDeleteIndex = (index) => {
+    const newData = formData.filter((item, i) => i !== index);
+    setFormData(newData);
   };
 
   return (
@@ -242,71 +285,467 @@ function EmployeeHome() {
       <div className=" pb-1 my-3 d-flex align-items-center  px-3">
         <div className="container">
           <div className="row p-0">
-            <div className="col-4 ">
+            <div className="col-4">
               <p>
-                NAME : <b>test</b>
-              </p> <p></p>
+                NAME : <b>{getUserDetails?.[0]?.employeeName}</b>
+              </p>{" "}
+              <p></p>
             </div>
             <div className="col-4">
               <p>
-                EMPLOYEE ID : <b>34</b>
+                EMPLOYEE ID : <b>{getUserDetails?.[0]?.EMPID}</b>
               </p>
             </div>
             <div className="col-4">
               <p>
-                MONTH & YEAR :<b>2023 agust</b>
+                MONTH & YEAR : <b>{getUserDetails?.[0]?.date}</b>
               </p>
             </div>
           </div>
-          <div className="row p-0" >
-            <div className="col" >
+          <div className="row p-0">
+            <div className="col">
               <p>
-                DESIGNATION : <b>ENGINEER</b>
+                DESIGNATION : <b>{getUserDetails?.[0]?.designation}</b>
               </p>
             </div>
             <div className="col">
               <p>
-                DESCIPLINE : <b>PARTS</b>
+                DESCIPLINE : <b>{getUserDetails?.[0]?.discipline}</b>
               </p>
             </div>
             <div className="col">
               <p>
-                CALENDAR WEEK :<b> 12</b>
+                CALENDAR WEEK : <b>{getCurrentWeekNumber()}</b>
               </p>
             </div>
           </div>
         </div>
+      </div>
+      <div className=" px-3">
+        <div>
+          <form className="tableSection">
+            <table className="table-responsive tablesss table align-middle">
+              <thead>
+                <tr>
+                  <th scope="col" className="text-center">
+                    S. No
+                  </th>
+                  <th scope="col" className="tableHead">
+                    referenceNo
+                  </th>
+                  <th scope="col">projectName</th>
+                  <th scope="col">tlName</th>
+                  <th scope="col">taskNo</th>
+                  <th scope="col">areaofWork</th>
+                  <th scope="col">subDivision</th>
+                  <th scope="col">
+                    {weekData?.[0]} <br />
+                    <hr />
+                    monday
+                  </th>
+                  <th scope="col">
+                    {" "}
+                    {weekData?.[1]} <br />
+                    <hr />
+                    tuesday
+                  </th>
+                  <th scope="col">
+                    {" "}
+                    {weekData?.[2]} <br />
+                    <hr />
+                    wednesday
+                  </th>
+                  <th scope="col">
+                    {" "}
+                    {weekData?.[3]} <br />
+                    <hr />
+                    thursday
+                  </th>
+                  <th scope="col">
+                    {" "}
+                    {weekData?.[4]} <br />
+                    <hr />
+                    friday
+                  </th>
+                  <th scope="col">
+                    {" "}
+                    {weekData?.[5]} <br />
+                    <hr />
+                    saturday
+                  </th>
+                  <th scope="col">
+                    {" "}
+                    {weekData?.[6]} <br />
+                    <hr />
+                    sunday
+                  </th>
+                  <th scope="col">totalHours</th>
+                  <th scope="col">status</th>
+                  <th scope="col">sentDate</th>
+                  <th scope="col">approvedDate</th>
+                  <th className="fixedColumn">Action</th>
+                </tr>
+              </thead>
 
-        <div className="actions">
-          <i class="fa-solid fa-plus" onClick={() => handleClickOpen()}></i>
+              <tbody>
+                {formData &&
+                  formData.map((res, index) => (
+                    <tr>
+                      <td>
+                        {index !== formData.length - 1 && index}
+                        {index === formData.length - 1 && (
+                          <div className="actions addIcon">
+                            <i
+                              class="fa-solid fa-plus"
+                              onClick={() => handleClickOpen()}
+                            ></i>
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <FormControl fullWidth>
+                          <Select
+                            value={formData?.[index]?.referenceNo}
+                            defaultValue={formData?.[index]?.referenceNo}
+                            error={errorMessage?.[index]?.referenceNo}
+                            disabled={
+                              isDisable?.[index]?.disable === false
+                                ? false
+                                : !formData[index]?.id
+                                ? false
+                                : true
+                            }
+                            onChange={(e, value) =>
+                              handleOnChange(
+                                "referenceNo",
+                                value.props?.value,
+                                index
+                              )
+                            }
+                          >
+                            {referenceNoList?.map((res) => (
+                              <MenuItem value={res}>{res}</MenuItem>
+                            ))}
+                          </Select>
+                          <FormHelperText>
+                            {errorMessage?.[index]?.referenceNo}
+                          </FormHelperText>
+                        </FormControl>
+                      </td>
+                      <td>
+                        <FormControl fullWidth>
+                          <TextField
+                            fullWidth
+                            variant="outlined"
+                            disabled={true}
+                            value={formData?.[index]?.projectName}
+                          />
+                        </FormControl>
+                      </td>
+                      <td>
+                        <TextField
+                          fullWidth
+                          variant="outlined"
+                          disabled={true}
+                          value={formData?.[index]?.tlName}
+                        />
+                      </td>
+                      <td>
+                        <TextField
+                          fullWidth
+                          variant="outlined"
+                          disabled={true}
+                          value={formData?.[index]?.taskNo}
+                        />
+                      </td>
+                      <td>
+                        <TextField
+                          fullWidth
+                          variant="outlined"
+                          value={formData?.[index]?.areaofWork}
+                          onChange={(e) =>
+                            handleOnChange("areaofWork", e.target.value, index)
+                          }
+                          helperText={errorMessage?.[index]?.areaofWork}
+                          error={errorMessage?.[index]?.areaofWork}
+                          disabled={
+                            isDisable?.[index]?.disable === false
+                              ? false
+                              : !formData[index]?.id
+                              ? false
+                              : true
+                          }
+                        />
+                      </td>
+                      <td>
+                        <FormControl fullWidth>
+                          <Select
+                            value={formData?.[index]?.subDivision}
+                            defaultValue={formData?.[index]?.subDivision}
+                            helperText={errorMessage?.[index]?.subDivision}
+                            error={errorMessage?.[index]?.subDivision}
+                            disabled={
+                              isDisable?.[index]?.disable === false
+                                ? false
+                                : !formData[index]?.id
+                                ? false
+                                : true
+                            }
+                            onChange={(e, value) =>
+                              handleOnChange(
+                                "subDivision",
+                                value.props?.value,
+                                index
+                              )
+                            }
+                          >
+                            {formData?.[index]?.subDivisionList
+                              ?.split(",")
+                              ?.map((res) => (
+                                <MenuItem value={res}>{res}</MenuItem>
+                              ))}
+                          </Select>
+                          <FormHelperText>
+                            {errorMessage?.[index]?.subDivision}
+                          </FormHelperText>
+                        </FormControl>
+                      </td>
+                      <td>
+                        <TextField
+                          fullWidth
+                          variant="outlined"
+                          value={formData?.[index]?.monday}
+                          helperText={errorMessage?.[index]?.monday}
+                          error={errorMessage?.[index]?.monday}
+                          type="number"
+                          onChange={(e) =>
+                            handleOnChange("monday", e.target.value, index)
+                          }
+                          disabled={
+                            isDisable?.[index]?.disable === false
+                              ? false
+                              : !formData[index]?.id
+                              ? false
+                              : true
+                          }
+                        />
+                      </td>
+                      <td>
+                        <TextField
+                          fullWidth
+                          variant="outlined"
+                          value={formData?.[index]?.tuesday}
+                          type="number"
+                          onChange={(e, value) =>
+                            handleOnChange("tuesday", e.target.value, index)
+                          }
+                          disabled={
+                            isDisable?.[index]?.disable === false
+                              ? false
+                              : !formData[index]?.id
+                              ? false
+                              : true
+                          }
+                        />
+                      </td>
+                      <td>
+                        <TextField
+                          fullWidth
+                          variant="outlined"
+                          value={formData?.[index]?.wednesday}
+                          type="number"
+                          onChange={(e, value) =>
+                            handleOnChange("wednesday", e.target.value, index)
+                          }
+                          disabled={
+                            isDisable?.[index]?.disable === false
+                              ? false
+                              : !formData[index]?.id
+                              ? false
+                              : true
+                          }
+                        />
+                      </td>
+                      <td>
+                        <TextField
+                          fullWidth
+                          variant="outlined"
+                          value={formData?.[index]?.thursday}
+                          type="number"
+                          onChange={(e, value) =>
+                            handleOnChange("thursday", e.target.value, index)
+                          }
+                          disabled={
+                            isDisable?.[index]?.disable === false
+                              ? false
+                              : !formData[index]?.id
+                              ? false
+                              : true
+                          }
+                        />
+                      </td>
+                      <td>
+                        <TextField
+                          fullWidth
+                          variant="outlined"
+                          value={formData?.[index]?.friday}
+                          type="number"
+                          onChange={(e, value) =>
+                            handleOnChange("friday", e.target.value, index)
+                          }
+                          disabled={
+                            isDisable?.[index]?.disable === false
+                              ? false
+                              : !formData[index]?.id
+                              ? false
+                              : true
+                          }
+                        />
+                      </td>
+                      <td>
+                        <TextField
+                          fullWidth
+                          variant="outlined"
+                          value={formData?.[index]?.saturday}
+                          type="number"
+                          onChange={(e, value) =>
+                            handleOnChange("saturday", e.target.value, index)
+                          }
+                          disabled={
+                            isDisable?.[index]?.disable === false
+                              ? false
+                              : !formData[index]?.id
+                              ? false
+                              : true
+                          }
+                        />
+                      </td>
+                      <td>
+                        <TextField
+                          fullWidth
+                          variant="outlined"
+                          value={formData?.[index]?.sunday}
+                          type="number"
+                          onChange={(e, value) =>
+                            handleOnChange("sunday", e.target.value, index)
+                          }
+                          disabled={
+                            isDisable?.[index]?.disable === false
+                              ? false
+                              : !formData[index]?.id
+                              ? false
+                              : true
+                          }
+                        />
+                      </td>
+                      <td>
+                        <TextField
+                          fullWidth
+                          variant="outlined"
+                          value={formData?.[index]?.totalHours}
+                          type="number"
+                          onChange={(e, value) =>
+                            handleOnChange("totalHours", e.target.value, index)
+                          }
+                          disabled={
+                            isDisable?.[index]?.disable === false
+                              ? false
+                              : !formData[index]?.id
+                              ? false
+                              : true
+                          }
+                        />
+                      </td>
+                      <td>
+                        <div className="d-flex justify-content-center align-items-center h-100">
+                          {formData?.[index]?.status?.toLowerCase() ===
+                          "approved" ? (
+                            <i
+                              class="fa-regular fa-circle-check"
+                              style={{ fontSize: "20px", color: "green" }}
+                            ></i>
+                          ) : formData?.[index]?.status?.toLowerCase() ===
+                            "rejected" ? (
+                            <i
+                              class="fa-regular fa-circle-xmark"
+                              style={{ fontSize: "20px", color: "red" }}
+                            ></i>
+                          ) : (
+                            <i
+                              class="fa-solid fa-circle"
+                              style={{ fontSize: "20px", color: "orange" }}
+                            ></i>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        {formData?.[index]?.sentDate
+                          ? getDateYear(formData?.[index]?.sentDate)
+                          : null}
+                      </td>
+                      <td>
+                        {formData?.[index]?.approvedDate
+                          ? getDateYear(formData?.[index]?.approvedDate)
+                          : null}
+                      </td>
+                      <td
+                        className="fixedColumn actions"
+                        style={{ height: "70px" }}
+                      >
+                        {!formData[index]?.id ? (
+                          <>
+                            <i
+                              style={{
+                                color: "color",
+                                backgroundColor: "green",
+                              }}
+                              class="fa-solid fa-share"
+                              onClick={() => onSubmit(formData[index], index)}
+                            ></i>
+                            <i
+                              class="fa-solid fa-trash"
+                              onClick={() => onDeleteIndex(index)}
+                            ></i>
+                          </>
+                        ) : formData?.[index]?.status?.toLowerCase() ===
+                          "approved" ? null : (
+                          <>
+                            <i
+                              class="fa-solid fa-pen-to-square"
+                              onClick={() => {
+                                setIsDisable((prev) => ({
+                                  ...prev,
+                                  [index]: {
+                                    disable: false,
+                                  },
+                                }));
+                              }}
+                            ></i>
+                            <i
+                              style={{
+                                color: "color",
+                                backgroundColor: "green",
+                              }}
+                              class="fa-regular fa-floppy-disk"
+                              onClick={() =>
+                                updateProjectDetails(
+                                  formData[index],
+                                  formData[index]?.id
+                                )
+                              }
+                            ></i>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </form>
         </div>
       </div>
 
-      <div style={containerStyle}>
-        <div style={gridStyle} className="ag-theme-alpine">
-          <AgGridReact
-            ref={gridRef}
-            rowData={rowData}
-            onRowEditingStarted={(value) => console.log(value, "ajdflajsdlfk")}
-            columnDefs={columnDefs}
-            autoGroupColumnDef={autoGroupColumnDef}
-            defaultColDef={defaultColDef}
-            suppressRowClickSelection={true}
-            groupSelectsChildren={true}
-            gridOptions={gridOptions}
-            stopEditingWhenCellsLoseFocus={true}
-            rowSelection={"single"}
-            rowGroupPanelShow={"always"}
-            pivotPanelShow={"always"}
-            pagination={true}
-            refresh={refresh}
-            onCellEditingStarted={(value) => onChangeValue(value)}
-            // onGridReady={onGridReady}
-            onSelectionChanged={(event) => onSelectionChanged(event)}
-          />
-        </div>
-      </div>
-
+      {/* 
       <Dialog
         fullWidth
         open={open}
@@ -322,7 +761,7 @@ function EmployeeHome() {
           <i class="fa-solid fa-xmark cursor-pointer" onClick={() => setOpen(false)} style={{cursor: "pointer"}}></i>
         </DialogTitle>
         <AddProjectDetails onSubmitValue={(value) => setOpen(false)} />
-      </Dialog>
+      </Dialog> */}
     </>
   );
 }
