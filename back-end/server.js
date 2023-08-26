@@ -467,15 +467,17 @@ app.post("/project/create", (req, res) => {
 
 app.post("/project/addWorkDetails", (req, res) => {
   const baseSql =
-    "INSERT INTO workdetails (`employeeName`,`referenceNo`,`projectName`,`tlName`, `taskNo`,`areaofWork`, `subDivision`, `totalHours`, `weekNumber`";
+    "INSERT INTO workdetails (`employeeName`,`userName`,`referenceNo`,`projectName`,`tlName`, `taskNo`,`areaofWork`,`variation`, `subDivision`, `totalHours`, `weekNumber`";
   let sql = baseSql;
   const values = [
     req.body.employeeName,
+    req.body.userName,
     req.body.referenceNo,
     req.body.projectName,
     req.body.tlName,
     req.body.taskNo,
     req.body.areaofWork,
+    req.body.variation,
     req.body.subDivision,
     req.body.totalHours,
     req.body.weekNumber,
