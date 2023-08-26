@@ -29,8 +29,8 @@ function addLeaveDetails() {
   console.log(formData, "formData");
 
   useEffect(() => {
-    axios.get("http://localhost:8081/dashboard").then((res) => {
-      setValue("employeeName", res?.data?.userName);
+    axios.get("http://localhost:8081/dashboard").then((result) => {
+      setValue("employeeName", result?.data?.userName);
     });
   }, []);
 
@@ -174,12 +174,12 @@ function addLeaveDetails() {
                 control={control}
                 name="leaveHours"
                 defaultValue=""
-                rules={{ required: "Leave Hours required." }}
+                rules={{ required: "Leave Days required." }}
                 render={({ field }) => (
                   <TextField
                     fullWidth
                     id="outlined-basic fullWidth"
-                    label="Leave Hours"
+                    label="Leave Days"
                     variant="outlined"
                     type="number"
                     {...field}

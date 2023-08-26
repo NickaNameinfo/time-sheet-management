@@ -57,6 +57,26 @@ function EmployeeDashboard() {
                 </Link>
               </li>
               <li>
+                <Link
+                  to="/employee/TimeManagement"
+                  className="nav-link text-white px-0 align-middle"
+                >
+                  <i className="fs-4 bi-speedometer2"></i>{" "}
+                  <span className="ms-1 d-none d-sm-inline">
+                    Time Management
+                  </span>{" "}
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/employee/Projects"
+                  className="nav-link text-white px-0 align-middle"
+                >
+                  <i className="fs-4 bi-speedometer2"></i>{" "}
+                  <span className="ms-1 d-none d-sm-inline">Projects</span>{" "}
+                </Link>
+              </li>
+              <li>
                 <Link to="#" className="nav-link px-0 align-middle text-white">
                   <i className="fs-4 bi-people"></i>{" "}
                   <span className="ms-1 d-none d-sm-inline">Notifications</span>{" "}

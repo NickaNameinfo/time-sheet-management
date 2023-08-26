@@ -32,6 +32,7 @@ import EditEmployeeHr from "./Hr/EditEmployeeHr";
 import AddProjectDetails from "./Employee/addProjectDetails";
 import AddLeaveDetails from "./Employee/addLeaveDetails";
 import ProjectWorkDetails from "./TeamLead/ProjectWorkDetails";
+import TimeManagement from "./Employee/TimeManagement";
 
 function App() {
   return (
@@ -58,22 +59,37 @@ function App() {
 
         <Route path="/Employee" element={<EmployeeDashboard />}>
           <Route path="" index element={<EmployeeHome />}></Route>
-          <Route path="/Employee/ProjectDetails" element={<AddProjectDetails />}></Route>
-          <Route path="/Employee/Leaves" element={<AddLeaveDetails/>}></Route>
-          
+          <Route
+            path="/Employee/ProjectDetails"
+            element={<AddProjectDetails />}
+          ></Route>
+          <Route path="/Employee/Leaves" element={<AddLeaveDetails />}></Route>
+          <Route
+            path="/Employee/TimeManagement"
+            element={<TimeManagement />}
+          ></Route>
+          <Route path="/Employee/Projects" element={<Projects type="employee"/>}></Route>
         </Route>
 
         <Route path="/TeamLead" element={<TeamLeadDashboard />}>
           <Route path="" index element={<TeamLeadHome />}></Route>
-          <Route path="/TeamLead/ProjectDetails" element={<ProjectsList />}></Route>
-          <Route path="/TeamLead/ProjectWorkDetails" element={<ProjectWorkDetails />}></Route>
+          <Route
+            path="/TeamLead/ProjectDetails"
+            element={<ProjectsList />}
+          ></Route>
+          <Route
+            path="/TeamLead/ProjectWorkDetails"
+            element={<ProjectWorkDetails />}
+          ></Route>
         </Route>
 
         <Route path="/Hr" element={<HrDashboard />}>
           <Route path="" index element={<HrHome />}></Route>
           <Route path="/Hr/employee" element={<EmployeeHr />}></Route>
           <Route path="/Hr/create" element={<AddEmployeeHr />}></Route>
-          <Route path="/Hr/employeeEdit/:id" element={<EditEmployeeHr />}
+          <Route
+            path="/Hr/employeeEdit/:id"
+            element={<EditEmployeeHr />}
           ></Route>
         </Route>
 

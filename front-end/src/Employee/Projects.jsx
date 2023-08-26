@@ -5,7 +5,7 @@ import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 
-function Projects(props) {
+function Projects() {
   const containerStyle = { width: "100%", height: "100%" };
   const gridStyle = { height: "100%", width: "100%" };
   const [rowData, setRowData] = useState([]);
@@ -102,22 +102,19 @@ function Projects(props) {
 
   return (
     <>
-      {props.type !== "employee" && (
-        <div className="addBtn pb-1 my-3">
-          <Link to="/Dashboard/addProject" className="btn">
-            Add Project
-          </Link>
-          {selectedRows?.length > 0 && (
-            <Button
-              variant="contained"
-              onClick={() => handleDelete(selectedRows?.[0]?.id)}
-            >
-              Delete
-            </Button>
-          )}
-        </div>
-      )}
-
+      <div className="addBtn pb-1 my-3">
+        <Link to="/Dashboard/addProject" className="btn">
+          Add Project
+        </Link>
+        {selectedRows?.length > 0 && (
+          <Button
+            variant="contained"
+            onClick={() => handleDelete(selectedRows?.[0]?.id)}
+          >
+            Delete
+          </Button>
+        )}
+      </div>
       <div style={containerStyle}>
         <div style={gridStyle} className="ag-theme-alpine">
           <AgGridReact
