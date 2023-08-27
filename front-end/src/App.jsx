@@ -33,7 +33,6 @@ import AddProjectDetails from "./Employee/addProjectDetails";
 import AddLeaveDetails from "./Employee/addLeaveDetails";
 import ProjectWorkDetails from "./TeamLead/ProjectWorkDetails";
 import TimeManagement from "./Employee/TimeManagement";
-import Sidenaw from "./Admin/Sidenaw";
 
 function App() {
   return (
@@ -42,7 +41,7 @@ function App() {
         <Route path="/" element={<Start />}></Route>
         <Route path="/Dashboard" element={<Dashboard />}>
           <Route path="" index element={<Home />}></Route>
-          <Route path="/Dashboard/sidenaw"  element={<Sidenaw />}></Route>
+          {/* <Route path="/Dashboard/sidenaw"  element={<Sidenaw />}></Route> */}
           <Route path="/Dashboard/employee" element={<Employee />}></Route>
           <Route path="/Dashboard/lead" element={<Leads />}></Route>
           <Route path="/Dashboard/hr" element={<Hr />}></Route>

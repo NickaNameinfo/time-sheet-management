@@ -37,64 +37,69 @@ function Dashboard() {
           {/* <h2> Arris</h2> */}
         </div>
         <ul className ="links">
-          <h4 className="fs-4 text-center mb-2">Admin Dashboard</h4>
+          <h4 className="fs-4 text-center mb-2 txt_col">Admin Dashboard</h4>
           <li>
-            <span className ="material-symbols-outlined fs-5 bi-speedometer2"></span>
+            <span className ="material-symbols-outlined fs-5 bi-collection"></span>
             <Link to="/Dashboard">
-              <span>Dashboard</span>
+              <span className="txt_col">Dashboard</span>
             </Link>
           </li>
+          
+         
           <li>
-            <span className ="material-symbols-outlined fs-5 bi-people"></span>
-            <Link to="/Dashboard/employee">
-              <span>Manage Employees</span>
-            </Link>
-          </li>
-          <li>
-            <span className ="material-symbols-outlined fs-5 bi-people"></span>
-            <Link to="/Dashboard/sidenaw">
-              <span>Manage Sidenaw</span>
-            </Link>
-          </li>
-          <li>
-            <span className ="material-symbols-outlined fs-5 bi-people"></span>
+            <span className ="material-symbols-outlined fs-5 bi-person-bounding-box"></span>
             <Link to="/Dashboard/lead">
-              <span>Manage Tl</span>
+              <span className="txt_col">Manage Tl</span>
             </Link>
           </li>
           <li>
-            <span className ="material-symbols-outlined fs-5 bi-people" ></span>
+            <span className ="material-symbols-outlined fs-5 bi-explicit-fill"></span>
+            <Link to="/Dashboard/employee">
+              <span className="txt_col">Manage Employees</span>
+            </Link>
+          </li>
+          <li>
+            <span className ="material-symbols-outlined fs-5 bi-people-fill" ></span>
             <Link to="/Dashboard/hr">
-              <span>Manage Hr</span>
+              <span className="txt_col">Manage Hr</span>
             </Link>
           </li>
           <li>
-            <span className ="material-symbols-outlined fs-5 bi-people"></span>
+            <span className ="material-symbols-outlined fs-5 bi-laptop-fill"></span>
             <Link to="/Dashboard/projects">
-              <span>Manage Projects</span>
+              <span className="txt_col">Manage Projects</span>
             </Link>
           </li>
           <li>
-            <span className ="material-symbols-outlined fs-5 bi-people"></span>
+            <span className ="material-symbols-outlined fs-5  bi-journal-check "></span>
             <Link  to="/Dashboard/Leaves">
-              <span>Leave Details</span>
+              <span className="txt_col">Leave Details</span>
             </Link>
           </li>
-          <li>
-            <span className ="material-symbols-outlined fs-5 bi-people"></span>
+         
+          <li className="multimenu">
+            <span className ="material-symbols-outlined fs-5  bi-journal-check "></span>
             <Link  to="/Dashboard/Leaves">
-              <span>Leave Details</span>
+              <span className="txt_col">Report</span>
             </Link>
+            <ul className="submenu">
+              <li  >sam</li>
+              <li  >sam</li>
+              <li  >sam</li>
+              <li  >sam</li>
+            </ul>
           </li>
+         
+          
           <li  onClick={() => handleLogout()}>
             <span className ="material-symbols-outlined  fs-5 bi-power"></span>
                         <Link>
-              <span>Logout</span>
+              <span className="txt_col">Logout</span>
             </Link>
           </li>
         </ul>
       </div>
-        <div class="col p-0 m-0">
+        <div className ="col p-0 m-0 Arristable ">
           {/* <div className="p-2 d-flex justify-content-center shadow">
             <h4>Employee Management System</h4>
           </div> */}

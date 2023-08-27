@@ -1,10 +1,36 @@
 body {
   background: #efefef;
 }
+.Arristable {
+  overflow-y: auto;
+}
+.bi-journal-check ,
+  .bi-power ,
+  .bi-collection {
+  color: orange;
+}
+.bi-laptop-fill{
+  color: rgb(216, 27, 96);
+ 
+}
+.bi-people-fill{
+  color: rgb(61, 174, 67);
+}
+.bi-person-bounding-box{
+  color: rgb(230, 221, 221);
+}
+
+.bi-explicit-fill {
+  color:rgb(26, 115, 232)
+}
+ul li
+{
+  border-bottom: 0.5px solid grey ;
+}
 
 div#root {
   background: #efefef;
-  height: 97vh;
+  height: auto;
 }
 .h1,
 .h2,
@@ -72,8 +98,9 @@ h6 {
   padding: 15px;
   background: white;
   border: none;
-  box-shadow: rgba(147, 146, 146, 0.25) 0px 14px 28px, rgba(132, 123, 123, 0.22) 0px 10px 10px;
-  
+  box-shadow: rgba(147, 146, 146, 0.25) 0px 14px 28px,
+    rgba(132, 123, 123, 0.22) 0px 10px 10px;
+
   border-width: 1.9px;
   /* border-style: solid;
   border-image: 
@@ -337,7 +364,7 @@ tbody td {
 .counterCardname {
   padding-top: 10px;
 }
-.counterCardTitle{
+.counterCardTitle {
   font-weight: 600;
   font-size: 1rem;
   line-height: 1.5;
@@ -346,46 +373,43 @@ tbody td {
   color: rgb(123, 128, 154);
 }
 
-
-
-
-
 /* Importing Google font - Poppins */
 @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap");
 
 * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: "Poppins", sans-serif;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Poppins", sans-serif;
 }
 
 body {
-    height: 100vh;
-    width: 100%;
-    background-image: url("images/hero-bg.jpg");
-    background-position: center;
-    background-size: cover;
+  height: 100vh;
+  width: 100%;
+  background-image: url("images/hero-bg.jpg");
+  background-position: center;
+  background-size: cover;
 }
 
 .arris-page .sidebar {
-    width: 100px ;
-    height: unset;
-    display: flex;
-    align-items: center;
-    flex-direction: column;
-    background: rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(17px);
-    --webkit-backdrop-filter: blur(17px);
-    border-right: 1px solid rgba(255, 255, 255, 0.7);
-    transition: all 0.4s ;
+  width: 100px;
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  background-color: rgba(0, 0, 0, 0.943);
+  backdrop-filter: blur(17px);
+  --webkit-backdrop-filter: blur(17px);
+  border-right: 1px solid rgba(255, 255, 255, 0.7);
+  transition: all 0.3s;
+  
 }
-.leavetable tr td{
-  transition: all 0.4s  ;
+.leavetable tr td {
+  transition: all 0.3s;
 }
-
 .sidebar:hover {
-    width: 250px ;
+  width: 250px;
+  background-color: rgba(0, 0, 0, 0.943);
 }
 
 .sidebar .logo {
@@ -396,82 +420,90 @@ body {
 }
 
 .logo img {
-    width: 85px;
-    border-radius: 10%;
+  width: 85px;
+  border-radius: 10%;
 }
 
 .logo h2 {
-    font-size: 1.15rem;
-    font-weight: 700;
-    margin-left:55px;
-    display: none;
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-left: 55px;
+  display: none;
 }
 
 .sidebar:hover .logo h2 {
-    display: block;
+  display: block;
 }
 
 .sidebar .links {
-    list-style: none;
-    margin-top: 20px;
-    overflow-y: auto;
-    scrollbar-width: none;
-    height: calc(100% - 70px);
-    padding: 0px;
+  list-style: none;
+  scrollbar-width: none;
+  margin: 0;
+  padding: 21px 0 12px;
+  overflow: auto;
+  height: 92vh;
+  overflow: auto;
+  color: white;
 }
-
 .sidebar .links::-webkit-scrollbar {
-    display: none;
+  display: none;
 }
 
-.links li {
-    display: flex;
-    border-radius: 4px;
-    align-items: center;
+.links li{
+  display: flex;
+  align-items: center;
+}
+.links .txt_col{
+  color: whitesmoke
 }
 
 .links li:hover {
-    cursor: pointer;
-    background: #2e83a4;
+  cursor: pointer;
+  background: #605d5d70;
+  border-radius:5px;
 }
 
 .links h4 {
-    color: #202020;
-    font-weight: 500;
-    display: none;
-    margin-bottom: 10px;
+  color: #202020;
+  font-weight: 500;
+  display: none;
+  margin-bottom: 10px;
 }
 
 .sidebar:hover .links h4 {
-    display: block;
+  display: block;
 }
 
 .links hr {
-    margin: 10px 8px;
-    border: 1px solid #4c4c4c;
+  margin: 10px 8px;
+  border: 1px solid #4c4c4c;
 }
 
 .sidebar:hover .links hr {
-    border-color: transparent;
+  border-color: transparent;
 }
 
 .links li span {
-    padding: 10px 10px;
+  padding: 10px 10px;
 }
 
 .links li a {
-    padding: 10px;
-    color: #000;
-    display: none;
-    font-weight: 500;
-    white-space: nowrap;
-    text-decoration: none;
+  padding: 10px;
+  color: #000;
+  display: none;
+  font-weight: 500;
+  white-space: nowrap;
+  text-decoration: none;
 }
 
 .sidebar:hover .links li a {
-    display: block;
+  display: block;
 }
 
 .links .logout-link {
-    margin-top: 20px;
+  margin-top: 20px;
+}
+.table-list-data {
+  overflow-y: scroll;
+  height: 100%;
 }
