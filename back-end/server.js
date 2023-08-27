@@ -131,6 +131,15 @@ app.get("/getLeaveDetails", (req, res) => {
   });
 });
 
+app.delete("/deleteLeave/:id", (req, res) => {
+  const id = req.params.id;
+  const sql = "Delete FROM leavedetails WHERE id = ?";
+  con.query(sql, [id], (err, result) => {
+    if (err) return res.json({ Error: "delete leavedetails error in sql" });
+    return res.json({ Status: "Success" });
+  });
+});
+
 app.get("/getEmployee", (req, res) => {
   const sql = "SELECT * FROM employee";
   con.query(sql, (err, result) => {
@@ -517,53 +526,49 @@ app.post("/project/addWorkDetails", (req, res) => {
 });
 
 app.put("/project/updateWorkDetails/:id", (req, res) => {
-  const id = req.params.id;
-  const {
-    employeeName,
-    referenceNo,
-    projectName,
-    tlName,
-    taskNo,
-    areaofWork,
-    totalHours,
-    ...optionalFields
-  } = req.body;
-
-  const updateFields = [];
-  const values = [];
-
-  // Collect values and update fields for optional columns
-  Object.keys(optionalFields).forEach((field) => {
-    if (optionalFields[field] !== undefined) {
-      updateFields.push(`\`${field}\` = ?`);
-      values.push(optionalFields[field]);
-    }
-  });
+  const workDetailId = req.params.id;
+  const baseSql =
+    "UPDATE workdetails SET `employeeName`=?, `userName`=?, `referenceNo`=?, `projectName`=?, `tlName`=?, `taskNo`=?, `areaofWork`=?, `variation`=?, `subDivision`=?, `totalHours`=?, `weekNumber`=?";
+  let sql = baseSql;
+  const values = [
+    req.body.employeeName,
+    req.body.userName,
+    req.body.referenceNo,
+    req.body.projectName,
+    req.body.tlName,
+    req.body.taskNo,
+    req.body.areaofWork,
+    req.body.variation,
+    req.body.subDivision,
+    req.body.totalHours,
+    req.body.weekNumber,
+  ];
 
   // Optional fields that are not required
-  const mandatoryFields = [
-    "employeeName",
-    "referenceNo",
-    "projectName",
-    "tlName",
-    "taskNo",
-    "areaofWork",
-    "totalHours",
+  const optionalFields = [
+    "subDivisionList",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+    "status",
+    "sentDate",
+    "approvedDate",
   ];
-  mandatoryFields.forEach((field) => {
-    updateFields.push(`\`${field}\` = ?`);
-    values.push(req.body[field]);
+  optionalFields.forEach((field) => {
+    if (req.body[field] !== undefined) {
+      sql += `, \`${field}\`=?`;
+      values.push(req.body[field]);
+    }
   });
+  sql += " WHERE id = ?";
 
-  // Construct the SQL query
-  const updateSql = `UPDATE workdetails SET ${updateFields.join(
-    ", "
-  )} WHERE id = ?`;
+  values.push(workDetailId);
 
-  // Add the id value to the values array
-  values.push(id);
-
-  con.query(updateSql, values, (err, result) => {
+  con.query(sql, values, (err, result) => {
     if (err) {
       console.error("Error updating work details:", err);
       return res.json({ Status: "Error", Error: err });
@@ -573,6 +578,64 @@ app.put("/project/updateWorkDetails/:id", (req, res) => {
     }
   });
 });
+
+// app.put("/project/updateWorkDetails/:id", (req, res) => {
+//   const id = req.params.id;
+//   const {
+//     employeeName,
+//     referenceNo,
+//     projectName,
+//     tlName,
+//     taskNo,
+//     areaofWork,
+//     totalHours,
+//     ...optionalFields
+//   } = req.body;
+
+//   const updateFields = [];
+//   const values = [];
+
+//   // Collect values and update fields for optional columns
+//   Object.keys(optionalFields).forEach((field) => {
+//     if (optionalFields[field] !== undefined) {
+//       updateFields.push(`\`${field}\` = ?`);
+//       values.push(optionalFields[field]);
+//     }
+//   });
+
+//   // Optional fields that are not required
+//   const mandatoryFields = [
+//     "employeeName",
+//     "referenceNo",
+//     "projectName",
+//     "tlName",
+//     "taskNo",
+//     "areaofWork",
+//     "totalHours",
+//   ];
+//   mandatoryFields.forEach((field) => {
+//     updateFields.push(`\`${field}\` = ?`);
+//     values.push(req.body[field]);
+//   });
+
+//   // Construct the SQL query
+//   const updateSql = `UPDATE workdetails SET ${updateFields.join(
+//     ", "
+//   )} WHERE id = ?`;
+
+//   // Add the id value to the values array
+//   values.push(id);
+
+//   con.query(updateSql, values, (err, result) => {
+//     if (err) {
+//       console.error("Error updating work details:", err);
+//       return res.json({ Status: "Error", Error: err });
+//     } else {
+//       console.log("Work details updated successfully");
+//       return res.json({ Status: "Success", Result: result });
+//     }
+//   });
+// });
 
 app.get("/getProject", (req, res) => {
   const sql = "SELECT * FROM project";

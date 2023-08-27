@@ -31,7 +31,7 @@ function TimeManagement() {
   const [leaveList, setLeaveList] = React.useState(null);
   console.log("formStateformState", weekData);
 
-  console.log(formData, "projectDetails", leaveList);
+  console.log(formData, "projectDetails", projectWorkList);
 
   useEffect(() => {
     initData();
@@ -49,7 +49,7 @@ function TimeManagement() {
   }, [projectList]);
 
   React.useEffect(() => {
-    if (currentIndex && formData) {
+    if (formData) {
       let tempFormData = [...formData];
       console.log(calculateTotalHours(tempFormData[currentIndex]), "98098");
       tempFormData[currentIndex] = {
@@ -105,12 +105,24 @@ function TimeManagement() {
 
   const getCurrentWeekNumber = () => {
     const now = new Date();
-    const startOfYear = new Date(now.getFullYear(), 0, 0);
+    const startOfYear = new Date(now.getFullYear(), 0, 1); // Changed day from 0 to 1
     const diff = now - startOfYear;
     const oneWeekInMilliseconds = 7 * 24 * 60 * 60 * 1000;
-    const weekNumber = Math.floor(diff / oneWeekInMilliseconds);
-
+    const weekNumber = Math.floor(diff / oneWeekInMilliseconds) + 1; // Added 1 to account for week 0
+    console.log(weekNumber, "weekNumber");
     return weekNumber;
+  };
+
+  const startOfWeek = (date) => {
+    const day = date.getDay();
+    const diff = date.getDate() - day + (day === 0 ? 1 : 1); // Adjust for Sunday as start of week
+    return new Date(date.setDate(diff));
+  };
+
+  const addDays = (date, days) => {
+    const result = new Date(date);
+    result.setDate(result.getDate() + days);
+    return result;
   };
 
   const getWeekDates = (weekNumber, year) => {
@@ -118,8 +130,8 @@ function TimeManagement() {
     const daysToAdd = (weekNumber - 1) * 7; // Adjust for the selected week number
     const dates = [];
     for (let i = 0; i < 7; i++) {
-      const dateWithoutTime = addDays(startDate, daysToAdd + i);
-      dates.push(dateWithoutTime.toLocaleDateString());
+      const date = addDays(startDate, daysToAdd + i);
+      dates.push(date.toLocaleDateString());
     }
     console.log(dates, "datesdates123234123");
     return dates;
@@ -169,7 +181,9 @@ function TimeManagement() {
         );
         if (res.data.Status === "Success") {
           let filterProjectData = res.data.Result.filter(
-            (items) => items.userName === userDetails.data.userName && getDateYear(items.sentDate) === getDateYear(new Date())
+            (items) =>
+              items.userName === userDetails.data.userName &&
+              getDateYear(items.sentDate) === getDateYear(new Date())
           );
           let filterUserData = employeeDetails.data?.Result?.filter(
             (items) => items.userName === userDetails.data.userName
@@ -236,8 +250,15 @@ function TimeManagement() {
   };
 
   const updateProjectDetails = (params, id) => {
+    let tempObjec = {
+      employeeName: employeeName,
+      userName: userName,
+      sentDate: new Date(),
+      weekNumber: getCurrentWeekNumber(),
+    };
+    let submitData = { ...params, ...tempObjec };
     axios
-      .put(`http://localhost:8081/project/updateWorkDetails/` + id, params)
+      .put(`http://localhost:8081/project/updateWorkDetails/` + id, submitData)
       .then(async (res) => {
         location.reload();
         alert("Update Successfully");
@@ -245,7 +266,11 @@ function TimeManagement() {
   };
 
   const handleClickOpen = () => {
-    setFormData((prev) => [...prev, columns]);
+    if (!formData) {
+      setFormData((prev) => [columns]);
+    } else {
+      setFormData((prev) => [...prev, columns]);
+    }
   };
 
   const getProjectList = () => {
@@ -262,15 +287,14 @@ function TimeManagement() {
   };
 
   function calculateTotalHours(formData) {
-    console.log(formData.monday, "sdfsdf");
     return (
-      (Number(formData.monday) || 0) +
-      (Number(formData.tuesday) || 0) +
-      (Number(formData.wednesday) || 0) +
-      (Number(formData.thursday) || 0) +
-      (Number(formData.friday) || 0) +
-      (Number(formData.saturday) || 0) +
-      (Number(formData.sunday) || 0)
+      (Number(formData?.monday) || 0) +
+      (Number(formData?.tuesday) || 0) +
+      (Number(formData?.wednesday) || 0) +
+      (Number(formData?.thursday) || 0) +
+      (Number(formData?.friday) || 0) +
+      (Number(formData?.saturday) || 0) +
+      (Number(formData?.sunday) || 0)
     );
   }
 
@@ -317,13 +341,12 @@ function TimeManagement() {
 
   const isDateInclude = (date) => {
     let isDateIncluded = leaveList.some((item) => {
-      let leaveFrom = item.leaveFrom;
-      return leaveFrom === date;
+      console.log(getDateYear(item.leaveFrom), "8080e23423", getDateYear(date));
+      return getDateYear(item.leaveFrom) === getDateYear(date);
     });
     console.log(date, "adfasdfdate", isDateIncluded);
     return isDateIncluded;
   };
-
   return (
     <>
       {/* <div className="text-center pb-1 my-3 d-flex align-items-center justify-content-between px-3"> */}
@@ -368,7 +391,7 @@ function TimeManagement() {
       </div>
       <div className=" px-3">
         <div>
-          <form className="tableSection">
+          <div className="tableSection">
             <table className="table-responsive tablesss table align-middle">
               <thead>
                 <tr>
@@ -376,462 +399,479 @@ function TimeManagement() {
                     S. No
                   </th>
                   <th scope="col" className="tableHead">
-                    referenceNo
+                    Reference No
                   </th>
-                  <th scope="col">projectName</th>
-                  <th scope="col">tlName</th>
-                  <th scope="col">taskNo</th>
-                  <th scope="col">areaofWork</th>
-                  <th scope="col">subDivision</th>
-                  <th scope="col">
+                  <th scope="col" className="tableHead">Project Name</th>
+                  <th scope="col" className="tableHead">Tl Name</th>
+                  <th scope="col" className="tableHead">Task No</th>
+                  <th scope="col" className="tableHead">Area of Work</th>
+                  <th scope="col" className="tableHead">Variation</th>
+                  <th scope="col" className="tableHead">Sub Division</th>
+                  <th scope="col" className="days">
                     {weekData?.[0]} <br />
                     <hr />
-                    monday
+                    Monday
                   </th>
-                  <th scope="col">
+                  <th scope="col" className="days">
                     {" "}
                     {weekData?.[1]} <br />
                     <hr />
-                    tuesday
+                    Tuesday
                   </th>
-                  <th scope="col">
+                  <th scope="col" className="days">
                     {" "}
                     {weekData?.[2]} <br />
                     <hr />
-                    wednesday
+                    Wednesday
                   </th>
-                  <th scope="col">
+                  <th scope="col" className="days">
                     {" "}
                     {weekData?.[3]} <br />
                     <hr />
-                    thursday
+                    Thursday
                   </th>
-                  <th scope="col">
+                  <th scope="col" className="days">
                     {" "}
                     {weekData?.[4]} <br />
                     <hr />
-                    friday
+                    Friday
                   </th>
-                  <th scope="col">
+                  <th scope="col" className="days">
                     {" "}
                     {weekData?.[5]} <br />
                     <hr />
-                    saturday
+                    Saturday
                   </th>
-                  <th scope="col">
+                  <th scope="col" className="days">
                     {" "}
                     {weekData?.[6]} <br />
                     <hr />
-                    sunday
+                    Sunday
                   </th>
-                  <th scope="col">totalHours</th>
-                  <th scope="col">status</th>
-                  <th scope="col">sentDate</th>
-                  <th scope="col">approvedDate</th>
+                  <th scope="col" className="days">Total Hours</th>
+                  <th scope="col" className="days">Status</th>
+                  <th scope="col" className="tableHead">Sent Date</th>
+                  <th scope="col" className="tableHead">Approved Date</th>
                   <th className="fixedColumn">Action</th>
                 </tr>
               </thead>
 
               <tbody>
-                {formData &&
-                  formData.map((res, index) => (
-                    <tr>
-                      <td>
-                        {index !== formData.length - 1 && index}
-                        {index === formData.length - 1 && (
-                          <div className="actions addIcon">
-                            <i
-                              class="fa-solid fa-plus"
-                              onClick={() => handleClickOpen()}
-                            ></i>
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        <FormControl fullWidth>
-                          <Select
-                            value={formData?.[index]?.referenceNo}
-                            defaultValue={formData?.[index]?.referenceNo}
-                            error={errorMessage?.[index]?.referenceNo}
-                            disabled={
-                              isDisable?.[index]?.disable === false
-                                ? false
-                                : !formData[index]?.id
-                                ? false
-                                : true
-                            }
-                            onChange={(e, value) =>
-                              handleOnChange(
-                                "referenceNo",
-                                value.props?.value,
-                                index
-                              )
-                            }
-                          >
-                            {referenceNoList?.map((res) => (
+                {formData === null && (
+                  <tr>
+                    <td>
+                      <div className="actions addIcon">
+                        <i
+                          class="fa-solid fa-plus"
+                          onClick={() => handleClickOpen()}
+                        ></i>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                {formData?.map((res, index) => (
+                  <tr>
+                    <td>
+                      {index !== formData.length - 1 && index}
+                      {index === formData.length - 1 && (
+                        <div className="actions addIcon">
+                          <i
+                            class="fa-solid fa-plus"
+                            onClick={() => handleClickOpen()}
+                          ></i>
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      <FormControl fullWidth>
+                        <Select
+                          value={formData?.[index]?.referenceNo}
+                          defaultValue={formData?.[index]?.referenceNo}
+                          error={errorMessage?.[index]?.referenceNo}
+                          disabled={
+                            isDisable?.[index]?.disable === false
+                              ? false
+                              : !formData[index]?.id
+                              ? false
+                              : true
+                          }
+                          onChange={(e, value) =>
+                            handleOnChange(
+                              "referenceNo",
+                              value.props?.value,
+                              index
+                            )
+                          }
+                        >
+                          {referenceNoList?.map((res) => (
+                            <MenuItem value={res}>{res}</MenuItem>
+                          ))}
+                        </Select>
+                        <FormHelperText>
+                          {errorMessage?.[index]?.referenceNo}
+                        </FormHelperText>
+                      </FormControl>
+                    </td>
+                    <td>
+                      <FormControl fullWidth>
+                        <TextField
+                          fullWidth
+                          variant="outlined"
+                          disabled={true}
+                          value={formData?.[index]?.projectName}
+                        />
+                      </FormControl>
+                    </td>
+                    <td>
+                      <TextField
+                        fullWidth
+                        variant="outlined"
+                        disabled={true}
+                        value={formData?.[index]?.tlName}
+                      />
+                    </td>
+                    <td>
+                      <TextField
+                        fullWidth
+                        variant="outlined"
+                        disabled={true}
+                        value={formData?.[index]?.taskNo}
+                      />
+                    </td>
+                    <td>
+                      <FormControl fullWidth>
+                        <Select
+                          value={formData?.[index]?.areaofWork}
+                          defaultValue={formData?.[index]?.areaofWork}
+                          error={errorMessage?.[index]?.areaofWork}
+                          disabled={
+                            isDisable?.[index]?.disable === false
+                              ? false
+                              : !formData[index]?.id
+                              ? false
+                              : true
+                          }
+                          onChange={(e, value) =>
+                            handleOnChange(
+                              "areaofWork",
+                              value.props?.value,
+                              index
+                            )
+                          }
+                        >
+                          <MenuItem value={"Ui"}>UI</MenuItem>
+                        </Select>
+                        <FormHelperText>
+                          {errorMessage?.[index]?.areaofWork}
+                        </FormHelperText>
+                      </FormControl>
+                    </td>
+                    <td>
+                      <FormControl fullWidth>
+                        <Select
+                          value={formData?.[index]?.variation}
+                          defaultValue={formData?.[index]?.variation}
+                          error={errorMessage?.[index]?.variation}
+                          disabled={
+                            isDisable?.[index]?.disable === false
+                              ? false
+                              : !formData[index]?.id
+                              ? false
+                              : true
+                          }
+                          onChange={(e, value) =>
+                            handleOnChange(
+                              "variation",
+                              value.props?.value,
+                              index
+                            )
+                          }
+                        >
+                          <MenuItem value={"Ui"}>UI</MenuItem>
+                        </Select>
+                        <FormHelperText>
+                          {errorMessage?.[index]?.variation}
+                        </FormHelperText>
+                      </FormControl>
+                    </td>
+                    <td>
+                      <FormControl fullWidth>
+                        <Select
+                          value={formData?.[index]?.subDivision}
+                          defaultValue={formData?.[index]?.subDivision}
+                          helperText={errorMessage?.[index]?.subDivision}
+                          error={errorMessage?.[index]?.subDivision}
+                          disabled={
+                            isDisable?.[index]?.disable === false
+                              ? false
+                              : !formData[index]?.id
+                              ? false
+                              : true
+                          }
+                          onChange={(e, value) =>
+                            handleOnChange(
+                              "subDivision",
+                              value.props?.value,
+                              index
+                            )
+                          }
+                        >
+                          {formData?.[index]?.subDivisionList
+                            ?.split(",")
+                            ?.map((res) => (
                               <MenuItem value={res}>{res}</MenuItem>
                             ))}
-                          </Select>
-                          <FormHelperText>
-                            {errorMessage?.[index]?.referenceNo}
-                          </FormHelperText>
-                        </FormControl>
-                      </td>
-                      <td>
-                        <FormControl fullWidth>
-                          <TextField
-                            fullWidth
-                            variant="outlined"
-                            disabled={true}
-                            value={formData?.[index]?.projectName}
-                          />
-                        </FormControl>
-                      </td>
-                      <td>
-                        <TextField
-                          fullWidth
-                          variant="outlined"
-                          disabled={true}
-                          value={formData?.[index]?.tlName}
-                        />
-                      </td>
-                      <td>
-                        <TextField
-                          fullWidth
-                          variant="outlined"
-                          disabled={true}
-                          value={formData?.[index]?.taskNo}
-                        />
-                      </td>
-                      <td>
-                        <FormControl fullWidth>
-                          <Select
-                            value={formData?.[index]?.areaofWork}
-                            defaultValue={formData?.[index]?.areaofWork}
-                            error={errorMessage?.[index]?.areaofWork}
-                            disabled={
-                              isDisable?.[index]?.disable === false
-                                ? false
-                                : !formData[index]?.id
-                                ? false
-                                : true
-                            }
-                            onChange={(e, value) =>
-                              handleOnChange(
-                                "areaofWork",
-                                value.props?.value,
-                                index
-                              )
-                            }
-                          >
-                            <MenuItem value={"Ui"}>UI</MenuItem>
-                          </Select>
-                          <FormHelperText>
-                            {errorMessage?.[index]?.areaofWork}
-                          </FormHelperText>
-                        </FormControl>
-                      </td>
-                      <td>
-                        <FormControl fullWidth>
-                          <Select
-                            value={formData?.[index]?.variation}
-                            defaultValue={formData?.[index]?.variation}
-                            error={errorMessage?.[index]?.variation}
-                            disabled={
-                              isDisable?.[index]?.disable === false
-                                ? false
-                                : !formData[index]?.id
-                                ? false
-                                : true
-                            }
-                            onChange={(e, value) =>
-                              handleOnChange(
-                                "variation",
-                                value.props?.value,
-                                index
-                              )
-                            }
-                          >
-                            <MenuItem value={"Ui"}>UI</MenuItem>
-                          </Select>
-                          <FormHelperText>
-                            {errorMessage?.[index]?.variation}
-                          </FormHelperText>
-                        </FormControl>
-                      </td>
-                      <td>
-                        <FormControl fullWidth>
-                          <Select
-                            value={formData?.[index]?.subDivision}
-                            defaultValue={formData?.[index]?.subDivision}
-                            helperText={errorMessage?.[index]?.subDivision}
-                            error={errorMessage?.[index]?.subDivision}
-                            disabled={
-                              isDisable?.[index]?.disable === false
-                                ? false
-                                : !formData[index]?.id
-                                ? false
-                                : true
-                            }
-                            onChange={(e, value) =>
-                              handleOnChange(
-                                "subDivision",
-                                value.props?.value,
-                                index
-                              )
-                            }
-                          >
-                            {formData?.[index]?.subDivisionList
-                              ?.split(",")
-                              ?.map((res) => (
-                                <MenuItem value={res}>{res}</MenuItem>
-                              ))}
-                          </Select>
-                          <FormHelperText>
-                            {errorMessage?.[index]?.subDivision}
-                          </FormHelperText>
-                        </FormControl>
-                      </td>
-                      <td>
-                        <TextField
-                          fullWidth
-                          variant="outlined"
-                          value={formData?.[index]?.monday}
-                          helperText={errorMessage?.[index]?.monday}
-                          error={errorMessage?.[index]?.monday}
-                          type="number"
-                          onChange={(e) =>
-                            handleOnChange("monday", e.target.value, index)
-                          }
-                          disabled={
-                            isDisable?.[index]?.disable === false
-                              ? false
-                              : formData[index]?.id
-                              ? true
-                              : isDateInclude(weekData?.[0])
-                              ? true
-                              : false
-                          }
-                        />
-                      </td>
-                      <td>
-                        <TextField
-                          fullWidth
-                          variant="outlined"
-                          value={formData?.[index]?.tuesday}
-                          type="number"
-                          onChange={(e, value) =>
-                            handleOnChange("tuesday", e.target.value, index)
-                          }
-                          disabled={
-                            isDisable?.[index]?.disable === false
-                              ? false
-                              : formData[index]?.id
-                              ? true
-                              : isDateInclude(weekData?.[1])
-                              ? true
-                              : false
-                          }
-                        />
-                      </td>
-                      <td>
-                        <TextField
-                          fullWidth
-                          variant="outlined"
-                          value={formData?.[index]?.wednesday}
-                          type="number"
-                          onChange={(e, value) =>
-                            handleOnChange("wednesday", e.target.value, index)
-                          }
-                          disabled={
-                            isDisable?.[index]?.disable === false
-                              ? false
-                              : formData[index]?.id
-                              ? true
-                              : isDateInclude(weekData?.[2])
-                              ? true
-                              : false
-                          }
-                        />
-                      </td>
-                      <td>
-                        <TextField
-                          fullWidth
-                          variant="outlined"
-                          value={formData?.[index]?.thursday}
-                          type="number"
-                          onChange={(e, value) =>
-                            handleOnChange("thursday", e.target.value, index)
-                          }
-                          disabled={
-                            isDisable?.[index]?.disable === false
-                              ? false
-                              : formData[index]?.id
-                              ? true
-                              : isDateInclude(weekData?.[3])
-                              ? true
-                              : false
-                          }
-                        />
-                      </td>
-                      <td>
-                        <TextField
-                          fullWidth
-                          variant="outlined"
-                          value={formData?.[index]?.friday}
-                          type="number"
-                          onChange={(e, value) =>
-                            handleOnChange("friday", e.target.value, index)
-                          }
-                          disabled={
-                            isDisable?.[index]?.disable === false
-                              ? false
-                              : formData[index]?.id
-                              ? true
-                              : isDateInclude(weekData?.[4])
-                              ? true
-                              : false
-                          }
-                        />
-                      </td>
-                      <td>
-                        <TextField
-                          fullWidth
-                          variant="outlined"
-                          value={formData?.[index]?.saturday}
-                          type="number"
-                          onChange={(e, value) =>
-                            handleOnChange("saturday", e.target.value, index)
-                          }
-                          disabled={
-                            isDisable?.[index]?.disable === false
-                              ? false
-                              : formData[index]?.id
-                              ? true
-                              : isDateInclude(weekData?.[5])
-                              ? true
-                              : false
-                          }
-                        />
-                      </td>
-                      <td>
-                        <TextField
-                          fullWidth
-                          variant="outlined"
-                          value={formData?.[index]?.sunday}
-                          type="number"
-                          onChange={(e, value) =>
-                            handleOnChange("sunday", e.target.value, index)
-                          }
-                          disabled={
-                            isDisable?.[index]?.disable === false
-                              ? false
-                              : formData[index]?.id
-                              ? true
-                              : isDateInclude(weekData?.[6])
-                              ? true
-                              : false
-                          }
-                        />
-                      </td>
-                      <td>
-                        <TextField
-                          fullWidth
-                          variant="outlined"
-                          value={formData?.[index]?.totalHours}
-                          type="number"
-                          onChange={(e, value) =>
-                            handleOnChange("totalHours", e.target.value, index)
-                          }
-                          disabled={true}
-                        />
-                      </td>
-                      <td>
-                        <div className="d-flex justify-content-center align-items-center h-100">
-                          {formData?.[index]?.status?.toLowerCase() ===
-                          "approved" ? (
-                            <i
-                              class="fa-regular fa-circle-check"
-                              style={{ fontSize: "20px", color: "green" }}
-                            ></i>
-                          ) : formData?.[index]?.status?.toLowerCase() ===
-                            "rejected" ? (
-                            <i
-                              class="fa-regular fa-circle-xmark"
-                              style={{ fontSize: "20px", color: "red" }}
-                            ></i>
-                          ) : (
-                            <i
-                              class="fa-solid fa-circle"
-                              style={{ fontSize: "20px", color: "orange" }}
-                            ></i>
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        {formData?.[index]?.sentDate
-                          ? getDateYear(formData?.[index]?.sentDate)
-                          : null}
-                      </td>
-                      <td>
-                        {formData?.[index]?.approvedDate
-                          ? getDateYear(formData?.[index]?.approvedDate)
-                          : null}
-                      </td>
-                      <td
-                        className="fixedColumn actions"
-                        style={{ height: "70px" }}
-                      >
-                        {!formData[index]?.id ? (
-                          <>
-                            <i
-                              style={{
-                                color: "color",
-                                backgroundColor: "green",
-                              }}
-                              class="fa-solid fa-share"
-                              onClick={() => onSubmit(formData[index], index)}
-                            ></i>
-                            <i
-                              class="fa-solid fa-trash"
-                              onClick={() => onDeleteIndex(index)}
-                            ></i>
-                          </>
+                        </Select>
+                        <FormHelperText>
+                          {errorMessage?.[index]?.subDivision}
+                        </FormHelperText>
+                      </FormControl>
+                    </td>
+                    <td>
+                      {console.log(isDateInclude(weekData?.[0]), "dateone")}
+                      <TextField
+                        fullWidth
+                        variant="outlined"
+                        value={formData?.[index]?.monday}
+                        helperText={errorMessage?.[index]?.monday}
+                        error={errorMessage?.[index]?.monday}
+                        type="number"
+                        onChange={(e) =>
+                          handleOnChange("monday", e.target.value, index)
+                        }
+                        disabled={
+                          isDateInclude(weekData?.[0])
+                            ? true
+                            : isDisable?.[index]?.disable === false
+                            ? false
+                            : formData[index]?.id
+                            ? true
+                            : false
+                        }
+                      />
+                    </td>
+                    <td>
+                      <TextField
+                        fullWidth
+                        variant="outlined"
+                        value={formData?.[index]?.tuesday}
+                        type="number"
+                        onChange={(e, value) =>
+                          handleOnChange("tuesday", e.target.value, index)
+                        }
+                        disabled={
+                          isDateInclude(weekData?.[1])
+                            ? true
+                            : isDisable?.[index]?.disable === false
+                            ? false
+                            : formData[index]?.id
+                            ? true
+                            : false
+                        }
+                      />
+                    </td>
+                    <td>
+                      <TextField
+                        fullWidth
+                        variant="outlined"
+                        value={formData?.[index]?.wednesday}
+                        type="number"
+                        onChange={(e, value) =>
+                          handleOnChange("wednesday", e.target.value, index)
+                        }
+                        disabled={
+                          isDateInclude(weekData?.[2])
+                            ? true
+                            : isDisable?.[index]?.disable === false
+                            ? false
+                            : formData[index]?.id
+                            ? true
+                            : false
+                        }
+                      />
+                    </td>
+                    <td>
+                      <TextField
+                        fullWidth
+                        variant="outlined"
+                        value={formData?.[index]?.thursday}
+                        type="number"
+                        onChange={(e, value) =>
+                          handleOnChange("thursday", e.target.value, index)
+                        }
+                        disabled={
+                          isDateInclude(weekData?.[3])
+                            ? true
+                            : isDisable?.[index]?.disable === false
+                            ? false
+                            : formData[index]?.id
+                            ? true
+                            : false
+                        }
+                      />
+                    </td>
+                    <td>
+                      <TextField
+                        fullWidth
+                        variant="outlined"
+                        value={formData?.[index]?.friday}
+                        type="number"
+                        onChange={(e, value) =>
+                          handleOnChange("friday", e.target.value, index)
+                        }
+                        disabled={
+                          isDateInclude(weekData?.[4])
+                            ? true
+                            : isDisable?.[index]?.disable === false
+                            ? false
+                            : formData[index]?.id
+                            ? true
+                            : false
+                        }
+                      />
+                    </td>
+                    <td>
+                      <TextField
+                        fullWidth
+                        variant="outlined"
+                        value={formData?.[index]?.saturday}
+                        type="number"
+                        onChange={(e, value) =>
+                          handleOnChange("saturday", e.target.value, index)
+                        }
+                        disabled={
+                          isDateInclude(weekData?.[5])
+                            ? true
+                            : isDisable?.[index]?.disable === false
+                            ? false
+                            : formData[index]?.id
+                            ? true
+                            : false
+                        }
+                      />
+                    </td>
+                    <td>
+                      {console.log(
+                        isDateInclude(weekData?.[6]),
+                        "dateonesunday"
+                      )}
+                      <TextField
+                        fullWidth
+                        variant="outlined"
+                        value={formData?.[index]?.sunday}
+                        type="number"
+                        onChange={(e, value) =>
+                          handleOnChange("sunday", e.target.value, index)
+                        }
+                        disabled={
+                          isDateInclude(weekData?.[6])
+                            ? true
+                            : isDisable?.[index]?.disable === false
+                            ? false
+                            : formData[index]?.id
+                            ? true
+                            : false
+                        }
+                      />
+                    </td>
+                    <td>
+                      <TextField
+                        fullWidth
+                        variant="outlined"
+                        value={formData?.[index]?.totalHours}
+                        type="number"
+                        onChange={(e, value) =>
+                          handleOnChange("totalHours", e.target.value, index)
+                        }
+                        disabled={true}
+                      />
+                    </td>
+                    <td>
+                      <div className="d-flex justify-content-center align-items-center h-100">
+                        {formData?.[index]?.status?.toLowerCase() ===
+                        "approved" ? (
+                          <i
+                            class="fa-regular fa-circle-check"
+                            style={{ fontSize: "20px", color: "green" }}
+                          ></i>
                         ) : formData?.[index]?.status?.toLowerCase() ===
-                          "approved" ? null : (
-                          <>
-                            <i
-                              class="fa-solid fa-pen-to-square"
-                              onClick={() => {
-                                setIsDisable((prev) => ({
-                                  ...prev,
-                                  [index]: {
-                                    disable: false,
-                                  },
-                                }));
-                              }}
-                            ></i>
-                            <i
-                              style={{
-                                color: "color",
-                                backgroundColor: "green",
-                              }}
-                              class="fa-regular fa-floppy-disk"
-                              onClick={() =>
-                                updateProjectDetails(
-                                  formData[index],
-                                  formData[index]?.id
-                                )
-                              }
-                            ></i>
-                          </>
+                          "rejected" ? (
+                          <i
+                            class="fa-regular fa-circle-xmark"
+                            style={{ fontSize: "20px", color: "red" }}
+                          ></i>
+                        ) : (
+                          <i
+                            class="fa-solid fa-circle"
+                            style={{ fontSize: "20px", color: "orange" }}
+                          ></i>
                         )}
-                      </td>
-                    </tr>
-                  ))}
+                      </div>
+                    </td>
+                    <td>
+                      {formData?.[index]?.sentDate
+                        ? getDateYear(formData?.[index]?.sentDate)
+                        : null}
+                    </td>
+                    <td>
+                      {formData?.[index]?.approvedDate
+                        ? getDateYear(formData?.[index]?.approvedDate)
+                        : null}
+                    </td>
+                    <td
+                      className="fixedColumn actions"
+                      style={{ height: "70px" }}
+                    >
+                      {!formData[index]?.id ? (
+                        <>
+                          <i
+                            style={{
+                              color: "color",
+                              backgroundColor: "green",
+                            }}
+                            class="fa-solid fa-share"
+                            onClick={() => onSubmit(formData[index], index)}
+                          ></i>
+                          <i
+                            class="fa-solid fa-trash"
+                            onClick={() => onDeleteIndex(index)}
+                          ></i>
+                        </>
+                      ) : formData?.[index]?.status?.toLowerCase() ===
+                        "approved" ? null : (
+                        <>
+                          <i
+                            class="fa-solid fa-pen-to-square"
+                            onClick={() => {
+                              setIsDisable((prev) => ({
+                                ...prev,
+                                [index]: {
+                                  disable: false,
+                                },
+                              }));
+                            }}
+                          ></i>
+                          <i
+                            style={{
+                              color: "color",
+                              backgroundColor: "green",
+                            }}
+                            class="fa-regular fa-floppy-disk"
+                            onClick={() =>
+                              updateProjectDetails(
+                                formData[index],
+                                formData[index]?.id
+                              )
+                            }
+                          ></i>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
-          </form>
+          </div>
         </div>
       </div>
 

@@ -21,7 +21,7 @@
     "ag-grid-community": "^30.0.6",
     "ag-grid-enterprise": "^30.0.6",
     "ag-grid-react": "^30.0.6",
-    "axios": "^1.4.0",
+    "axios": "^1.4.0", 
     "boostrap": "^2.0.0",
     "bootstrap": "^5.3.0",
     "bootstrap-icons": "^1.10.5",

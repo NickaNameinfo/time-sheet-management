@@ -33,6 +33,7 @@ import AddProjectDetails from "./Employee/addProjectDetails";
 import AddLeaveDetails from "./Employee/addLeaveDetails";
 import ProjectWorkDetails from "./TeamLead/ProjectWorkDetails";
 import TimeManagement from "./Employee/TimeManagement";
+import ProjectReport from "./Admin/Reports/ProjectReport";
 
 function App() {
   return (
@@ -41,7 +42,6 @@ function App() {
         <Route path="/" element={<Start />}></Route>
         <Route path="/Dashboard" element={<Dashboard />}>
           <Route path="" index element={<Home />}></Route>
-          {/* <Route path="/Dashboard/sidenaw"  element={<Sidenaw />}></Route> */}
           <Route path="/Dashboard/employee" element={<Employee />}></Route>
           <Route path="/Dashboard/lead" element={<Leads />}></Route>
           <Route path="/Dashboard/hr" element={<Hr />}></Route>
@@ -52,6 +52,10 @@ function App() {
           <Route path="/Dashboard/addLead" element={<AddLead />}></Route>
           <Route path="/Dashboard/addHr" element={<AddHr />}></Route>
           <Route path="/Dashboard/addProject" element={<AddProject />}></Route>
+          <Route
+            path="/Dashboard/Reports/ProjectReport"
+            element={<ProjectReport />}
+          ></Route>
           <Route
             path="/Dashboard/employeeEdit/:id"
             element={<EditEmployee />}
@@ -69,7 +73,10 @@ function App() {
             path="/Employee/TimeManagement"
             element={<TimeManagement />}
           ></Route>
-          <Route path="/Employee/Projects" element={<Projects type="employee"/>}></Route>
+          <Route
+            path="/Employee/Projects"
+            element={<Projects type="employee" />}
+          ></Route>
         </Route>
 
         <Route path="/TeamLead" element={<TeamLeadDashboard />}>

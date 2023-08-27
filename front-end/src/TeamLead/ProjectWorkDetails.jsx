@@ -114,15 +114,19 @@ function ProjectWorkDetails() {
         editable: false,
         cellRenderer: (params, index) => (
           <div className="actions">
-            <i
-              style={{ color: "color", backgroundColor: "green" }}
-              class="fa-solid fa-check"
-              onClick={() => updateProjectDetails("approved", params)}
-            ></i>
-            <i
-              class="fa-regular fa-circle-xmark"
-              onClick={() => updateProjectDetails("rejected", params)}
-            ></i>
+            {params?.data?.status?.toLowerCase() !== "approved" && (
+              <>
+                <i
+                  style={{ color: "color", backgroundColor: "green" }}
+                  class="fa-solid fa-check"
+                  onClick={() => updateProjectDetails("approved", params)}
+                ></i>
+                <i
+                  class="fa-regular fa-circle-xmark"
+                  onClick={() => updateProjectDetails("rejected", params)}
+                ></i>
+              </>
+            )}
           </div>
         ),
       },
