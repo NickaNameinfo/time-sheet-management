@@ -22,89 +22,57 @@ function EmployeeDashboard() {
       .catch((err) => console.log(err));
   };
   return (
-    <div className="container-fluid h-100">
-      <div
-        className={isExpand ? "colaps expandMenu" : "expandMenu"}
-        onClick={() => setIsExpand((prev) => !prev)}
-      >
-        <i class="fa-solid fa-up-right-and-down-left-from-center"></i>
-      </div>
-      <div className="row h-100">
-        <div className={isExpand ? "d-none" : "col-sm-2 px-sm-2 px-0 sideBar"}>
-          <div className="text-center">
+    <div className="container-fluid arris-page">
+      <div className="row flex-nowrap min-vh-91">
+        <div className="col-auto px-sm-2 px-0 sidebar">
+          <div className="logo">
             <img src="http://localhost:5173/src/assets/logo.png" width={100} />
+            {/* <h2> Arris</h2> */}
           </div>
-          <div className="d-flex flex-column align-items-center align-items-sm-start px-3 pt-2 text-white">
-            <a
-              href="#"
-              className="d-flex align-items-center pb-3 mb-md-1 me-md-auto text-white text-decoration-none"
-            >
-              <span className="fs-5 fw-bolder d-none d-sm-inline text-center">
-                Employee Dashboard
-              </span>
-            </a>
-            <ul
-              className="nav nav-pills flex-column mb-sm-auto mb-0 align-items-center align-items-sm-start"
-              id="menu"
-            >
-              <li>
-                <Link
-                  to="/Employee"
-                  className="nav-link text-white px-0 align-middle"
-                >
-                  <i className="fs-4 bi-speedometer2"></i>{" "}
-                  <span className="ms-1 d-none d-sm-inline">Dashboard</span>{" "}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/employee/TimeManagement"
-                  className="nav-link text-white px-0 align-middle"
-                >
-                  <i className="fs-4 bi-speedometer2"></i>{" "}
-                  <span className="ms-1 d-none d-sm-inline">
-                    Time Management
-                  </span>{" "}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/employee/Projects"
-                  className="nav-link text-white px-0 align-middle"
-                >
-                  <i className="fs-4 bi-speedometer2"></i>{" "}
-                  <span className="ms-1 d-none d-sm-inline">Projects</span>{" "}
-                </Link>
-              </li>
-              <li>
-                <Link to="#" className="nav-link px-0 align-middle text-white">
-                  <i className="fs-4 bi-people"></i>{" "}
-                  <span className="ms-1 d-none d-sm-inline">Notifications</span>{" "}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/employee/Leaves"
-                  className="nav-link px-0 align-middle text-white"
-                >
-                  <i className="fs-4 bi-people"></i>{" "}
-                  <span className="ms-1 d-none d-sm-inline">Apply Leave</span>{" "}
-                </Link>
-              </li>
-              {/* <li>
-								<Link to="profile" className="nav-link px-0 align-middle text-white">
-									<i className="fs-4 bi-person"></i> <span className="ms-1 d-none d-sm-inline">Profile</span></Link>
-							</li> */}
-              <li onClick={handleLogout}>
-                <a href="#" className="nav-link px-0 align-middle text-white">
-                  <i className="fs-4 bi-power"></i>{" "}
-                  <span className="ms-1 d-none d-sm-inline">Logout</span>
-                </a>
-              </li>
-            </ul>
-          </div>
+          <ul className="links">
+            <h4 className="fs-4 text-center mb-2 txt_col">
+              Employee Dashboard
+            </h4>
+            <li>
+              <span className="material-symbols-outlined fs-5 bi-collection"></span>
+              <Link to="/Employee">
+                <span className="txt_col">Dashboard</span>
+              </Link>
+            </li>
+
+            <li>
+              <span className="material-symbols-outlined fs-5 bi-person-bounding-box"></span>
+              <Link to="/employee/TimeManagement">
+                <span className="txt_col">Time Management</span>
+              </Link>
+            </li>
+            <li>
+              <span className="material-symbols-outlined fs-5 bi-laptop-fill"></span>
+              <Link to="/employee/Projects">
+                <span className="txt_col">Projects</span>
+              </Link>
+            </li>
+            <li>
+              <span className="material-symbols-outlined fs-5 bi-bell-fill"></span>
+              <Link to="#">
+                <span className="txt_col">Notifications</span>
+              </Link>
+            </li>
+            <li>
+              <span className="material-symbols-outlined fs-5  bi-journal-check "></span>
+              <Link to="/employee/Leaves">
+                <span className="txt_col">Apply Leave</span>
+              </Link>
+            </li>
+            <li onClick={() => handleLogout()}>
+              <span className="material-symbols-outlined  fs-5 bi-power"></span>
+              <Link>
+                <span className="txt_col">Logout</span>
+              </Link>
+            </li>
+          </ul>
         </div>
-        <div className={isExpand ? "col-sm-12 p-0 m-0" : "col-sm-10 p-0 m-0"}>
+        <div className={"col p-0 m-0 Arristable"}>
           <Outlet />
         </div>
       </div>

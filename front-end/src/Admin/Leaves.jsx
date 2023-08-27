@@ -9,8 +9,6 @@ function Leaves() {
   const containerStyle = { width: "100%", height: "100%" };
   const gridStyle = { height: "100%", width: "100%" };
   const [rowData, setRowData] = useState([]);
-  const [selectedRows, setSelectedRows] = useState(null);
-
   const columnDefs = useMemo(
     () => [
       {

@@ -7,7 +7,6 @@ import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 
 function Leads() {
-  const containerStyle = { width: "100%", height: "100%" };
   const gridStyle = { height: "100%", width: "100%" };
   const [rowData, setRowData] = useState([]);
   const [selectedRows, setSelectedRows] = useState(null);
@@ -47,7 +46,7 @@ function Leads() {
 
   const defaultColDef = useMemo(
     () => ({
-      editable: true,
+      editable: false,
       enableRowGroup: true,
       enablePivot: true,
       enableValue: true,
@@ -107,23 +106,21 @@ function Leads() {
           </Button>
         )}
       </div>
-      <div style={containerStyle}>
-        <div style={gridStyle} className="ag-theme-alpine">
-          <AgGridReact
-            rowData={rowData}
-            columnDefs={columnDefs}
-            autoGroupColumnDef={autoGroupColumnDef}
-            defaultColDef={defaultColDef}
-            suppressRowClickSelection={true}
-            groupSelectsChildren={true}
-            rowSelection={"single"}
-            rowGroupPanelShow={"always"}
-            pivotPanelShow={"always"}
-            pagination={true}
-            onGridReady={onGridReady}
-            onSelectionChanged={(event) => onSelectionChanged(event)}
-          />
-        </div>
+      <div className="ag-theme-alpine">
+        <AgGridReact
+          rowData={rowData}
+          columnDefs={columnDefs}
+          autoGroupColumnDef={autoGroupColumnDef}
+          defaultColDef={defaultColDef}
+          suppressRowClickSelection={true}
+          groupSelectsChildren={true}
+          rowSelection={"single"}
+          rowGroupPanelShow={"always"}
+          pivotPanelShow={"always"}
+          pagination={true}
+          onGridReady={onGridReady}
+          onSelectionChanged={(event) => onSelectionChanged(event)}
+        />
       </div>
     </>
   );
