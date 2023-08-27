@@ -105,8 +105,8 @@ function Leaves() {
         <h4>Leave Details</h4>
       </div>
       <div style={containerStyle}>
-        <div style={gridStyle} className="ag-theme-alpine">
-          <AgGridReact
+        <div style={gridStyle} className="ag-theme-alpine leavetable">
+          <AgGridReact 
             rowData={rowData}
             columnDefs={columnDefs}
             autoGroupColumnDef={autoGroupColumnDef}

@@ -1,6 +1,7 @@
 body {
   background: #efefef;
 }
+
 div#root {
   background: #efefef;
   height: 97vh;
@@ -67,16 +68,27 @@ h6 {
 
 .counterCard {
   /* box-shadow: 0px -1px 8px 0px #868484; */
-  border-radius: 5px;
-  padding: 30px;
+  border-radius: 7px;
+  padding: 15px;
   background: white;
   border: none;
+  box-shadow: rgba(147, 146, 146, 0.25) 0px 14px 28px, rgba(132, 123, 123, 0.22) 0px 10px 10px;
+  
+  border-width: 1.9px;
+  /* border-style: solid;
+  border-image: 
+    linear-gradient(
+      to bottom, 
+      rgba(142, 25, 201, 0.961), 
+      rgb(255, 255, 255)
+    ) 1  1 10%; */
 }
 
 .sideBar {
   --bs-bg-opacity: 1;
   background-color: white;
   border-radius: 4px;
+  /* transition: all 0.6s ease; */
 }
 .sideBar a {
   color: black !important;
@@ -109,6 +121,8 @@ h6 {
   align-items: center;
   justify-content: center;
   margin-top: 10px;
+}
+.counts {
 }
 
 .heading {
@@ -253,5 +267,211 @@ tbody td {
 .colaps {
   left: 0%;
 }
-.addIcon {
+.smallboxTL {
+  width: 65px;
+  height: 65px;
+  background: linear-gradient(195deg, rgb(66, 66, 74), rgb(25, 25, 25));
+  position: relative;
+  box-shadow: rgba(50, 50, 93, 0.25) 0px 50px 100px -20px,
+    rgba(0, 0, 0, 0.3) 0px 30px 60px -30px;
+  margin-top: -33px;
+  border-radius: 10px;
+}
+.smallboxE {
+  width: 65px;
+  height: 65px;
+  background: linear-gradient(195deg, rgb(73, 163, 241), rgb(26, 115, 232));
+  position: relative;
+  box-shadow: rgba(50, 50, 93, 0.25) 0px 50px 100px -20px,
+    rgba(0, 0, 0, 0.3) 0px 30px 60px -30px;
+  margin-top: -33px;
+  border-radius: 10px;
+}
+.smallboxHR {
+  width: 65px;
+  height: 65px;
+  background: linear-gradient(195deg, rgb(102, 187, 106), rgb(67, 160, 71));
+  position: relative;
+  box-shadow: rgba(50, 50, 93, 0.25) 0px 50px 100px -20px,
+    rgba(0, 0, 0, 0.3) 0px 30px 60px -30px;
+  margin-top: -33px;
+  border-radius: 10px;
+}
+.smallboxP {
+  width: 65px;
+  height: 65px;
+  background: linear-gradient(195deg, rgb(236, 64, 122), rgb(216, 27, 96));
+  position: relative;
+  box-shadow: rgba(50, 50, 93, 0.25) 0px 50px 100px -20px,
+    rgba(0, 0, 0, 0.3) 0px 30px 60px -30px;
+  margin-top: -33px;
+  border-radius: 10px;
+}
+
+.icon_admin {
+  color: rgb(255, 255, 255);
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  margin: 0 auto;
+  height: 100%;
+}
+.counts p {
+  margin: 0;
+  font-weight: 300;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  letter-spacing: 0.02857em;
+  font-family: unset;
+  color: rgb(123, 128, 154);
+}
+.counts h3 {
+  text-align: center;
+}
+.counterCardmain {
+  border-bottom: 1px solid rgba(18, 166, 215, 0.25);
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 15px;
+}
+.counterCardname {
+  padding-top: 10px;
+}
+.counterCardTitle{
+  font-weight: 600;
+  font-size: 1rem;
+  line-height: 1.5;
+  letter-spacing: 0.02857em;
+  font-family: unset;
+  color: rgb(123, 128, 154);
+}
+
+
+
+
+
+/* Importing Google font - Poppins */
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap");
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Poppins", sans-serif;
+}
+
+body {
+    height: 100vh;
+    width: 100%;
+    background-image: url("images/hero-bg.jpg");
+    background-position: center;
+    background-size: cover;
+}
+
+.arris-page .sidebar {
+    width: 100px ;
+    height: unset;
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(17px);
+    --webkit-backdrop-filter: blur(17px);
+    border-right: 1px solid rgba(255, 255, 255, 0.7);
+    transition: all 0.4s ;
+}
+.leavetable tr td{
+  transition: all 0.4s  ;
+}
+
+.sidebar:hover {
+    width: 250px ;
+}
+
+.sidebar .logo {
+  color: #000;
+  display: flex;
+  align-items: center;
+  padding: 12px 10px 0px;
+}
+
+.logo img {
+    width: 85px;
+    border-radius: 10%;
+}
+
+.logo h2 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-left:55px;
+    display: none;
+}
+
+.sidebar:hover .logo h2 {
+    display: block;
+}
+
+.sidebar .links {
+    list-style: none;
+    margin-top: 20px;
+    overflow-y: auto;
+    scrollbar-width: none;
+    height: calc(100% - 70px);
+    padding: 0px;
+}
+
+.sidebar .links::-webkit-scrollbar {
+    display: none;
+}
+
+.links li {
+    display: flex;
+    border-radius: 4px;
+    align-items: center;
+}
+
+.links li:hover {
+    cursor: pointer;
+    background: #2e83a4;
+}
+
+.links h4 {
+    color: #202020;
+    font-weight: 500;
+    display: none;
+    margin-bottom: 10px;
+}
+
+.sidebar:hover .links h4 {
+    display: block;
+}
+
+.links hr {
+    margin: 10px 8px;
+    border: 1px solid #4c4c4c;
+}
+
+.sidebar:hover .links hr {
+    border-color: transparent;
+}
+
+.links li span {
+    padding: 10px 10px;
+}
+
+.links li a {
+    padding: 10px;
+    color: #000;
+    display: none;
+    font-weight: 500;
+    white-space: nowrap;
+    text-decoration: none;
+}
+
+.sidebar:hover .links li a {
+    display: block;
+}
+
+.links .logout-link {
+    margin-top: 20px;
 }

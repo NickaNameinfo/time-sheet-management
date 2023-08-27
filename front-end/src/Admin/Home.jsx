@@ -1,5 +1,8 @@
 import axios from "axios";
 import React, { useEffect, useState } from "react";
+import {  BsBadgeTmFill, BsBarChartLineFill, BsFillHCircleFill, BsFillPersonBadgeFill, BsPersonCircle } from "react-icons/bs";
+
+// import "./style.css";
 
 function Home() {
   const [lead, setLead] = useState(null);
@@ -9,9 +12,9 @@ function Home() {
 
   useEffect(() => {
     getHr();
-    getProject()
-    getTl()
-    getEmployee()
+    getProject();
+    getTl();
+    getEmployee();
   }, []);
 
   const getProject = () => {
@@ -66,45 +69,69 @@ function Home() {
   };
   return (
     <div className="mainBody">
-      <div className="mt-4">
+      <div className="mt-5">
         <div className="row">
           <div className="col-sm-3">
             <div className="counterCard">
-              <div className="text-center pb-1">
-                <h4>Team Lead</h4>
+              <div className="counterCardmain">
+                <div className="smallboxTL">
+                  <BsBadgeTmFill className="icon_admin" />
+                </div>
+                <div className="counts">
+                  <p>TL Count's</p>
+                  <h3>{lead} </h3>
+                </div>
               </div>
-              <div className="count">
-                <h5>{lead}</h5>
-              </div>
-            </div>
-          </div>
-          <div className="col-sm-3">
-            <div className="counterCard">
-              <div className="text-center pb-1">
-                <h4>Employee</h4>
-              </div>
-              <div className="count">
-                <h5>{employee}</h5>
+              <div className="counterCardname">
+                <p  className="counterCardTitle">Team Lead</p>
               </div>
             </div>
           </div>
           <div className="col-sm-3">
             <div className="counterCard">
-              <div className="text-center pb-1">
-                <h4>Hr</h4>
+              <div className="counterCardmain">
+                <div className="smallboxE">
+                  <BsPersonCircle className="icon_admin" />
+                </div>
+                <div className="counts">
+                  <p>EMP Count's</p>
+                  <h3>{employee} </h3>
+                </div>
               </div>
-              <div className="count">
-                <h5>{hr}</h5>
+              <div className="counterCardname">
+                <p className="counterCardTitle">Employee Detail</p>
               </div>
             </div>
           </div>
           <div className="col-sm-3">
             <div className="counterCard">
-              <div className="text-center pb-1">
-                <h4>Projects</h4>
+              <div className="counterCardmain">
+                <div className="smallboxHR">
+                  <BsFillHCircleFill className="icon_admin" />
+                </div>
+                <div className="counts">
+                  <p>HR Count's</p>
+                  <h3>{hr} </h3>
+                </div>
               </div>
-              <div className="count">
-                <h5>{project}</h5>
+              <div className="counterCardname">
+                <p className="counterCardTitle"> Human Resources</p>
+              </div>
+            </div>
+          </div>
+          <div className="col-sm-3">
+            <div className="counterCard">
+            <div className="counterCardmain">
+                <div className="smallboxP">
+                  <BsBarChartLineFill className="icon_admin" />
+                </div>
+                <div className="counts">
+                  <p>Project's</p>
+                  <h3>{project} </h3>
+                </div>
+              </div>
+              <div className="counterCardname">
+                <p className="counterCardTitle" >Project Detail</p>
               </div>
             </div>
           </div>

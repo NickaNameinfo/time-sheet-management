@@ -169,7 +169,7 @@ function TimeManagement() {
         );
         if (res.data.Status === "Success") {
           let filterProjectData = res.data.Result.filter(
-            (items) => items.userName === userDetails.data.userName
+            (items) => items.userName === userDetails.data.userName && getDateYear(items.sentDate) === getDateYear(new Date())
           );
           let filterUserData = employeeDetails.data?.Result?.filter(
             (items) => items.userName === userDetails.data.userName
