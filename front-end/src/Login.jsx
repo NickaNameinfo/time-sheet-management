@@ -14,17 +14,21 @@ function Login() {
   const navigate = useNavigate();
   axios.defaults.withCredentials = true;
   const [error, setError] = useState("");
+  const [roles, setRoles] = React.useState(null);
 
   const Submit = (data) => {
     // event.preventDefault();
     axios
-      .post("http://localhost:8081/login", data, {
+      .post("http://localhost:8081/employeelogin", data, {
         withCredentials: true,
       })
       .then((res) => {
         console.log(res, "123123123123");
         if (res.data.Status === "Success") {
-          navigate("/Dashboard");
+          axios.get("http://localhost:8081/dashboard").then((ress) => {
+            console.log(ress, "ressressress");
+            setRoles(ress.data.role.split(","));
+          });
         } else {
           setError(res.data.Error);
         }
@@ -32,13 +36,24 @@ function Login() {
       .catch((err) => console.log(err));
   };
 
+  React.useEffect(() => {
+    if (roles?.includes("Admin")) {
+      console.log(roles, "rolesrolesroles");
+      navigate("/Dashboard");
+    } else if (roles?.includes("Tl")) {
+      navigate("/Dashboard/TeamLeadHome");
+    } else if (roles?.includes("Employee")) {
+      navigate("/Dashboard/EmployeeHome");
+    }
+  }, [roles]);
+
   return (
-    <div className="d-flex justify-content-center align-items-center vh-100 loginPage">
-      <div className="p-3 rounded w-25 border loginForm">
-        <h2 className="d-flex justify-content-center align-items-center">
+    <div className="d-flex justify-content-center align-items-center loginPage">
+      <div>
+        <h2 className="d-flex justify-content-center align-items-center my-3 text-white">
           Login
         </h2>
-        <form onSubmit={handleSubmit(Submit)}>
+        <form onSubmit={handleSubmit(Submit)} className="loginform">
           <div className="mb-3">
             <Controller
               control={control}
@@ -51,7 +66,7 @@ function Login() {
                     id="outlined-basic fullWidth"
                     label="User Name"
                     variant="outlined"
-                    className="form-control rounded-0"
+                    className="form-control rounded-1"
                     type="text"
                     {...field}
                     error={Boolean(errors.userName)}
@@ -73,7 +88,7 @@ function Login() {
                     id="outlined-basic fullWidth"
                     label="Enter password "
                     variant="outlined"
-                    className="form-control rounded-0"
+                    className="form-control rounded-1"
                     type="password"
                     {...field}
                     error={Boolean(errors.password)}
@@ -90,7 +105,7 @@ function Login() {
           <Button
             variant="contained"
             type="submit"
-            className="btn btn-success w-100 rounded-0"
+            className="btn btn-success w-100 rounded-1"
           >
             Log in
           </Button>

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
@@ -14,6 +14,8 @@ import {
 import dayjs from "dayjs";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { AgGridReact } from "ag-grid-react";
+import "ag-grid-community/styles/ag-grid.css";
 
 function addLeaveDetails() {
   const {
@@ -25,6 +27,45 @@ function addLeaveDetails() {
   } = useForm();
   const navigate = useNavigate();
   let formData = watch();
+  const containerStyle = { width: "100%", height: "100%"};
+  const gridStyle = { height: "100%", width: "100%" };
+  const [rowData, setRowData] = useState([]);
+  const[refresh, setRefresh] = useState(false)
+
+  const columnDefs = useMemo(
+    () => [
+      {
+        field: "employeeName",
+        minWidth: 170,
+      },
+      { field: "leaveType" },
+      { field: "leaveFrom" },
+      { field: "leaveTo" },
+      { field: "leaveHours" },
+      { field: "reason" },
+      { field: "leaveStatus" },
+      {
+        headerName: "Action",
+        pinned: "right",
+        minWidth: 100,
+        width: 100,
+        field: "id",
+        filter: false,
+        editable: false,
+        cellRenderer: (params, index) => (
+          <div className="actions">
+            {params?.data?.leaveStatus !== "approved" && (
+              <i
+                class="fa-solid fa-trash"
+                onClick={() => handleDelete(params?.data?.id)}
+              ></i>
+            )}
+          </div>
+        ),
+      },
+    ],
+    []
+  );
 
   console.log(formData, "formData");
 
@@ -32,7 +73,8 @@ function addLeaveDetails() {
     axios.get("http://localhost:8081/dashboard").then((result) => {
       setValue("employeeName", result?.data?.userName);
     });
-  }, []);
+    getLeaves();
+  }, [refresh]);
 
   useEffect(() => {
     if (formData.leaveFrom !== "" && formData?.leaveTo !== "") {
@@ -44,6 +86,35 @@ function addLeaveDetails() {
     }
   }, [formData.leaveFrom, formData.leaveTo]);
 
+  const getLeaves = () => {
+    axios
+      .get("http://localhost:8081/getLeaveDetails")
+      .then((res) => {
+        if (res.data.Status === "Success") {
+          axios.get("http://localhost:8081/dashboard").then((result) => {
+            let tempFinalResult = res?.data?.Result?.filter(
+              (item) => item.employeeName === result?.data?.userName
+            );
+            setRowData(tempFinalResult);
+
+            const vacationLeaveCount = tempFinalResult.filter(
+              (item) => item.leaveType === "Vecation"
+            ).length;
+            const scikLeaveCount = tempFinalResult.filter(
+              (item) => item.leaveType === "Sick Leave"
+            ).length;
+            const remainingCount = 18 - tempFinalResult?.length;
+            console.log(tempFinalResult,"tempFinalResult", vacationLeaveCount);
+            setSickLeave(scikLeaveCount);
+            setVacationLeave(vacationLeaveCount);
+            setRemaining(remainingCount);
+          });
+        }
+      })
+
+      .catch((err) => console.log(err));
+  };
+
   const onSubmit = (data) => {
     console.log(data, "tests213");
     // Perform any other actions you want with the form data
@@ -53,7 +124,57 @@ function addLeaveDetails() {
         if (res.data.Error) {
           alert(res.data.Error);
         } else {
-          navigate("/employee");
+          setRefresh(true)
+        }
+      })
+      .catch((err) => console.log(err));
+  };
+
+  const autoGroupColumnDef = useMemo(
+    () => ({
+      headerName: "Group",
+      minWidth: 170,
+      field: "athlete",
+      valueGetter: (params) => {
+        if (params.node.group) {
+          return params.node.key;
+        } else {
+          return params.data[params.colDef.field];
+        }
+      },
+      headerCheckboxSelection: false,
+      cellRenderer: "agGroupCellRenderer",
+      cellRendererParams: {
+        checkbox: false,
+      },
+    }),
+    []
+  );
+
+  const defaultColDef = useMemo(
+    () => ({
+      editable: false,
+      enableRowGroup: true,
+      enablePivot: true,
+      enableValue: true,
+      sortable: true,
+      resizable: true,
+      filter: true,
+      floatingFilter: true,
+      flex: 1,
+      minWidth: 100,
+    }),
+    []
+  );
+
+  const handleDelete = (id) => {
+    axios
+      .delete("http://localhost:8081/deleteLeave/" + id)
+      .then((res) => {
+        if (res.data.Status === "Success") {
+          getLeaves();
+        } else {
+          alert("Error");
         }
       })
       .catch((err) => console.log(err));
@@ -214,6 +335,28 @@ function addLeaveDetails() {
             Submit
           </button>
         </form>
+      </div>
+      <div style={{ width: "100%", height: "100%" }}>
+        <div className="text-center pb-1 my-3">
+          <h4>Leave Details</h4>
+        </div>
+        <div style={containerStyle}>
+          <div style={gridStyle} className="ag-theme-alpine">
+            <AgGridReact
+              rowData={rowData}
+              columnDefs={columnDefs}
+              autoGroupColumnDef={autoGroupColumnDef}
+              defaultColDef={defaultColDef}
+              suppressRowClickSelection={true}
+              groupSelectsChildren={true}
+              rowSelection={"single"}
+              rowGroupPanelShow={"always"}
+              pivotPanelShow={"always"}
+              pagination={true}
+              onSelectionChanged={(event) => onSelectionChanged(event)}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

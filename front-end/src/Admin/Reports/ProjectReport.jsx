@@ -11,7 +11,7 @@ const ProjectReport = () => {
   const [projectDetails, setProjectDetails] = useState([]);
   const [workDetails, setWorkDetails] = useState([]);
   const [projectWorkHours, setProjectWorkHours] = React.useState(null);
-  console.log(projectWorkHours, "workDetailsworkDetails");
+  console.log(projectWorkHours, "workDetailsworkDetails", workDetails);
   React.useEffect(() => {
     onGetWorkDetails();
     onGridReady();
@@ -75,26 +75,27 @@ const ProjectReport = () => {
       {
         field: "% Completion",
         cellRenderer: (params, index) => {
-          const project = projectWorkHours?.filter(
-            (items) => items.projectName === params?.data?.projectName
-          );
+          // const project = projectWorkHours?.filter(
+          //   (items) => items.projectName === params?.data?.projectName
+          // );
 
-          console.log(
-            project,
-            "completionPercentagecompletionPercentage",
-            projectWorkHours
-          );
-          const completionPercentage =
-            (project?.[0]?.totalHours / params?.data?.allotatedHours) * 100;
-          console.log(
-            completionPercentage,
-            "completionPercentagecompletionPercentage"
-          );
-          return (
-            <div style={{ color: "green" }}>
-              {completionPercentage?.toFixed(2)}%
-            </div>
-          );
+          // console.log(
+          //   project,
+          //   "completionPercentagecompletionPercentage",
+          //   projectWorkHours
+          // );
+          // const completionPercentage =
+          //   (project?.[0]?.totalHours / params?.data?.allotatedHours) * 100;
+          // console.log(
+          //   completionPercentage,
+          //   "completionPercentagecompletionPercentage"
+          // );
+          // return (
+          //   <div style={{ color: "green" }}>
+          //     {completionPercentage?.toFixed(2)}%
+          //   </div>
+          // );
+          return null
         },
       },
       {
@@ -126,6 +127,7 @@ const ProjectReport = () => {
         },
       },
       { field: "startDate" },
+      { field: "targetDate" },
     ],
     [projectWorkHours]
   );

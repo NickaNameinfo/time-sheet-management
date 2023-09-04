@@ -179,7 +179,7 @@ function ProjectWorkDetails() {
         console.log(res, "resres324", userDetails);
         if (res.data.Status === "Success") {
           let filterData = res.data.Result.filter(
-            (items) => items.tlName === userDetails.data.tlName
+            (items) => items.userName === userDetails.data.userName
           );
           setRowData(filterData);
         } else {

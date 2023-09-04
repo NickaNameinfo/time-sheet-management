@@ -16,7 +16,7 @@ import {
   TextField,
 } from "@mui/material";
 
-function TimeManagement() {
+const TimeManagement = () => {
   const [projectList, setProjectList] = useState(null);
   const [projectWorkList, setProjectWorkList] = useState(null);
   const [formData, setFormData] = React.useState(null);
@@ -29,9 +29,11 @@ function TimeManagement() {
   const [errorMessage, setErrorMessage] = React.useState(null);
   const [currentIndex, setCurrentIndex] = React.useState(null);
   const [leaveList, setLeaveList] = React.useState(null);
-  console.log("formStateformState", weekData);
+  const [selectedWeek, setSelectedWeek] = React.useState(null);
+  const [weekNumberList, setWeekNumberList] = React.useState(null);
+  console.log(weekNumberList, "formStateformState", weekData);
 
-  console.log(formData, "projectDetails", projectWorkList);
+  console.log("projectDetails", projectWorkList);
 
   useEffect(() => {
     initData();
@@ -40,7 +42,18 @@ function TimeManagement() {
     const currentYear = new Date().getFullYear();
     let datesss = getWeekDates(getCurrentWeekNumber(), currentYear);
     setWeekDate(datesss);
-  }, []);
+    let tempList = [
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+      40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
+    ];
+    setWeekNumberList(tempList);
+    setSelectedWeek(String(getCurrentWeekNumber()));
+  }, [selectedWeek]);
+
+  // React.useEffect(() => {
+  //   initData();
+  // }, [selectedWeek]);
 
   useEffect(() => {
     if (projectList?.length > 0) {
@@ -70,7 +83,9 @@ function TimeManagement() {
   ]);
 
   React.useEffect(() => {
-    if (projectWorkList) {
+    console.log(projectWorkList, "projectWorkList2341234123");
+
+    if (projectWorkList?.length > 0) {
       let tempObj = [];
       projectWorkList?.map((result, index) => {
         console.log(result, "resultresult");
@@ -100,6 +115,8 @@ function TimeManagement() {
         console.log(tempObj, "tempObjtempObj");
         setFormData(tempObj);
       });
+    } else {
+      setFormData(null);
     }
   }, [projectWorkList]);
 
@@ -141,7 +158,7 @@ function TimeManagement() {
     () => ({
       referenceNo: "",
       projectName: "",
-      tlName: "",
+      // tlName: "",
       taskNo: "",
       areaofWork: "",
       variation: "",
@@ -179,11 +196,19 @@ function TimeManagement() {
         let employeeDetails = await axios.get(
           "http://localhost:8081/getEmployee"
         );
+        console.log(selectedWeek, "selectedWeekselectedWeek");
         if (res.data.Status === "Success") {
           let filterProjectData = res.data.Result.filter(
             (items) =>
               items.userName === userDetails.data.userName &&
-              getDateYear(items.sentDate) === getDateYear(new Date())
+              items.weekNumber === String(selectedWeek) &&
+              new Date(items.sentDate).getFullYear() ===
+                new Date().getFullYear()
+          );
+          console.log(
+            filterProjectData,
+            "filterProjectDatafilterProjectData",
+            new Date().getFullYear()
           );
           let filterUserData = employeeDetails.data?.Result?.filter(
             (items) => items.userName === userDetails.data.userName
@@ -225,9 +250,11 @@ function TimeManagement() {
         userName: userName,
         sentDate: new Date(),
         weekNumber: getCurrentWeekNumber(),
+        discipline: getUserDetails?.[0]?.discipline,
       };
       let submitData = { ...data, ...tempObjec };
       delete submitData.id;
+      console.log(submitData, "submitDatasubmitData");
       axios
         .post("http://localhost:8081/project/addWorkDetails", submitData)
         .then((res) => {
@@ -313,6 +340,7 @@ function TimeManagement() {
         tlName: tempProject?.[0]?.tlName,
         taskNo: tempProject?.[0]?.taskJobNo,
         subDivisionList: tempProject?.[0]?.subDivision,
+        allotatedHours: tempProject?.[0]?.allotatedHours,
       };
       setFormData(tempFormData);
     } else {
@@ -347,6 +375,7 @@ function TimeManagement() {
     console.log(date, "adfasdfdate", isDateIncluded);
     return isDateIncluded;
   };
+
   return (
     <>
       {/* <div className="text-center pb-1 my-3 d-flex align-items-center justify-content-between px-3"> */}
@@ -383,7 +412,27 @@ function TimeManagement() {
             </div>
             <div className="col">
               <p>
-                CALENDAR WEEK : <b>{getCurrentWeekNumber()}</b>
+                CALENDAR WEEK :{" "}
+                <b>
+                  {
+                    <Select
+                      className="noPaddingInput"
+                      value={
+                        selectedWeek
+                          ? selectedWeek
+                          : String(getCurrentWeekNumber())
+                      }
+                      defaultValue={String(getCurrentWeekNumber())}
+                      onChange={(e, value) =>
+                        setSelectedWeek(value.props.value)
+                      }
+                    >
+                      {weekNumberList?.map((res) => (
+                        <MenuItem value={res}>{res}</MenuItem>
+                      ))}
+                    </Select>
+                  }
+                </b>
               </p>
             </div>
           </div>
@@ -401,12 +450,22 @@ function TimeManagement() {
                   <th scope="col" className="tableHead">
                     Reference No
                   </th>
-                  <th scope="col" className="tableHead">Project Name</th>
-                  <th scope="col" className="tableHead">Tl Name</th>
-                  <th scope="col" className="tableHead">Task No</th>
-                  <th scope="col" className="tableHead">Area of Work</th>
-                  <th scope="col" className="tableHead">Variation</th>
-                  <th scope="col" className="tableHead">Sub Division</th>
+                  <th scope="col" className="tableHead">
+                    Project Name
+                  </th>
+                  {/* <th scope="col" className="tableHead">Tl Name</th> */}
+                  <th scope="col" className="tableHead">
+                    Task No
+                  </th>
+                  <th scope="col" className="tableHead">
+                    Area of Work
+                  </th>
+                  <th scope="col" className="tableHead">
+                    Variation
+                  </th>
+                  <th scope="col" className="tableHead">
+                    Sub Division
+                  </th>
                   <th scope="col" className="days">
                     {weekData?.[0]} <br />
                     <hr />
@@ -448,10 +507,18 @@ function TimeManagement() {
                     <hr />
                     Sunday
                   </th>
-                  <th scope="col" className="days">Total Hours</th>
-                  <th scope="col" className="days">Status</th>
-                  <th scope="col" className="tableHead">Sent Date</th>
-                  <th scope="col" className="tableHead">Approved Date</th>
+                  <th scope="col" className="days">
+                    Total Hours
+                  </th>
+                  <th scope="col" className="days">
+                    Status
+                  </th>
+                  <th scope="col" className="tableHead">
+                    Sent Date
+                  </th>
+                  <th scope="col" className="tableHead">
+                    Approved Date
+                  </th>
                   <th className="fixedColumn">Action</th>
                 </tr>
               </thead>
@@ -469,6 +536,7 @@ function TimeManagement() {
                     </td>
                   </tr>
                 )}
+                {console.log(formData, "formDataformData")}
                 {formData?.map((res, index) => (
                   <tr>
                     <td>
@@ -485,6 +553,7 @@ function TimeManagement() {
                     <td>
                       <FormControl fullWidth>
                         <Select
+                          className={"inputTextStyle"}
                           value={formData?.[index]?.referenceNo}
                           defaultValue={formData?.[index]?.referenceNo}
                           error={errorMessage?.[index]?.referenceNo}
@@ -515,6 +584,7 @@ function TimeManagement() {
                     <td>
                       <FormControl fullWidth>
                         <TextField
+                          className={"inputTextStyle"}
                           fullWidth
                           variant="outlined"
                           disabled={true}
@@ -522,16 +592,17 @@ function TimeManagement() {
                         />
                       </FormControl>
                     </td>
-                    <td>
+                    {/* <td>
                       <TextField
                         fullWidth
                         variant="outlined"
                         disabled={true}
                         value={formData?.[index]?.tlName}
                       />
-                    </td>
+                    </td> */}
                     <td>
                       <TextField
+                        className={"inputTextStyle"}
                         fullWidth
                         variant="outlined"
                         disabled={true}
@@ -541,6 +612,7 @@ function TimeManagement() {
                     <td>
                       <FormControl fullWidth>
                         <Select
+                          className={"inputTextStyle"}
                           value={formData?.[index]?.areaofWork}
                           defaultValue={formData?.[index]?.areaofWork}
                           error={errorMessage?.[index]?.areaofWork}
@@ -569,6 +641,7 @@ function TimeManagement() {
                     <td>
                       <FormControl fullWidth>
                         <Select
+                          className={"inputTextStyle"}
                           value={formData?.[index]?.variation}
                           defaultValue={formData?.[index]?.variation}
                           error={errorMessage?.[index]?.variation}
@@ -597,6 +670,7 @@ function TimeManagement() {
                     <td>
                       <FormControl fullWidth>
                         <Select
+                          className={"inputTextStyle"}
                           value={formData?.[index]?.subDivision}
                           defaultValue={formData?.[index]?.subDivision}
                           helperText={errorMessage?.[index]?.subDivision}
@@ -630,6 +704,7 @@ function TimeManagement() {
                     <td>
                       {console.log(isDateInclude(weekData?.[0]), "dateone")}
                       <TextField
+                        className={"inputTextStyle"}
                         fullWidth
                         variant="outlined"
                         value={formData?.[index]?.monday}
@@ -652,6 +727,7 @@ function TimeManagement() {
                     </td>
                     <td>
                       <TextField
+                        className={"inputTextStyle"}
                         fullWidth
                         variant="outlined"
                         value={formData?.[index]?.tuesday}
@@ -672,6 +748,7 @@ function TimeManagement() {
                     </td>
                     <td>
                       <TextField
+                        className={"inputTextStyle"}
                         fullWidth
                         variant="outlined"
                         value={formData?.[index]?.wednesday}
@@ -692,6 +769,7 @@ function TimeManagement() {
                     </td>
                     <td>
                       <TextField
+                        className={"inputTextStyle"}
                         fullWidth
                         variant="outlined"
                         value={formData?.[index]?.thursday}
@@ -712,6 +790,7 @@ function TimeManagement() {
                     </td>
                     <td>
                       <TextField
+                        className={"inputTextStyle"}
                         fullWidth
                         variant="outlined"
                         value={formData?.[index]?.friday}
@@ -732,6 +811,7 @@ function TimeManagement() {
                     </td>
                     <td>
                       <TextField
+                        className={"inputTextStyle"}
                         fullWidth
                         variant="outlined"
                         value={formData?.[index]?.saturday}
@@ -756,6 +836,7 @@ function TimeManagement() {
                         "dateonesunday"
                       )}
                       <TextField
+                        className={"inputTextStyle"}
                         fullWidth
                         variant="outlined"
                         value={formData?.[index]?.sunday}
@@ -776,6 +857,7 @@ function TimeManagement() {
                     </td>
                     <td>
                       <TextField
+                        className={"inputTextStyle"}
                         fullWidth
                         variant="outlined"
                         value={formData?.[index]?.totalHours}
@@ -894,6 +976,6 @@ function TimeManagement() {
       </Dialog> */}
     </>
   );
-}
+};
 
 export default TimeManagement;

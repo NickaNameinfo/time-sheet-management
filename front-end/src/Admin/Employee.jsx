@@ -21,10 +21,10 @@ function Employee() {
       { field: "EMPID" },
       { field: "employeeEmail" },
       { field: "userName" },
+      { field: "role" },
       { field: "discipline" },
       { field: "designation" },
-      { field: "date" },
-      { field: "employeeImage" },
+      { field: "date", headerName: "Join Date" },
     ],
     []
   );

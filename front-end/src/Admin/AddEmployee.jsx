@@ -1,11 +1,14 @@
-import React from "react";
+import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import {
+  Checkbox,
   FormControl,
+  FormControlLabel,
+  FormGroup,
   FormHelperText,
   InputLabel,
   MenuItem,
@@ -23,6 +26,8 @@ function AddEmployee() {
     setValue,
   } = useForm();
   const navigate = useNavigate();
+  const [tempRole, setTempRole] = useState(["Employee"]); // Initialize tempRole state
+
   const onSubmit = (data) => {
     const formdata = new FormData();
     // Append all fields except for the file input
@@ -35,16 +40,39 @@ function AddEmployee() {
 
     // Append the file input separately
     formdata.append("employeeImage", data.employeeImage);
+    console.log(formdata, "formdataformdata")
     axios
       .post("http://localhost:8081/create", formdata)
       .then((res) => {
         if (res.data.Error) {
-          alert(res.data.Error)
+          alert(res.data.Error);
         } else {
           navigate("/Dashboard/employee");
         }
       })
       .catch((err) => console.log(err));
+  };
+
+  const handleOnChange = (name, value) => {
+    console.log(name, value, "changesings");
+    let updatedRoles = [...tempRole]; // Create a copy of the tempRole array
+
+    if (value === true) {
+      if (name === "Tl") {
+        updatedRoles.push("Tl"); // Add "Tl" role
+      }
+      if (name === "Admin") {
+        updatedRoles.push("Admin"); // Add "Admin" role
+      }
+    } else {
+      const index = updatedRoles.indexOf(name);
+      if (index !== -1) {
+        updatedRoles.splice(index, 1); // Remove the role from the array
+      }
+    }
+    setTempRole(updatedRoles); // Update the state with the new roles array
+    setValue("role", updatedRoles);
+    console.log(updatedRoles, "updatedRoles");
   };
 
   return (
@@ -227,7 +255,8 @@ function AddEmployee() {
                 </FormControl>
               </Box>
             </div>
-            <div className="col-sm-12">
+
+            <div className="col-sm-3">
               <Box sx={{}}>
                 <LocalizationProvider dateAdapter={AdapterDayjs}>
                   <Controller
@@ -257,7 +286,60 @@ function AddEmployee() {
                 </FormHelperText>
               </Box>
             </div>
-
+            <div className="col-sm-4">
+              <Box sx={{}}>
+                <FormControl fullWidth>
+                  <Controller
+                    name="role" // Make sure the name matches the field name in your form
+                    control={control}
+                    rules={{ required: "role is Required." }}
+                    defaultValue="" // Set the default value here if needed
+                    render={({ field }) => (
+                      <FormGroup
+                        style={{
+                          display: "flex",
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              onChange={(e) =>
+                                handleOnChange("Tl", e.target.checked)
+                              }
+                            />
+                          }
+                          label="Tl"
+                        />
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              Employee
+                              onChange={(e) =>
+                                handleOnChange("Admin", e.target.checked)
+                              }
+                            />
+                          }
+                          label="Admin"
+                        />
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              defaultChecked={true}
+                              onChange={(e) =>
+                                handleOnChange("Employee", e.target.checked)
+                              }
+                            />
+                          }
+                          label="Employee"
+                        />
+                      </FormGroup>
+                    )}
+                  />
+                </FormControl>
+              </Box>
+            </div>
             <div className="col-sm-12">
               <Controller
                 control={control}

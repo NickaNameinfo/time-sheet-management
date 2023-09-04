@@ -1,8 +1,8 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import Login from "./Login";
 
 function Start() {
-  const navigate = useNavigate();
   return (
     <>
       <div className="vh-100 loginPage">
@@ -119,31 +119,7 @@ function Start() {
                   </div>
                   <div className="col-sm-12">
                     <div className="loginSection">
-                      <button
-                        className="btn btn-success btn-lg"
-                        onClick={(e) => navigate("/login")}
-                      >
-                        Admin
-                      </button>
-
-                      <button
-                        className="btn btn-primary btn-lg"
-                        onClick={(e) => navigate("/TeamLeadLogin")}
-                      >
-                        Team Tl
-                      </button>
-                      <button
-                        className="btn btn-primary btn-lg"
-                        onClick={(e) => navigate("/HrLogin")}
-                      >
-                        HR
-                      </button>
-                      <button
-                        className="btn  btn-success btn-lg"
-                        onClick={(e) => navigate("/employeeLogin")}
-                      >
-                        Employee
-                      </button>
+                      <Login />
                     </div>
                   </div>
                 </div>
