@@ -9,6 +9,7 @@ function Leaves() {
   const containerStyle = { width: "100%", height: "100%" };
   const gridStyle = { height: "100%", width: "100%" };
   const [rowData, setRowData] = useState([]);
+  const [refresh, setRefresh] = useState(false);
   const columnDefs = useMemo(
     () => [
       {
@@ -34,11 +35,17 @@ function Leaves() {
             <i
               style={{ color: "color", backgroundColor: "green" }}
               class="fa-solid fa-check"
-              onClick={() => updateProjectDetails("approved", params)}
+              onClick={() => {
+                setRefresh(true);
+                updateProjectDetails("approved", params);
+              }}
             ></i>
             <i
               class="fa-regular fa-circle-xmark"
-              onClick={() => updateProjectDetails("rejected", params)}
+              onClick={() => {
+                setRefresh(true);
+                updateProjectDetails("rejected", params);
+              }}
             ></i>
           </div>
         ),
@@ -104,7 +111,7 @@ function Leaves() {
       </div>
       <div style={containerStyle}>
         <div style={gridStyle} className="ag-theme-alpine leavetable">
-          <AgGridReact 
+          <AgGridReact
             rowData={rowData}
             columnDefs={columnDefs}
             autoGroupColumnDef={autoGroupColumnDef}

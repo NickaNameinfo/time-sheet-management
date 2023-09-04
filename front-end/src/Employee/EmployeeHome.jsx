@@ -4,7 +4,13 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
-import {  BsBadgeTmFill, BsBarChartLineFill, BsFillHCircleFill, BsFillPersonBadgeFill, BsPersonCircle } from "react-icons/bs";
+import {
+  BsBadgeTmFill,
+  BsBarChartLineFill,
+  BsFillHCircleFill,
+  BsFillPersonBadgeFill,
+  BsPersonCircle,
+} from "react-icons/bs";
 
 function EmployeeHome() {
   const [sickLeave, setSickLeave] = useState(null);
@@ -19,31 +25,8 @@ function EmployeeHome() {
         field: "employeeName",
         minWidth: 170,
       },
-      { field: "leaveType" },
-      { field: "leaveFrom" },
-      { field: "leaveTo" },
-      { field: "leaveHours" },
-      { field: "reason" },
-      { field: "leaveStatus" },
-      {
-        headerName: "Action",
-        pinned: "right",
-        minWidth: 100,
-        width: 100,
-        field: "id",
-        filter: false,
-        editable: false,
-        cellRenderer: (params, index) => (
-          <div className="actions">
-            {params?.data?.leaveStatus !== "approved" && (
-              <i
-                class="fa-solid fa-trash"
-                onClick={() => handleDelete(params?.data?.id)}
-              ></i>
-            )}
-          </div>
-        ),
-      },
+      { field: "In Time" },
+      { field: "Out Time" },
     ],
     []
   );
@@ -147,7 +130,7 @@ function EmployeeHome() {
       <div className="mainBody">
         <div className="mt-4">
           <div className="row">
-            <div className="col-sm-3">
+            <div className="col">
               <div className="counterCard">
                 <div className="counterCardmain">
                   <div className="smallboxTL">
@@ -163,7 +146,7 @@ function EmployeeHome() {
                 </div>
               </div>
             </div>
-            <div className="col-sm-3">
+            <div className="col">
               <div className="counterCard">
                 <div className="counterCardmain">
                   <div className="smallboxE">
@@ -179,7 +162,7 @@ function EmployeeHome() {
                 </div>
               </div>
             </div>
-            <div className="col-sm-3">
+            <div className="col">
               <div className="counterCard">
                 <div className="counterCardmain">
                   <div className="smallboxHR">
@@ -191,11 +174,11 @@ function EmployeeHome() {
                   </div>
                 </div>
                 <div className="counterCardname">
-                  <p className="counterCardTitle">Vacation Leave</p>
+                  <p className="counterCardTitle">Casual Leave</p>
                 </div>
               </div>
             </div>
-            <div className="col-sm-3">
+            <div className="col">
               <div className="counterCard">
                 <div className="counterCardmain">
                   <div className="smallboxP">
@@ -211,10 +194,42 @@ function EmployeeHome() {
                 </div>
               </div>
             </div>
+            <div className="col">
+              <div className="counterCard">
+                <div className="counterCardmain">
+                  <div className="smallboxP">
+                    <BsBarChartLineFill className="icon_admin" />
+                  </div>
+                  <div className="counts">
+                    <p>Count</p>
+                    <h3>{reamaining} </h3>
+                  </div>
+                </div>
+                <div className="counterCardname">
+                  <p className="counterCardTitle">Earned Leave</p>
+                </div>
+              </div>
+            </div>
+            <div className="col">
+              <div className="counterCard">
+                <div className="counterCardmain">
+                  <div className="smallboxP">
+                    <BsBarChartLineFill className="icon_admin" />
+                  </div>
+                  <div className="counts">
+                    <p>Count</p>
+                    <h3>{reamaining} </h3>
+                  </div>
+                </div>
+                <div className="counterCardname">
+                  <p className="counterCardTitle">Composition Leave</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div className="text-center pb-1 my-3">
-          <h4>Leave Details</h4>
+          <h4>Time Sheet</h4>
         </div>
         <div style={containerStyle}>
           <div style={gridStyle} className="ag-theme-alpine">

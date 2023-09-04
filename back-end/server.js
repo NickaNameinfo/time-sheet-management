@@ -65,7 +65,7 @@ app.post("/create", upload.single("employeeImage"), (req, res) => {
     } else {
       // If the userName doesn't exist, proceed with the insert operation
       const sql =
-        "INSERT INTO employee (`employeeName`, `EMPID`, `employeeEmail`, `userName`, `password`, `discipline`, `designation`, `date`, `employeeImage`) VALUES (?)";
+        "INSERT INTO employee (`employeeName`, `EMPID`, `employeeEmail`, `userName`, `password`, `role`,`discipline`, `designation`, `date`, `employeeImage`) VALUES (?)";
       bcrypt.hash(req.body.password.toString(), 10, (err, hash) => {
         if (err) return res.json({ Error: "Error in hashing password" });
         const values = [
@@ -74,6 +74,7 @@ app.post("/create", upload.single("employeeImage"), (req, res) => {
           req.body.employeeEmail,
           req.body.userName,
           hash,
+          req.body.role,
           req.body.discipline,
           req.body.designation,
           req.body.date,
@@ -257,7 +258,7 @@ app.post("/employeelogin", (req, res) => {
           if (response) {
             const token = jwt.sign(
               {
-                role: "employee",
+                role: result[0].role,
                 id: result[0].id,
                 userName: result[0].userName,
                 employeeName: result[0].employeeName,
@@ -494,6 +495,7 @@ app.post("/project/addWorkDetails", (req, res) => {
 
   // Optional fields that are not required
   const optionalFields = [
+    "discipline",
     "subDivisionList",
     "monday",
     "tuesday",
@@ -505,6 +507,7 @@ app.post("/project/addWorkDetails", (req, res) => {
     "status",
     "sentDate",
     "approvedDate",
+    "allotatedHours",
   ];
   optionalFields.forEach((field) => {
     if (req.body[field] !== undefined) {
@@ -546,6 +549,7 @@ app.put("/project/updateWorkDetails/:id", (req, res) => {
 
   // Optional fields that are not required
   const optionalFields = [
+    "discipline",
     "subDivisionList",
     "monday",
     "tuesday",
@@ -557,6 +561,7 @@ app.put("/project/updateWorkDetails/:id", (req, res) => {
     "status",
     "sentDate",
     "approvedDate",
+    "allotatedHours",
   ];
   optionalFields.forEach((field) => {
     if (req.body[field] !== undefined) {

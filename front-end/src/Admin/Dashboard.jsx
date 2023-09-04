@@ -4,17 +4,16 @@ import { Link, Outlet, useNavigate } from "react-router-dom";
 import axios from "axios";
 
 function Dashboard() {
+  const [roles, setRoles] = React.useState(null);
+  console.log(roles, "rolesroles");
   const navigate = useNavigate();
   axios.defaults.withCredentials = true;
+
   useEffect(() => {
     axios.get("http://localhost:8081/dashboard").then((res) => {
-      console.log(res, "resresresres");
+      console.log(res, "resresresres12345");
       if (res.data.Status === "Success") {
-        if (res.data.role === "admin") {
-          navigate("/Dashboard");
-        }
-      } else {
-        navigate("/start");
+        setRoles(res.data.role.split(","));
       }
     });
   }, []);
@@ -35,58 +34,134 @@ function Dashboard() {
             <img src="http://localhost:5173/src/assets/logo.png" width={100} />
             {/* <h2> Arris</h2> */}
           </div>
-          <ul className="links">
-            <h4 className="fs-4 text-center mb-2 txt_col">Admin Dashboard</h4>
-            <li>
-              <span className="material-symbols-outlined fs-5 bi-collection"></span>
-              <Link to="/Dashboard">
-                <span className="txt_col">Dashboard</span>
-              </Link>
-            </li>
 
-            <li>
-              <span className="material-symbols-outlined fs-5 bi-person-bounding-box"></span>
-              <Link to="/Dashboard/lead">
-                <span className="txt_col">Manage Tl</span>
-              </Link>
-            </li>
-            <li>
-              <span className="material-symbols-outlined fs-5 bi-explicit-fill"></span>
-              <Link to="/Dashboard/employee">
-                <span className="txt_col">Manage Employees</span>
-              </Link>
-            </li>
-            <li>
-              <span className="material-symbols-outlined fs-5 bi-people-fill"></span>
-              <Link to="/Dashboard/hr">
-                <span className="txt_col">Manage Hr</span>
-              </Link>
-            </li>
+          <ul className="links">
+            {/* Admin List */}
+            <h4 className="fs-4 text-center mb-2 txt_col">Dashboard</h4>
+            {roles?.includes("Admin") && (
+              <>
+                <li>
+                  <span className="material-symbols-outlined fs-5 bi-collection"></span>
+                  <Link to="/Dashboard">
+                    <span className="txt_col">Dashboard</span>
+                  </Link>
+                </li>
+                <li>
+                  <span className="material-symbols-outlined fs-5 bi-person-bounding-box"></span>
+                  <Link to="/Dashboard/lead">
+                    <span className="txt_col">Manage Tl</span>
+                  </Link>
+                </li>
+
+                <li>
+                  <span className="material-symbols-outlined fs-5 bi-people-fill"></span>
+                  <Link to="/Dashboard/hr">
+                    <span className="txt_col">Manage Hr</span>
+                  </Link>
+                </li>
+                <li>
+                  <span className="material-symbols-outlined fs-5  bi-journal-check "></span>
+                  <Link to="/Dashboard/Leaves">
+                    <span className="txt_col">Leave Details</span>
+                  </Link>
+                </li>
+                <li className="multimenu">
+                  <div className="d-flex justify-content-center">
+                    <span className="material-symbols-outlined fs-5  bi-clipboard-data-fill"></span>
+                    <Link to="/Dashboard/Leaves">
+                      <span className="txt_col">Report</span>
+                    </Link>
+                  </div>
+                  <ul className="submenu">
+                    <Link to="/Dashboard/Reports/ProjectReport">
+                      Project Report
+                    </Link>
+                    <Link to="/Dashboard/Reports/WeeklyReport">
+                      Weekly Report
+                    </Link>
+                    <Link to="/Dashboard/Reports/MonthlyReport">
+                      Monthly Report
+                    </Link>
+                    <Link to="/Dashboard/Reports/YearlyReport">
+                      Yearly Report
+                    </Link>
+                  </ul>
+                </li>
+              </>
+            )}
+            {roles?.includes("Hr") && (
+              <>
+                <li>
+                  <span className="material-symbols-outlined fs-5 bi-explicit-fill"></span>
+                  <Link to="/Dashboard/employee">
+                    <span className="txt_col">Manage Employees</span>
+                  </Link>
+                </li>
+              </>
+            )}
+
+            {/* Tl List */}
+            {roles?.includes("TL") ||
+              (roles?.includes("Employee") && (
+                <>
+                  {!roles?.includes("Admin") && (
+                    <li>
+                      <span className="material-symbols-outlined fs-5 bi-collection"></span>
+                      <Link to="/Dashboard/TeamLeadHome">
+                        <span className="txt_col">Dashboard</span>
+                      </Link>
+                    </li>
+                  )}
+
+                  <li>
+                    <span className="material-symbols-outlined fs-5 bi-person-workspace"></span>
+                    <Link to="/Dashboard/TeamLeadProjectWorks">
+                      <span className="txt_col">Project Work Details</span>
+                    </Link>
+                  </li>
+                </>
+              ))}
+
+            {/* Employee List */}
+            {roles?.includes("TL") ||
+              roles?.includes("Employee") ||
+              (roles?.includes("Admin") && (
+                <>
+                  <li>
+                    <span className="material-symbols-outlined fs-5 bi-collection"></span>
+                    <Link to="/Dashboard/EmployeeHome">
+                      <span className="txt_col">Employee Dashboard</span>
+                    </Link>
+                  </li>
+                </>
+              ))}
             <li>
               <span className="material-symbols-outlined fs-5 bi-laptop-fill"></span>
               <Link to="/Dashboard/projects">
-                <span className="txt_col">Manage Projects</span>
+                <span className="txt_col">Projects</span>
               </Link>
             </li>
             <li>
-              <span className="material-symbols-outlined fs-5  bi-journal-check "></span>
-              <Link to="/Dashboard/Leaves">
-                <span className="txt_col">Leave Details</span>
+              <span className="material-symbols-outlined fs-5 bi-person-bounding-box"></span>
+              <Link to="/Dashboard/TimeManagement">
+                <span className="txt_col">Time Management</span>
               </Link>
             </li>
 
-            <li className="multimenu">
-              <span className="material-symbols-outlined fs-5  bi-clipboard-data-fill"></span>
-              <Link to="/Dashboard/Leaves">
-                <span className="txt_col">Report</span>
+            {/* Common List */}
+
+            <li>
+              <span className="material-symbols-outlined fs-5 bi-bell-fill"></span>
+              <Link to="#">
+                <span className="txt_col">Notifications</span>
               </Link>
-              <ul className="submenu">
-                <Link to="/Dashboard/Reports/ProjectReport">
-                  Project Report
-                </Link>
-                <Link>Weekly Report</Link>
-                <Link>Yearly Report</Link>
-              </ul>
+            </li>
+
+            <li>
+              <span className="material-symbols-outlined fs-5  bi-journal-check "></span>
+              <Link to="/Dashboard/AddLeaves">
+                <span className="txt_col">Apply Leave</span>
+              </Link>
             </li>
 
             <li onClick={() => handleLogout()}>
@@ -98,9 +173,6 @@ function Dashboard() {
           </ul>
         </div>
         <div className="col p-0 m-0 Arristable">
-          {/* <div className="p-2 d-flex justify-content-center shadow">
-            <h4>Employee Management System</h4>
-          </div> */}
           <Outlet />
         </div>
       </div>
