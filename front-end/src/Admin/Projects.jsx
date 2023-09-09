@@ -24,6 +24,7 @@ function Projects(props) {
       { field: "taskJobNo", minWidth: 170 },
       { field: "projectName", minWidth: 170 },
       { field: "referenceNo", minWidth: 170 },
+      { field: "desciplineCode", minWidth: 170 },
       { field: "subDivision", minWidth: 170 },
       { field: "startDate", minWidth: 170 },
       { field: "targetDate", minWidth: 170 },

@@ -36,7 +36,9 @@ import TimeManagement from "./Employee/TimeManagement";
 import ProjectReport from "./Admin/Reports/ProjectReport";
 import WeeklyReport from "./Admin/Reports/WeeklyReport";
 import YearlyReport from "./Admin/Reports/YearlyReport";
+import DesciplineCodeReport from "./Admin/Reports/DesciplineCodeReport";
 import MonthlyReport from "./Admin/Reports/MonthlyReport";
+import LeaveReport from "./Admin/Reports/LeaveReport";
 
 function App() {
   return (
@@ -59,6 +61,8 @@ function App() {
           <Route path="/Dashboard/Reports/WeeklyReport"  element={<WeeklyReport />}></Route>
           <Route path="/Dashboard/Reports/MonthlyReport"  element={<MonthlyReport />}></Route>
           <Route path="/Dashboard/Reports/YearlyReport"  element={<YearlyReport />}></Route>
+          <Route path="/Dashboard/Reports/CodeReport"  element={<DesciplineCodeReport />}></Route>
+          <Route path="/Dashboard/Reports/LeaveReport"  element={<LeaveReport />}></Route>
           <Route path="/Dashboard/employeeEdit/:id" element={<EditEmployee />}></Route>
           <Route path="/Dashboard/EmployeeHome" element={<EmployeeHome />}></Route>
           <Route path="/Dashboard/AddProjectDetails" element={<AddProjectDetails />}></Route>

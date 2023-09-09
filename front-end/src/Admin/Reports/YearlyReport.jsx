@@ -11,7 +11,7 @@ const YearlyReport = () => {
   const [projectDetails, setProjectDetails] = useState([]);
   const [workDetails, setWorkDetails] = useState([]);
   const [projectWorkHours, setProjectWorkHours] = React.useState(null);
-  const [yearBasedDetails, setYearBasedDetails] = React.useState();
+  const [yearBasedDetails, setYearBasedDetails] = React.useState([]);
   console.log(workDetails, "workDetailsworkDetails");
   React.useEffect(() => {
     onGetWorkDetails();
@@ -37,34 +37,59 @@ const YearlyReport = () => {
     });
     setProjectWorkHours(projectTotalHours);
 
-    // Create an array to store data for each year
-    const yearlyData = workDetails?.reduce((acc, item) => {
-      // Extract the year from the sentDate
+    const yearlyDataByProject = [];
+
+    workDetails?.forEach((item) => {
       const year = new Date(item.sentDate).getFullYear();
+      const projectName = item.projectName;
 
-      // Find the corresponding year's data in the accumulator
-      const yearData = acc.find((dataItem) => dataItem.year === year);
+      // Find the corresponding project's data in the accumulator
+      const projectData = yearlyDataByProject.find(
+        (dataItem) => dataItem.projectName === projectName
+      );
 
-      if (!yearData) {
-        // If the year's data doesn't exist, create it
-        const newYearData = {
+      if (!projectData) {
+        // If the project's data doesn't exist, create it
+        const newProjectData = {
+          projectName,
+          yearlyData: [],
+        };
+
+        const yearData = {
           year,
           totalHours: 0,
-          projectName: item.projectName,
           referenceNo: item.referenceNo,
-          allotatedHours: item.allotatedHours,
+          allottedHours: item.allottedHours,
         };
-        newYearData.totalHours += item.totalHours;
-        acc.push(newYearData);
-      } else {
-        // If the year's data already exists, update it
-        yearData.totalHours += item.totalHours;
-      }
 
-      return acc;
-    }, []);
-    setYearBasedDetails(yearlyData);
-    console.log(yearlyData, "totalHoursPerYeartotalHoursPerYear");
+        yearData.totalHours += item.totalHours;
+        newProjectData.yearlyData.push(yearData);
+        yearlyDataByProject.push(newProjectData);
+      } else {
+        // If the project's data already exists, find the corresponding year's data
+        const yearData = projectData.yearlyData.find(
+          (dataItem) => dataItem.year === year
+        );
+
+        if (!yearData) {
+          // If the year's data doesn't exist, create it
+          const newYearData = {
+            year,
+            totalHours: 0,
+            referenceNo: item.referenceNo,
+            allottedHours: item.allottedHours,
+          };
+
+          newYearData.totalHours += item.totalHours;
+          projectData.yearlyData.push(newYearData);
+        } else {
+          // If the year's data already exists, update it
+          yearData.totalHours += item.totalHours;
+        }
+      }
+    });
+    setYearBasedDetails(yearlyDataByProject);
+    console.log(yearlyDataByProject, "totalHoursPerYeartotalHoursPerYear");
   }, [workDetails]);
 
   const onGridReady = (params) => {
@@ -92,6 +117,32 @@ const YearlyReport = () => {
       })
       .catch((err) => console.log(err));
   };
+  // Extract unique years from all projects' yearlyData arrays
+  const uniqueYears = [
+    ...new Set(
+      yearBasedDetails.flatMap((project) =>
+        project.yearlyData.map((yearData) => yearData.year)
+      )
+    ),
+  ];
+
+  // Map the unique years to header columns
+  const yearColumns = uniqueYears.map((year) => ({
+    field: year.toString(),
+    headerName: year.toString(),
+    valueGetter: (params) => {
+      // Find the corresponding yearlyData for the project
+      const project = yearBasedDetails.find(
+        (item) => item.projectName === params.data.projectName
+      );
+      if (project) {
+        const yearData = project.yearlyData.find((item) => item.year === year);
+        return yearData ? yearData.totalHours : 0;
+      }
+      return 0;
+    },
+    minWidth: 100,
+  }));
 
   const columnDefs = useMemo(
     () => [
@@ -99,37 +150,57 @@ const YearlyReport = () => {
         field: "referenceNo",
         minWidth: 170,
       },
-      {
-        field: "year",
-      },
       { field: "projectName", minWidth: 170 },
       { field: "allotatedHours" },
-      { field: "totalHours", headerName: "Total Work Hours" },
+      {
+        field: "totalHours",
+        headerName: "Total Work Hours",
+        valueGetter: (params) => {
+          const totalWorkHours = workDetails.reduce((total, entry) => {
+            if (entry.projectName === String(params.data.projectName)) {
+              return total + entry.totalHours;
+            } else {
+              return total;
+            }
+          }, 0);
+          return totalWorkHours || 0;
+        },
+      },
       {
         field: "Utilization",
-        cellRenderer: (params, index) => {
+        valueGetter: (params, index) => {
+          const totalWorkHours = workDetails.reduce((total, entry) => {
+            if (entry.projectName === String(params.data.projectName)) {
+              return total + entry.totalHours;
+            } else {
+              return total;
+            }
+          }, 0);
           const completionPercentage =
-            (params?.data?.totalHours / params?.data?.allotatedHours) * 100;
+            (totalWorkHours / params?.data?.allotatedHours) * 100;
           const remainingPercentage = 100 - completionPercentage;
 
-          return (
-            <div style={{ color: "green" }}>
-              {remainingPercentage?.toFixed(2)}%
-            </div>
-          );
+          return remainingPercentage?.toFixed(2);
         },
       },
       {
         field: "Idle Hours",
-        cellRenderer: (params, index) => {
-          const idleHours =
-            params?.data?.allotatedHours - params?.data?.totalHours;
+        valueGetter: (params, index) => {
+          const totalWorkHours = workDetails.reduce((total, entry) => {
+            if (entry.projectName === String(params.data.projectName)) {
+              return total + entry.totalHours;
+            } else {
+              return total;
+            }
+          }, 0);
+          const idleHours = params?.data?.allotatedHours - totalWorkHours;
 
-          return <div>{idleHours}</div>;
+          return idleHours;
         },
       },
+      ...yearColumns,
     ],
-    [yearBasedDetails]
+    [yearBasedDetails, workDetails] // Include workDetails as a dependency if it's used elsewhere
   );
 
   const autoGroupColumnDef = useMemo(
@@ -177,7 +248,7 @@ const YearlyReport = () => {
       <div style={containerStyle}>
         <div style={gridStyle} className="ag-theme-alpine leavetable">
           <AgGridReact
-            rowData={yearBasedDetails}
+            rowData={projectDetails}
             columnDefs={columnDefs}
             autoGroupColumnDef={autoGroupColumnDef}
             defaultColDef={defaultColDef}

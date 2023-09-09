@@ -341,6 +341,7 @@ const TimeManagement = () => {
         taskNo: tempProject?.[0]?.taskJobNo,
         subDivisionList: tempProject?.[0]?.subDivision,
         allotatedHours: tempProject?.[0]?.allotatedHours,
+        desciplineCode: tempProject?.[0]?.desciplineCode,
       };
       setFormData(tempFormData);
     } else {

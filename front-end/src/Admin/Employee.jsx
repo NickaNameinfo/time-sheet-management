@@ -24,6 +24,7 @@ function Employee() {
       { field: "role" },
       { field: "discipline" },
       { field: "designation" },
+      { field: "employeeStatus" },
       { field: "date", headerName: "Join Date" },
     ],
     []
@@ -52,7 +53,7 @@ function Employee() {
 
   const defaultColDef = useMemo(
     () => ({
-      editable: true,
+      editable: false,
       enableRowGroup: true,
       enablePivot: true,
       enableValue: true,

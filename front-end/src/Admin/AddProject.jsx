@@ -220,6 +220,28 @@ function AddProject() {
             <div className="col-sm-12">
               <Controller
                 control={control}
+                name="desciplineCode"
+                defaultValue=""
+                rules={{ required: "Reference No is required." }}
+                render={({ field }) => (
+                  <TextField
+                    fullWidth
+                    id="outlined-basic fullWidth"
+                    label="Descipline Code"
+                    variant="outlined"
+                    type="string"
+                    {...field}
+                    error={Boolean(errors.desciplineCode)}
+                    helperText={
+                      errors.desciplineCode && errors.desciplineCode.message
+                    }
+                  />
+                )}
+              />
+            </div>
+            <div className="col-sm-12">
+              <Controller
+                control={control}
                 name="projectName"
                 defaultValue=""
                 rules={{ required: "ProjectName Name is required." }}

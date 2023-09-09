@@ -17,22 +17,29 @@ const MonthlyReport = () => {
     onGridReady();
   }, []);
   React.useEffect(() => {
-    const workingHoursByMonth = {};
+    const workingHoursByMonthAndProject = {};
 
-    // Loop through the data and organize it by month
+    // Loop through the data and organize it by month and project
     workDetails.forEach((item) => {
       const date = new Date(item.sentDate);
-      const monthKey = date.toLocaleString("default", { month: "long" }); // Example: "2023-9"
+      const monthKey = date.toLocaleString("default", { month: "long" }); // Example: "September"
 
-      if (!workingHoursByMonth[monthKey]) {
-        workingHoursByMonth[monthKey] = 0;
+      if (!workingHoursByMonthAndProject[monthKey]) {
+        workingHoursByMonthAndProject[monthKey] = {};
       }
 
-      workingHoursByMonth[monthKey] += item.totalHours;
+      const projectKey = item.projectName;
+
+      if (!workingHoursByMonthAndProject[monthKey][projectKey]) {
+        workingHoursByMonthAndProject[monthKey][projectKey] = 0;
+      }
+
+      workingHoursByMonthAndProject[monthKey][projectKey] += item.totalHours;
     });
 
-    setProjectWorkHours(workingHoursByMonth);
-    console.log(workingHoursByMonth, "projectTotalHours");
+    // Set the state with the organized data
+    setProjectWorkHours(workingHoursByMonthAndProject);
+    console.log(workingHoursByMonthAndProject, "projectTotalHours");
   }, [workDetails]);
 
   const onGridReady = (params) => {
@@ -61,10 +68,33 @@ const MonthlyReport = () => {
       .catch((err) => console.log(err));
   };
 
-  const getTotalHoursForWeek = (data) => {
-    const totalHours = data.reduce((acc, item) => acc + item.totalHours, 0);
-    return totalHours;
+  const generateMonthColumn = (month) => {
+    return {
+      field: month,
+      filter: false,
+      minWidth: 60,
+      valueGetter: (params, index) => {
+        const weekField = params.colDef.field.toString();
+        const value = projectWorkHours[weekField]?.[params.data.projectName] || 0;
+        return value;
+      },
+    };
   };
+
+  const monthColumns = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
 
   const columnDefs = useMemo(
     () => [
@@ -72,176 +102,26 @@ const MonthlyReport = () => {
         field: "referenceNo",
         minWidth: 170,
       },
-      // { field: "discipline" },
+      {
+        field: "allotatedHours",
+        minWidth: 170,
+      },
+      {
+        field: "Consumed",
+        minWidth: 170,
+        valueGetter: (params) => {
+          const totalWorkHours = workDetails.reduce((total, entry) => {
+            if (entry.projectName === String(params.data.projectName)) {
+              return total + entry.totalHours;
+            } else {
+              return total;
+            }
+          }, 0);
+          return totalWorkHours || 0;
+        },
+      },
       { field: "projectName", minWidth: 170 },
-      {
-        field: "January",
-        filter: false,
-        minWidth: 60,
-        cellRenderer: (params, index) => {
-          return (
-            <>
-              {projectWorkHours[String(params.colDef.field)]
-                ? projectWorkHours[String(params.colDef.field)]
-                : 0}
-            </>
-          );
-        },
-      },
-      {
-        field: "Februbary",
-        filter: false,
-        minWidth: 60,
-        cellRenderer: (params, index) => {
-          return (
-            <>
-              {projectWorkHours[String(params.colDef.field)]
-                ? projectWorkHours[String(params.colDef.field)]
-                : 0}
-            </>
-          );
-        },
-      },
-      {
-        field: "March",
-        filter: false,
-        minWidth: 60,
-        cellRenderer: (params, index) => {
-          return (
-            <>
-              {projectWorkHours[String(params.colDef.field)]
-                ? projectWorkHours[String(params.colDef.field)]
-                : 0}
-            </>
-          );
-        },
-      },
-      {
-        field: "April",
-        filter: false,
-        minWidth: 60,
-        cellRenderer: (params, index) => {
-          return (
-            <>
-              {projectWorkHours[String(params.colDef.field)]
-                ? projectWorkHours[String(params.colDef.field)]
-                : 0}
-            </>
-          );
-        },
-      },
-      {
-        field: "May",
-        filter: false,
-        minWidth: 60,
-        cellRenderer: (params, index) => {
-          return (
-            <>
-              {projectWorkHours[String(params.colDef.field)]
-                ? projectWorkHours[String(params.colDef.field)]
-                : 0}
-            </>
-          );
-        },
-      },
-      {
-        field: "June",
-        filter: false,
-        minWidth: 60,
-        cellRenderer: (params, index) => {
-          return (
-            <>
-              {projectWorkHours[String(params.colDef.field)]
-                ? projectWorkHours[String(params.colDef.field)]
-                : 0}
-            </>
-          );
-        },
-      },
-      {
-        field: "July",
-        filter: false,
-        minWidth: 60,
-        cellRenderer: (params, index) => {
-          return (
-            <>
-              {projectWorkHours[String(params.colDef.field)]
-                ? projectWorkHours[String(params.colDef.field)]
-                : 0}
-            </>
-          );
-        },
-      },
-      {
-        field: "August",
-        filter: false,
-        minWidth: 60,
-        cellRenderer: (params, index) => {
-          return (
-            <>
-              {projectWorkHours[String(params.colDef.field)]
-                ? projectWorkHours[String(params.colDef.field)]
-                : 0}
-            </>
-          );
-        },
-      },
-      {
-        field: "September",
-        filter: false,
-        minWidth: 60,
-        cellRenderer: (params, index) => {
-          return (
-            <>
-              {projectWorkHours[String(params.colDef.field)]
-                ? projectWorkHours[String(params.colDef.field)]
-                : 0}
-            </>
-          );
-        },
-      },
-      {
-        field: "October",
-        filter: false,
-        minWidth: 60,
-        cellRenderer: (params, index) => {
-          return (
-            <>
-              {projectWorkHours[String(params.colDef.field)]
-                ? projectWorkHours[String(params.colDef.field)]
-                : 0}
-            </>
-          );
-        },
-      },
-      {
-        field: "Novermber",
-        filter: false,
-        minWidth: 60,
-        cellRenderer: (params, index) => {
-          return (
-            <>
-              {projectWorkHours[String(params.colDef.field)]
-                ? projectWorkHours[String(params.colDef.field)]
-                : 0}
-            </>
-          );
-        },
-      },
-      {
-        field: "December",
-        filter: false,
-        minWidth: 60,
-        cellRenderer: (params, index) => {
-          return (
-            <>
-              {projectWorkHours[String(params.colDef.field)]
-                ? projectWorkHours[String(params.colDef.field)]
-                : 0}
-            </>
-          );
-        },
-      },
+      ...monthColumns.map(generateMonthColumn),
     ],
     [projectWorkHours]
   );

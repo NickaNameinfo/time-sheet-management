@@ -52,6 +52,7 @@ con.connect(function (err) {
 });
 
 app.post("/create", upload.single("employeeImage"), (req, res) => {
+  console.log(req.body, "req.body");
   // Check if the userName already exists in the database
   const checkUserNameSql =
     "SELECT COUNT(*) AS count FROM employee WHERE `userName` = ?";
@@ -65,7 +66,7 @@ app.post("/create", upload.single("employeeImage"), (req, res) => {
     } else {
       // If the userName doesn't exist, proceed with the insert operation
       const sql =
-        "INSERT INTO employee (`employeeName`, `EMPID`, `employeeEmail`, `userName`, `password`, `role`,`discipline`, `designation`, `date`, `employeeImage`) VALUES (?)";
+        "INSERT INTO employee (`employeeName`, `EMPID`, `employeeEmail`, `userName`, `password`, `role`,`discipline`, `designation`, `date`, `employeeImage`, `employeeStatus`) VALUES (?)";
       bcrypt.hash(req.body.password.toString(), 10, (err, hash) => {
         if (err) return res.json({ Error: "Error in hashing password" });
         const values = [
@@ -74,11 +75,12 @@ app.post("/create", upload.single("employeeImage"), (req, res) => {
           req.body.employeeEmail,
           req.body.userName,
           hash,
-          req.body.role,
+          req.body.role.toString(),
           req.body.discipline,
           req.body.designation,
           req.body.date,
           req.file.filename,
+          req.body.employeeStatus,
         ];
         con.query(sql, [values], (err, result) => {
           if (err) return res.json({ Error: "Error in signup query" });
@@ -453,7 +455,7 @@ app.post("/hrLogin", (req, res) => {
 //Projects Apis
 app.post("/project/create", (req, res) => {
   const sql =
-    "INSERT INTO project (`tlName`,`orderId`,`positionNumber`, `subPositionNumber`,`projectNo`,`taskJobNo`, `referenceNo`, `projectName`,`subDivision`,`startDate`,`targetDate`,`allotatedHours`) VALUES (?)";
+    "INSERT INTO project (`tlName`,`orderId`,`positionNumber`, `subPositionNumber`,`projectNo`,`taskJobNo`, `referenceNo`,`desciplineCode`, `projectName`,`subDivision`,`startDate`,`targetDate`,`allotatedHours`) VALUES (?)";
   const values = [
     req.body.tlName,
     req.body.orderId,
@@ -462,6 +464,7 @@ app.post("/project/create", (req, res) => {
     req.body.projectNo,
     req.body.taskJobNo,
     req.body.referenceNo,
+    req.body.desciplineCode,
     req.body.projectName,
     req.body.subDivision,
     req.body.startDate,
@@ -508,6 +511,7 @@ app.post("/project/addWorkDetails", (req, res) => {
     "sentDate",
     "approvedDate",
     "allotatedHours",
+    "desciplineCode",
   ];
   optionalFields.forEach((field) => {
     if (req.body[field] !== undefined) {
@@ -562,6 +566,7 @@ app.put("/project/updateWorkDetails/:id", (req, res) => {
     "sentDate",
     "approvedDate",
     "allotatedHours",
+    "desciplineCode",
   ];
   optionalFields.forEach((field) => {
     if (req.body[field] !== undefined) {
