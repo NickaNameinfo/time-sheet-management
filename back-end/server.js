@@ -6,16 +6,27 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import multer from "multer";
 import path from "path";
+const express = require("express");
+const cors = require("cors");
+
+const allowedOrigins = ["http://192.168.0.10:9000", "http://192.168.0.10:5173"];
 
 const app = express();
 
-app.use(
-  cors({
-    origin: ["http://localhost:5173"],
-    methods: ["POST", "GET", "PUT", "DELETE"],
-    credentials: true,
-  })
-);
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Check if the request's origin is in the allowedOrigins array
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true); // Allow the request
+    } else {
+      callback(new Error("Not allowed by CORS")); // Block the request
+    }
+  },
+  methods: ["POST", "GET", "PUT", "DELETE"],
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.static("public"));
