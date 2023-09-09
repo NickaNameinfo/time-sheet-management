@@ -5,43 +5,51 @@ import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 
-const ProjectReport = () => {
+const DesciplineCodeReport = () => {
   const containerStyle = { width: "100%", height: "100%" };
   const gridStyle = { height: "100%", width: "100%" };
   const [projectDetails, setProjectDetails] = useState([]);
   const [workDetails, setWorkDetails] = useState([]);
   const [projectWorkHours, setProjectWorkHours] = React.useState(null);
-  const [exportApi, setExportApi] = React.useState(null);
-  console.log(projectWorkHours, "workDetailsworkDetails", workDetails);
+
+  console.log(workDetails, "workDetailsworkDetails", projectWorkHours);
   React.useEffect(() => {
     onGetWorkDetails();
     onGridReady();
   }, []);
 
   React.useEffect(() => {
-    const projectData = workDetails.reduce((acc, entry) => {
-      const projectName = entry.projectName;
-      if (!acc[projectName]) {
-        acc[projectName] = [];
-      }
-      acc[projectName].push(entry.totalHours);
-      return acc;
-    }, {});
+    const disciplineCodeTotals = {};
 
-    const projectTotalHours = Object.keys(projectData).map((projectName) => {
-      const totalHours = projectData[projectName].reduce(
-        (sum, hours) => sum + hours,
-        0
-      );
-      return { projectName, totalHours };
+    // Iterate through the data and calculate the totals
+    workDetails.forEach((item) => {
+      const year = new Date(item.sentDate).getFullYear();
+      const disciplineCode = item.desciplineCode;
+
+      // Initialize the disciplineCode's total for the year if not already created
+      if (!disciplineCodeTotals[year]) {
+        disciplineCodeTotals[year] = {};
+      }
+
+      // Initialize the disciplineCode's total for the specific disciplineCode if not already created
+      if (!disciplineCodeTotals[year][disciplineCode]) {
+        disciplineCodeTotals[year][disciplineCode] = 0;
+      }
+
+      // Add the totalHours to the disciplineCode's total for the year and disciplineCode
+      disciplineCodeTotals[year][disciplineCode] += item.totalHours;
     });
-    setProjectWorkHours(projectTotalHours);
-    console.log(projectTotalHours, "projectTotalHours");
+
+    // Convert the disciplineCodeTotals object into an array of objects
+    const resultArray = Object.keys(disciplineCodeTotals).map((year) => ({
+      year: parseInt(year),
+      disciplineCodeTotals: disciplineCodeTotals[year],
+    }));
+
+    setProjectWorkHours(resultArray);
   }, [workDetails]);
 
   const onGridReady = (params) => {
-    console.log(params, "paramsparams212");
-    setExportApi(params?.api);
     axios
       .get("http://localhost:8081/getProject")
       .then((res) => {
@@ -66,63 +74,36 @@ const ProjectReport = () => {
       })
       .catch((err) => console.log(err));
   };
-  
-  const calculateProjectValues = (params, projectWorkHours) => {
-    const project = projectWorkHours?.find(
-      (items) => items.projectName === params.data.projectName
-    );
-
-    if (project) {
-      const completionPercentage =
-        (project.totalHours / params.data.allotatedHours) * 100;
-      const remainingPercentage = 100 - completionPercentage;
-
-      return {
-        completionPercentage: completionPercentage.toFixed(2) + "%",
-        utilizationPercentage: remainingPercentage.toFixed(2) + "%",
-        consumedHours: project.totalHours,
-      };
-    }
-
-    return {
-      completionPercentage: "0%",
-      utilizationPercentage: "0%",
-      consumedHours: 0,
-    };
-  };
 
   const columnDefs = useMemo(
-    () => [
-      {
-        field: "orderId",
-        minWidth: 170,
-      },
-      { field: "projectNo" },
-      { field: "projectName" },
-      {
-        field: "% Completion",
-        valueGetter: (params) =>
-          calculateProjectValues(params, projectWorkHours).completionPercentage,
-      },
-      {
-        field: "% Utilized",
-        valueGetter: (params) =>
-          calculateProjectValues(params, projectWorkHours)
-            .utilizationPercentage,
-      },
-      { field: "allotatedHours" },
-      {
-        field: "Consumed Hours",
-        valueGetter: (params) =>
-          calculateProjectValues(params, projectWorkHours).consumedHours,
-      },
-      { field: "startDate" },
-      { field: "targetDate" },
-    ],
-    [projectWorkHours]
-  );
+    () => {
+      // Extract all unique discipline codes from the data
+      const uniqueDisciplineCodes = Array.from(
+        new Set(
+          projectWorkHours?.reduce((codes, item) => {
+            return codes.concat(Object.keys(item.disciplineCodeTotals));
+          }, [])
+        )
+      );
 
-  // Rest of your code...
+      // Generate column definitions for "year" and each discipline code
+      const columns = [
+        {
+          field: "year",
+          headerName: "Year",
+          minWidth: 170,
+        },
+        ...uniqueDisciplineCodes.map((code) => ({
+          field: `disciplineCodeTotals.${code}`,
+          headerName: `${code}`,
+          minWidth: 170,
+        })),
+      ];
+
+      return columns;
+    },
+    [projectWorkHours] // Include "data" as a dependency
+  );
 
   const autoGroupColumnDef = useMemo(
     () => ({
@@ -161,27 +142,15 @@ const ProjectReport = () => {
     []
   );
 
-  const onClickExport = () => {
-    console.log(exportApi, "grdiApigrdiApi");
-    exportApi.exportDataAsCsv();
-  };
-
   return (
     <>
       <div className="text-center pb-1 my-3">
-        <h4>Project Report</h4>
+        <h4>Project Descipline Code Report</h4>
       </div>
       <div style={containerStyle}>
-        <Button
-          onClick={() => onClickExport()}
-          variant="contained"
-          className="mb-3 mx-3"
-        >
-          Export{" "}
-        </Button>
         <div style={gridStyle} className="ag-theme-alpine leavetable">
           <AgGridReact
-            rowData={projectDetails}
+            rowData={projectWorkHours}
             columnDefs={columnDefs}
             autoGroupColumnDef={autoGroupColumnDef}
             defaultColDef={defaultColDef}
@@ -200,4 +169,4 @@ const ProjectReport = () => {
   );
 };
 
-export default ProjectReport;
+export default DesciplineCodeReport;

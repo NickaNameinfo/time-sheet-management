@@ -40,7 +40,8 @@ function AddEmployee() {
 
     // Append the file input separately
     formdata.append("employeeImage", data.employeeImage);
-    console.log(formdata, "formdataformdata")
+    formdata.append("role", tempRole);
+    console.log(formdata, "formdataformdata");
     axios
       .post("http://localhost:8081/create", formdata)
       .then((res) => {
@@ -55,7 +56,7 @@ function AddEmployee() {
 
   const handleOnChange = (name, value) => {
     console.log(name, value, "changesings");
-    let updatedRoles = [...tempRole]; // Create a copy of the tempRole array
+    let updatedRoles = []; // Create a copy of the tempRole array
 
     if (value === true) {
       if (name === "Tl") {
@@ -71,7 +72,6 @@ function AddEmployee() {
       }
     }
     setTempRole(updatedRoles); // Update the state with the new roles array
-    setValue("role", updatedRoles);
     console.log(updatedRoles, "updatedRoles");
   };
 
@@ -255,6 +255,38 @@ function AddEmployee() {
                 </FormControl>
               </Box>
             </div>
+            <div className="col-sm-12">
+              <Box sx={{}}>
+                <FormControl fullWidth>
+                  <InputLabel id="demo-simple-select-label">
+                    Select Status
+                  </InputLabel>
+                  <Controller
+                    name="employeeStatus" // Make sure the name matches the field name in your form
+                    control={control}
+                    rules={{ required: "Employee Status is Required." }}
+                    defaultValue="" // Set the default value here if needed
+                    render={({ field }) => (
+                      <Select
+                        labelId="demo-simple-select-label"
+                        id="demo-simple-select"
+                        label="Select Status"
+                        {...field}
+                        error={Boolean(errors.designation)}
+                      >
+                        <MenuItem value={"Probation"}>Probation</MenuItem>
+                        <MenuItem value={"Traning"}>Traning</MenuItem>
+                        <MenuItem value={"Permanent"}>Permanent</MenuItem>
+                        <MenuItem value={"Ex-Employee"}>Ex-Employee</MenuItem>
+                      </Select>
+                    )}
+                  />
+                  <FormHelperText>
+                    {errors.employeeStatus && errors.employeeStatus.message}
+                  </FormHelperText>
+                </FormControl>
+              </Box>
+            </div>
 
             <div className="col-sm-3">
               <Box sx={{}}>
@@ -289,54 +321,47 @@ function AddEmployee() {
             <div className="col-sm-4">
               <Box sx={{}}>
                 <FormControl fullWidth>
-                  <Controller
-                    name="role" // Make sure the name matches the field name in your form
-                    control={control}
-                    rules={{ required: "role is Required." }}
-                    defaultValue="" // Set the default value here if needed
-                    render={({ field }) => (
-                      <FormGroup
-                        style={{
-                          display: "flex",
-                          flexDirection: "row",
-                          justifyContent: "space-between",
-                        }}
-                      >
-                        <FormControlLabel
-                          control={
-                            <Checkbox
-                              onChange={(e) =>
-                                handleOnChange("Tl", e.target.checked)
-                              }
-                            />
+                  <FormGroup
+                    style={{
+                      display: "flex",
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          onChange={(e) =>
+                            handleOnChange("Tl", e.target.checked)
                           }
-                          label="Tl"
                         />
-                        <FormControlLabel
-                          control={
-                            <Checkbox
-                              Employee
-                              onChange={(e) =>
-                                handleOnChange("Admin", e.target.checked)
-                              }
-                            />
+                      }
+                      label="Tl"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          Employee
+                          onChange={(e) =>
+                            handleOnChange("Admin", e.target.checked)
                           }
-                          label="Admin"
                         />
-                        <FormControlLabel
-                          control={
-                            <Checkbox
-                              defaultChecked={true}
-                              onChange={(e) =>
-                                handleOnChange("Employee", e.target.checked)
-                              }
-                            />
+                      }
+                      label="Admin"
+                    />
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          disabled={true}
+                          defaultChecked={true}
+                          onChange={(e) =>
+                            handleOnChange("Employee", e.target.checked)
                           }
-                          label="Employee"
                         />
-                      </FormGroup>
-                    )}
-                  />
+                      }
+                      label="Employee"
+                    />
+                  </FormGroup>
                 </FormControl>
               </Box>
             </div>
