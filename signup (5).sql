@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Sep 09, 2023 at 12:27 PM
+-- Generation Time: Sep 13, 2023 at 01:30 PM
 -- Server version: 10.4.27-MariaDB
 -- PHP Version: 8.0.25
 
@@ -48,9 +48,10 @@ CREATE TABLE `employee` (
 
 INSERT INTO `employee` (`employeeName`, `EMPID`, `employeeEmail`, `userName`, `password`, `role`, `discipline`, `designation`, `date`, `employeeImage`, `employeeStatus`, `id`) VALUES
 ('Admin', 122, 'admin@arris.com', 'admin@arris.com', '$2b$10$1s38avVk64aZccZuJwsVmedfTXP7gYfBEwzCGNQGed09cbpuRTQIG', 'Admin', '10', '10', '2023-08-04', 'employeeImage_1693244431413.jpg', '', 9),
-('testemp', 978987, 'testemp@hkj.kh', 'testemp222', '$2b$10$kUHA7RJ5zuBz5ZQPgTL43eC8SCzbH/wONthuMsdJN15.Xws.Aq4zG', 'Admin', '10', '10', '2023-09-09', 'employeeImage_1694245453193.png', 'Probation', 10),
-('32542323', 233, '232@dsad.sdf', 'testemp22', '$2b$10$oRaC5QzxrxuFTAY78TUTFOkZiPnxiR9ev8aMmeqDn7R4u7UVrNSG.', 'Employee', '20', '20', '2023-09-09', 'employeeImage_1694246233035.png', 'Traning', 11),
-('tlemp', 77865, 'tlemp@d.sdf', 'tlemp', '$2b$10$MaLCxvz.vK/cystYF0xJe.YJ5dHZIQR1hzynB2Ug2T6P/zgYkHR9W', 'Tl', '10', '10', '2023-09-01', 'employeeImage_1694246329583.png', 'Probation', 12);
+('Tl_user', 12345, 'tluser@123.com', 'tl-user', '$2b$10$WkOabFMIn3buol60jeZXIOxB0fmKrT27kLSbgzzOpTk1AddysBr/a', 'Tl', '10', '20', '2022-09-12', 'employeeImage_1694541149785.jpg', 'Traning', 14),
+('Employee', 1234567, 'employee@123.com', 'employee-user', '$2b$10$UO9ff20B3NVYPnF3eBRnk.aJPCSBGrNKt/dNF53rAbC.ydnlmI6oy', 'Employee', '20', '30', '2023-05-10', 'employeeImage_1694541242165.jpg', 'Probation', 15),
+('Employee1', 12345678, 'Employee11@123.com', 'employee1-user', '$2b$10$d7XjnqraELWs/ZBGeZ8WzOjXi/.ugDLMggFLN8cyrQmymaEkxD59y', 'Employee', '30', '30', '2023-09-12', 'employeeImage_1694541314470.jpg', 'Permanent', 16),
+('tl_user2', 12345678, 'tl-user2@123.com', 'tl-user1', '$2b$10$7wdbSDKDkFczSXlNT0bB8ugAxA4nfyYfx1VLSvNVOSOdh5JM1Ecfi', 'Tl', '10', '10', '2017-09-12', 'employeeImage_1694541430679.jpg', 'Permanent', 17);
 
 -- --------------------------------------------------------
 
@@ -64,16 +65,6 @@ CREATE TABLE `hr` (
   `userName` varchar(150) NOT NULL,
   `password` varchar(250) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `hr`
---
-
-INSERT INTO `hr` (`id`, `hrName`, `userName`, `password`) VALUES
-(1, '20', 'sdfasd', '$2b$10$ItrNuGbXvPEiBfy7KG0oU.dcczq21mbzPHVmjG8xLAqE3rOn//GkS'),
-(2, '10', 'test', '$2b$10$GaK2iOHkQtBYKKO82kv9ierO7MzzNfCj.xQEnIYnyC12ErNVBqgy6'),
-(3, '20', 'hr@test.com', '$2b$10$7VaBZuI35iDUcIpXv7qnT.lCD8hYRgEdVzjOLpGS5N3NPwdrzObSi'),
-(4, '20', 'hr@test.com', '$2b$10$LuNXIxsehlj1ma1P.xkf5ODZCr16kZwURo/Ypir1lFlaTEIf.u.tW');
 
 -- --------------------------------------------------------
 
@@ -98,9 +89,7 @@ CREATE TABLE `leavedetails` (
 --
 
 INSERT INTO `leavedetails` (`id`, `leaveType`, `leaveFrom`, `leaveTo`, `leaveHours`, `reason`, `leaveStatus`, `employeeName`, `totalLeaves`) VALUES
-(7, 'Vecation', '2023-09-07', '2023-09-08', '1', 'test', '', 'test@123.com', ''),
-(8, 'Sick Leave', '2023-09-14', '2023-09-15', '1', 'aklfdjsa', '', 'test@123.com', ''),
-(9, 'Vecation', '2023-09-16', '2023-09-09', '7', 'test', '', 'test@123.com', '');
+(11, 'Vecation', '2023-09-13', '2023-09-14', '1', 'test', '', 'employee-user', '');
 
 -- --------------------------------------------------------
 
@@ -144,8 +133,7 @@ CREATE TABLE `project` (
 --
 
 INSERT INTO `project` (`id`, `tlName`, `orderId`, `positionNumber`, `subPositionNumber`, `projectNo`, `taskJobNo`, `referenceNo`, `desciplineCode`, `projectName`, `subDivision`, `startDate`, `targetDate`, `allotatedHours`) VALUES
-(8, 'test', '3412341', '234122', '123412331', '1234123', '34123', '324123', '09876', '1234123', '1234123', '2023-09-28', '2023-09-26', '12'),
-(9, 'Admin', '123456', '123456', '123545', '98765', '9876', '9867', '09876', 'test', 'abcd, zyx', '2023-09-22', '2023-09-30', '50');
+(10, 'Tl_user', '12345', '2', '1', '118', '1230', '12', '12345', 'TestProject', 'testDivision', '2022-09-12', '2023-09-12', '50');
 
 -- --------------------------------------------------------
 
@@ -156,18 +144,15 @@ INSERT INTO `project` (`id`, `tlName`, `orderId`, `positionNumber`, `subPosition
 CREATE TABLE `team_lead` (
   `id` int(150) NOT NULL,
   `leadName` varchar(250) NOT NULL,
-  `teamName` varchar(250) NOT NULL,
-  `userName` varchar(150) NOT NULL,
-  `password` varchar(250) NOT NULL
+  `teamName` varchar(250) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `team_lead`
 --
 
-INSERT INTO `team_lead` (`id`, `leadName`, `teamName`, `userName`, `password`) VALUES
-(7, 'Arul', 'testing', 'testingteam@arris', '$2b$10$bBBs7F4AyKiYBy0UmIJB5uMygLH6h/O/nllnIHTKwnNO1rdAFbCRS'),
-(8, 'test', 'test lead', 'lead', '$2b$10$D8QqVOvOCOdFN8.CVikw1OHl5DAf22vvZFwpHptdtbS8fl49w6Si2');
+INSERT INTO `team_lead` (`id`, `leadName`, `teamName`) VALUES
+(11, 'Tl_user', 'test team');
 
 -- --------------------------------------------------------
 
@@ -228,11 +213,8 @@ CREATE TABLE `workdetails` (
 --
 
 INSERT INTO `workdetails` (`id`, `employeeName`, `userName`, `referenceNo`, `projectName`, `tlName`, `taskNo`, `areaofWork`, `variation`, `subDivisionList`, `subDivision`, `monday`, `tuesday`, `wednesday`, `thursday`, `friday`, `saturday`, `sunday`, `totalHours`, `weekNumber`, `discipline`, `status`, `sentDate`, `approvedDate`, `allotatedHours`, `desciplineCode`) VALUES
-(50, 'Admin', 'admin@arris.com', '324123', '1234123', 'test', '34123', 'Ui', 'Ui', '1234123', '1234123', '1', '1', '1', '1', '1', '1', '1', 7, '35', '10', '', '2022-09-03T11:47:42.337Z', '', '12', '09876'),
-(51, 'Admin', 'admin@arris.com', '324123', '1234123', 'test', '34123', 'Ui', 'Ui', '1234123', '1234123', '1', '1', '1', '1', '1', '1', '1', 7, '36', '10', '', '2023-09-03T11:47:42.337Z', '', '12', '09877'),
-(56, 'Admin', 'admin@arris.com', '9867', 'test', 'Admin', '9876', 'Ui', 'Ui', 'abcd, zyx', 'abcd', '1', '1', '1', '1', '1', '1', '4', 10, '36', '10', '', '2023-09-07T18:54:51.545Z', '', '50', '09876'),
-(57, 'Admin', 'admin@arris.com', '9867', 'test', 'Admin', '9876', 'Ui', 'Ui', 'abcd, zyx', ' zyx', '1', '1', '1', '1', '1', '1', '1', 7, '35', '10', '', '2023-08-07T18:58:21.030Z', '', '50', '09876'),
-(58, 'Admin', 'admin@arris.com', '9867', 'test', 'Admin', '9876', 'Ui', 'Ui', 'abcd, zyx', 'abcd', '-1', '1', '111', '1', '1', '1', '1', 115, '36', '10', '', '2023-09-09T06:11:04.341Z', '', '50', '09876');
+(60, 'Employee', 'employee-user', '12', 'TestProject', 'Tl_user', '1230', 'Ui', 'Ui', 'testDivision', 'testDivision', '1', '1', '1', '1', '1', '1', '1', 7, '37', '20', 'approved', '2023-09-12T19:16:29.949Z', '2023-09-12T19:21:42.351Z', '50', '12345'),
+(61, 'Employee', 'employee-user', '12', 'TestProject', 'Tl_user', '1230', 'Ui', 'Ui', 'testDivision', 'testDivision', '1', '1', '1', '1', '1', '1', '1', 7, '37', '20', 'rejected', '2023-09-12T19:19:08.556Z', '2023-09-12T19:22:55.330Z', '50', '12345');
 
 --
 -- Indexes for dumped tables
@@ -294,7 +276,7 @@ ALTER TABLE `workdetails`
 -- AUTO_INCREMENT for table `employee`
 --
 ALTER TABLE `employee`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
 
 --
 -- AUTO_INCREMENT for table `hr`
@@ -306,7 +288,7 @@ ALTER TABLE `hr`
 -- AUTO_INCREMENT for table `leavedetails`
 --
 ALTER TABLE `leavedetails`
-  MODIFY `id` int(150) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` int(150) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT for table `notification`
@@ -318,13 +300,13 @@ ALTER TABLE `notification`
 -- AUTO_INCREMENT for table `project`
 --
 ALTER TABLE `project`
-  MODIFY `id` int(150) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` int(150) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT for table `team_lead`
 --
 ALTER TABLE `team_lead`
-  MODIFY `id` int(150) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` int(150) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT for table `users`
@@ -336,7 +318,7 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `workdetails`
 --
 ALTER TABLE `workdetails`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=59;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=62;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
