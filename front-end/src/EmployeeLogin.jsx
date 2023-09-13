@@ -18,9 +18,13 @@ function EmployeeLogin() {
   const [error, setError] = useState("");
 
   const Submit = (date) => {
-    // event.preventDefault();
+    // Create a config object to specify withCredentials
+    const config = {
+      withCredentials: true,
+    };
+  
     axios
-      .post("http://localhost:8081/employeelogin", date)
+      .post("http://localhost:8081/employeelogin", date, config) // Pass the config object
       .then((res) => {
         if (res.data.Status === "Success") {
           const id = res.data.id;

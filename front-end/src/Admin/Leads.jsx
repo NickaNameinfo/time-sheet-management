@@ -18,7 +18,6 @@ function Leads() {
         minWidth: 170,
       },
       { field: "teamName" },
-      { field: "userName" },
     ],
     []
   );

@@ -13,7 +13,7 @@ function Dashboard() {
     axios.get("http://localhost:8081/dashboard").then((res) => {
       console.log(res, "resresresres12345");
       if (res.data.Status === "Success") {
-        setRoles(res.data.role.split(","));
+        setRoles(res.data.role?.split(","));
       }
     });
   }, []);
@@ -46,18 +46,6 @@ function Dashboard() {
                     <span className="txt_col">Dashboard</span>
                   </Link>
                 </li>
-                <li>
-                  <span className="material-symbols-outlined fs-5 bi-person-bounding-box"></span>
-                  <Link to="/Dashboard/lead">
-                    <span className="txt_col">Manage Tl</span>
-                  </Link>
-                </li>
-                <li>
-                  <span className="material-symbols-outlined fs-5 bi-people-fill"></span>
-                  <Link to="/Dashboard/hr">
-                    <span className="txt_col">Manage Hr</span>
-                  </Link>
-                </li>
                 {roles?.[0] === "Hr" ||
                   (roles?.[0] === "Admin" && (
                     <li>
@@ -67,6 +55,25 @@ function Dashboard() {
                       </Link>
                     </li>
                   ))}
+                <li>
+                  <span className="material-symbols-outlined fs-5 bi-person-bounding-box"></span>
+                  <Link to="/Dashboard/lead">
+                    <span className="txt_col">Manage Tl</span>
+                  </Link>
+                </li>
+                <li>
+                  <span className="material-symbols-outlined fs-5 bi-laptop-fill"></span>
+                  <Link to="/Dashboard/projects">
+                    <span className="txt_col">Manage Projects</span>
+                  </Link>
+                </li>
+                <li>
+                  <span className="material-symbols-outlined fs-5 bi-people-fill"></span>
+                  <Link to="/Dashboard/hr">
+                    <span className="txt_col">Manage Hr</span>
+                  </Link>
+                </li>
+
                 <li>
                   <span className="material-symbols-outlined fs-5  bi-journal-check "></span>
                   <Link to="/Dashboard/Leaves">
@@ -125,7 +132,7 @@ function Dashboard() {
             {/* Employee List */}
             {(roles?.[0] === "Tl" ||
               roles?.[0] === "Admin" ||
-              roles?.[0] === "AdmEmployee") && (
+              roles?.[0] === "Employee") && (
               <>
                 <li>
                   <span className="material-symbols-outlined fs-5 bi-collection"></span>
@@ -135,12 +142,7 @@ function Dashboard() {
                 </li>
               </>
             )}
-            <li>
-              <span className="material-symbols-outlined fs-5 bi-laptop-fill"></span>
-              <Link to="/Dashboard/projects">
-                <span className="txt_col">Projects</span>
-              </Link>
-            </li>
+
             <li>
               <span className="material-symbols-outlined fs-5 bi-person-bounding-box"></span>
               <Link to="/Dashboard/TimeManagement">

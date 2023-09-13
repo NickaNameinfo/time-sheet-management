@@ -137,7 +137,7 @@ function AddEmployee() {
                       fullWidth
                       id="outlined-basic fullWidth"
                       label="Enter Email "
-                      type="email"
+                      type="text"
                       variant="outlined"
                       {...field}
                       error={Boolean(errors.employeeEmail)}

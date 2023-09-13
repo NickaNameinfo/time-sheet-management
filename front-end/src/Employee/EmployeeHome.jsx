@@ -18,82 +18,69 @@ function EmployeeHome() {
   const [reamaining, setRemaining] = useState(null);
   const containerStyle = { width: "100%", height: "100%" };
   const gridStyle = { height: "100%", width: "100%" };
-  const [rowData, setRowData] = useState([]);
+  const [rowData, setRowData] = useState(null);
+  const [weekData, setWeekDate] = React.useState(null);
+
   const columnDefs = useMemo(
     () => [
-      {
-        field: "employeeName",
-        minWidth: 170,
-      },
-      { field: "In Time" },
-      { field: "Out Time" },
+      { field: weekData?.[0], cellRenderer: () => <p>9.30AM / 7.30PM</p> },
+      { field: weekData?.[1], cellRenderer: () => <p>9.30AM / 7.30PM</p> },
+      { field: weekData?.[2], cellRenderer: () => <p>9.30AM / 7.30PM</p> },
+      { field: weekData?.[3], cellRenderer: () => <p>9.30AM / 7.30PM</p> },
+      { field: weekData?.[4], cellRenderer: () => <p>9.30AM / 7.30PM</p> },
+      { field: weekData?.[5], cellRenderer: () => <p>9.30AM / 7.30PM</p> },
+      { field: weekData?.[6], cellRenderer: () => <p>9.30AM / 7.30PM</p> },
     ],
-    []
+    [weekData]
   );
 
   useEffect(() => {
-    getLeaves();
+    const currentYear = new Date().getFullYear();
+    let datesss = getWeekDates(getCurrentWeekNumber(), currentYear);
+    setWeekDate(datesss);
+    let data = [
+      {
+        inTime: "9.30AM",
+        outTIme: "7.30PM",
+      },
+    ];
+    console.log(datesss, "datesssdatesss");
+    setRowData(data);
   }, []);
 
-  const getLeaves = () => {
-    axios
-      .get("http://localhost:8081/getLeaveDetails")
-      .then((res) => {
-        if (res.data.Status === "Success") {
-          axios.get("http://localhost:8081/dashboard").then((result) => {
-            let tempFinalResult = res?.data?.Result?.filter(
-              (item) => item.employeeName === result?.data?.userName
-            );
-            const vacationLeaveCount = tempFinalResult.filter(
-              (item) => item.leaveType === "Vecation"
-            ).length;
-            const scikLeaveCount = tempFinalResult.filter(
-              (item) => item.leaveType === "Sick Leave"
-            ).length;
-            const remainingCount = 18 - tempFinalResult?.length;
-            console.log("tempFinalResult", vacationLeaveCount);
-            setSickLeave(scikLeaveCount);
-            setVacationLeave(vacationLeaveCount);
-            setRemaining(remainingCount);
-
-            axios.get("http://localhost:8081/getLeaveDetails").then((res) => {
-              if (res.data.Status === "Success") {
-                let tempFinalResult = res?.data?.Result?.filter(
-                  (item) => item.employeeName === result?.data?.userName
-                );
-                setRowData(tempFinalResult);
-              } else {
-                alert("Error");
-              }
-            });
-          });
-        } else {
-          alert("Error");
-        }
-      })
-      .catch((err) => console.log(err));
+  const getCurrentWeekNumber = () => {
+    const now = new Date();
+    const startOfYear = new Date(now.getFullYear(), 0, 1); // Changed day from 0 to 1
+    const diff = now - startOfYear;
+    const oneWeekInMilliseconds = 7 * 24 * 60 * 60 * 1000;
+    const weekNumber = Math.floor(diff / oneWeekInMilliseconds) + 1; // Added 1 to account for week 0
+    console.log(weekNumber, "weekNumber");
+    return weekNumber;
   };
 
-  const autoGroupColumnDef = useMemo(
-    () => ({
-      headerName: "Group",
-      minWidth: 170,
-      field: "athlete",
-      valueGetter: (params) => {
-        if (params.node.group) {
-          return params.node.key;
-        } else {
-          return params.data[params.colDef.field];
-        }
-      },
-      headerCheckboxSelection: false,
-      cellRenderer: "agGroupCellRenderer",
-      cellRendererParams: {
-        checkbox: false,
-      },
-    }),
-    []
-  );
+  const startOfWeek = (date) => {
+    const day = date.getDay();
+    const diff = date.getDate() - day + (day === 0 ? 1 : 1); // Adjust for Sunday as start of week
+    return new Date(date.setDate(diff));
+  };
+
+  const addDays = (date, days) => {
+    const result = new Date(date);
+    result.setDate(result.getDate() + days);
+    return result;
+  };
+
+  const getWeekDates = (weekNumber, year) => {
+    const startDate = startOfWeek(new Date(year, 0, 1)); // January 1st of the year
+    const daysToAdd = (weekNumber - 1) * 7; // Adjust for the selected week number
+    const dates = [];
+    for (let i = 0; i < 7; i++) {
+      const date = addDays(startDate, daysToAdd + i);
+      dates.push(date.toLocaleDateString());
+    }
+    console.log(dates, "datesdates123234123");
+    return dates;
+  };
 
   const defaultColDef = useMemo(
     () => ({
@@ -236,7 +223,6 @@ function EmployeeHome() {
             <AgGridReact
               rowData={rowData}
               columnDefs={columnDefs}
-              autoGroupColumnDef={autoGroupColumnDef}
               defaultColDef={defaultColDef}
               suppressRowClickSelection={true}
               groupSelectsChildren={true}

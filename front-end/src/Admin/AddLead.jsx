@@ -24,14 +24,18 @@ function AddLead() {
   } = useForm();
   const navigate = useNavigate();
   const [empList, setEmpList] = useState(null);
-  
+
   useEffect((params) => {
     axios
       .get("http://localhost:8081/getEmployee")
       .then((res) => {
         if (res.data.Status === "Success") {
           console.log(res.data.Result, "setEmpListsetEmpList");
-          setEmpList(res.data.Result.map((employee) => employee.employeeName));
+          setEmpList(
+            res.data.Result.map(
+              (employee) => employee.role === "Tl" && employee.employeeName
+            )
+          );
         } else {
           alert("Error");
         }
@@ -107,49 +111,6 @@ function AddLead() {
                       {...field}
                       error={Boolean(errors.teamName)}
                       helperText={errors.teamName && errors.teamName.message}
-                    />
-                  </Box>
-                )}
-              />
-            </div>
-
-            <div className="col-sm-12">
-              <Controller
-                control={control}
-                name="userName"
-                rules={{ required: "Username is required." }}
-                render={({ field }) => (
-                  <Box>
-                    <TextField
-                      fullWidth
-                      id="outlined-basic fullWidth"
-                      label="Enter Username "
-                      variant="outlined"
-                      type="text"
-                      {...field}
-                      error={Boolean(errors.userName)}
-                      helperText={errors.userName && errors.userName.message}
-                    />
-                  </Box>
-                )}
-              />
-            </div>
-            <div className="col-sm-12">
-              <Controller
-                control={control}
-                name="password"
-                rules={{ required: "password is Reqiured." }}
-                render={({ field }) => (
-                  <Box sx={{}}>
-                    <TextField
-                      fullWidth
-                      id="outlined-basic fullWidth"
-                      label="Enter password "
-                      variant="outlined"
-                      // type="password"
-                      {...field}
-                      error={Boolean(errors.password)}
-                      helperText={errors.password && errors.password.message}
                     />
                   </Box>
                 )}

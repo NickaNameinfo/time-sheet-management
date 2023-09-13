@@ -31,6 +31,7 @@ const TimeManagement = () => {
   const [leaveList, setLeaveList] = React.useState(null);
   const [selectedWeek, setSelectedWeek] = React.useState(null);
   const [weekNumberList, setWeekNumberList] = React.useState(null);
+  const [refresh, setRefresh] = React.useState(false);
   console.log(weekNumberList, "formStateformState", weekData);
 
   console.log("projectDetails", projectWorkList);
@@ -49,7 +50,7 @@ const TimeManagement = () => {
     ];
     setWeekNumberList(tempList);
     setSelectedWeek(String(getCurrentWeekNumber()));
-  }, [selectedWeek]);
+  }, [selectedWeek, refresh]);
 
   // React.useEffect(() => {
   //   initData();
@@ -268,6 +269,7 @@ const TimeManagement = () => {
               },
             }));
             location.reload();
+            setRefresh(true);
           }
         })
         .catch((err) => console.log(err));
