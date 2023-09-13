@@ -10,7 +10,7 @@ import path from "path";
 const app = express();
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://127.0.0.1:5173"],
+    origin: ["http://192.168.0.10:5173/", "http://192.168.0.10:5173", "http://192.168.0.10:8081", "http://192.168.0.10:9000"],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true, // Allow credentials
   })

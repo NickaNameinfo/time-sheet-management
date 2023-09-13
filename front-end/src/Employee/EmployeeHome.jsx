@@ -100,7 +100,7 @@ function EmployeeHome() {
 
   const handleDelete = (id) => {
     axios
-      .delete("http://localhost:8081/deleteLeave/" + id)
+      .delete("http://192.168.0.10:8081/deleteLeave/" + id)
       .then((res) => {
         if (res.data.Status === "Success") {
           getLeaves();

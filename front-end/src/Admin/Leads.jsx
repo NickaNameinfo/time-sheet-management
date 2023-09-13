@@ -61,7 +61,7 @@ function Leads() {
 
   const onGridReady = useCallback((params) => {
     axios
-      .get("http://localhost:8081/getLead")
+      .get("http://192.168.0.10:8081/getLead")
       .then((res) => {
         if (res.data.Status === "Success") {
           setRowData(res.data.Result);
@@ -74,7 +74,7 @@ function Leads() {
 
   const handleDelete = (id) => {
     axios
-      .delete("http://localhost:8081/lead/delete/" + id)
+      .delete("http://192.168.0.10:8081/lead/delete/" + id)
       .then((res) => {
         if (res.data.Status === "Success") {
           window.location.reload(true);

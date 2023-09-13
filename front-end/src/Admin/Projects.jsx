@@ -72,7 +72,7 @@ function Projects(props) {
 
   const onGridReady = useCallback((params) => {
     axios
-      .get("http://localhost:8081/getProject")
+      .get("http://192.168.0.10:8081/getProject")
       .then((res) => {
         if (res.data.Status === "Success") {
           setRowData(res.data.Result);
@@ -85,7 +85,7 @@ function Projects(props) {
 
   const handleDelete = (id) => {
     axios
-      .delete("http://localhost:8081/project/delete/" + id)
+      .delete("http://192.168.0.10:8081/project/delete/" + id)
       .then((res) => {
         if (res.data.Status === "Success") {
           window.location.reload(true);

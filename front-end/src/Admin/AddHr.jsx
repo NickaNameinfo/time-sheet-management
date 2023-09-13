@@ -24,7 +24,7 @@ function AddHr() {
   const onSubmit = (data) => {
     console.log(data, "tests213");
     axios
-      .post("http://localhost:8081/hr/create", data)
+      .post("http://192.168.0.10:8081/hr/create", data)
       .then((res) => {
         if (res.data.Error) {
           alert(res.data.Error);

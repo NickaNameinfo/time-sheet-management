@@ -37,7 +37,7 @@ function ProjectWorkDetails() {
     console.log(apiTemp, "apiTempapiTempapiTemp", params.data);
     axios
       .put(
-        `http://localhost:8081/project/updateWorkDetails/` + params.data.id,
+        `http://192.168.0.10:8081/project/updateWorkDetails/` + params.data.id,
         apiTemp
       )
       .then(async (res) => {
@@ -178,9 +178,9 @@ function ProjectWorkDetails() {
 
   const onGridReady = useCallback((params) => {
     axios
-      .get("http://localhost:8081/getWrokDetails")
+      .get("http://192.168.0.10:8081/getWrokDetails")
       .then(async (res) => {
-        let userDetails = await axios.get("http://localhost:8081/dashboard");
+        let userDetails = await axios.get("http://192.168.0.10:8081/dashboard");
         console.log(res, "resres324", userDetails);
         if (res.data.Status === "Success") {
           let filterData = res.data.Result.filter(

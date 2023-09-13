@@ -44,7 +44,7 @@ const MonthlyReport = () => {
 
   const onGridReady = (params) => {
     axios
-      .get("http://localhost:8081/getProject")
+      .get("http://192.168.0.10:8081/getProject")
       .then((res) => {
         if (res.data.Status === "Success") {
           setProjectDetails(res.data.Result);
@@ -57,7 +57,7 @@ const MonthlyReport = () => {
 
   const onGetWorkDetails = (params) => {
     axios
-      .get("http://localhost:8081/getWrokDetails")
+      .get("http://192.168.0.10:8081/getWrokDetails")
       .then((res) => {
         if (res.data.Status === "Success") {
           setWorkDetails(res.data.Result);

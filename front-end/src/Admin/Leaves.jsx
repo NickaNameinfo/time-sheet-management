@@ -93,7 +93,7 @@ function Leaves() {
 
   const onGridReady = useCallback((params) => {
     axios
-      .get("http://localhost:8081/getLeaveDetails")
+      .get("http://192.168.0.10:8081/getLeaveDetails")
       .then((res) => {
         if (res.data.Status === "Success") {
           setRowData(res.data.Result);

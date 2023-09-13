@@ -181,10 +181,10 @@ const TimeManagement = () => {
 
   const initData = () => {
     axios
-      .get("http://localhost:8081/getWrokDetails")
+      .get("http://192.168.0.10:8081/getWrokDetails")
       .then(async (res) => {
-        let userDetails = await axios.get("http://localhost:8081/dashboard");
-        axios.get("http://localhost:8081/getLeaveDetails").then((leaveRes) => {
+        let userDetails = await axios.get("http://192.168.0.10:8081/dashboard");
+        axios.get("http://192.168.0.10:8081/getLeaveDetails").then((leaveRes) => {
           console.log(leaveRes, "resres324234");
           if (leaveRes.data.Status === "Success") {
             let tempLeaveResult = leaveRes?.data?.Result?.filter(
@@ -195,7 +195,7 @@ const TimeManagement = () => {
           }
         });
         let employeeDetails = await axios.get(
-          "http://localhost:8081/getEmployee"
+          "http://192.168.0.10:8081/getEmployee"
         );
         console.log(selectedWeek, "selectedWeekselectedWeek");
         if (res.data.Status === "Success") {
@@ -257,7 +257,7 @@ const TimeManagement = () => {
       delete submitData.id;
       console.log(submitData, "submitDatasubmitData");
       axios
-        .post("http://localhost:8081/project/addWorkDetails", submitData)
+        .post("http://192.168.0.10:8081/project/addWorkDetails", submitData)
         .then((res) => {
           if (res.data.Error) {
             alert(res.data.Error);
@@ -287,7 +287,7 @@ const TimeManagement = () => {
     };
     let submitData = { ...params, ...tempObjec };
     axios
-      .put(`http://localhost:8081/project/updateWorkDetails/` + id, submitData)
+      .put(`http://192.168.0.10:8081/project/updateWorkDetails/` + id, submitData)
       .then(async (res) => {
         location.reload();
         alert("Update Successfully");
@@ -304,7 +304,7 @@ const TimeManagement = () => {
 
   const getProjectList = () => {
     axios
-      .get("http://localhost:8081/getProject")
+      .get("http://192.168.0.10:8081/getProject")
       .then((res) => {
         if (res.data.Status === "Success") {
           setProjectList(res.data.Result);

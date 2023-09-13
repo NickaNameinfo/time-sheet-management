@@ -69,9 +69,9 @@ function TeamLeadHome() {
   );
   const onGridReady = useCallback((params) => {
     axios
-      .get("http://localhost:8081/getProject")
+      .get("http://192.168.0.10:8081/getProject")
       .then(async (res) => {
-        let userDetails = await axios.get("http://localhost:8081/dashboard");
+        let userDetails = await axios.get("http://192.168.0.10:8081/dashboard");
         console.log(res, "resres324", userDetails);
         if (res.data.Status === "Success") {
           let filterData = res.data.Result.filter(

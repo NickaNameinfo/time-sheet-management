@@ -43,7 +43,7 @@ function AddEmployee() {
     formdata.append("role", tempRole);
     console.log(formdata, "formdataformdata");
     axios
-      .post("http://localhost:8081/create", formdata)
+      .post("http://192.168.0.10:8081/create", formdata)
       .then((res) => {
         if (res.data.Error) {
           alert(res.data.Error);

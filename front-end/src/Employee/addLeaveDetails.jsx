@@ -70,7 +70,7 @@ function addLeaveDetails() {
   console.log(formData, "formData");
 
   useEffect(() => {
-    axios.get("http://localhost:8081/dashboard").then((result) => {
+    axios.get("http://192.168.0.10:8081/dashboard").then((result) => {
       setValue("employeeName", result?.data?.userName);
     });
     getLeaves();
@@ -88,10 +88,10 @@ function addLeaveDetails() {
 
   const getLeaves = () => {
     axios
-      .get("http://localhost:8081/getLeaveDetails")
+      .get("http://192.168.0.10:8081/getLeaveDetails")
       .then((res) => {
         if (res.data.Status === "Success") {
-          axios.get("http://localhost:8081/dashboard").then((result) => {
+          axios.get("http://192.168.0.10:8081/dashboard").then((result) => {
             let tempFinalResult = res?.data?.Result?.filter(
               (item) => item.employeeName === result?.data?.userName
             );
@@ -119,7 +119,7 @@ function addLeaveDetails() {
     console.log(data, "tests213");
     // Perform any other actions you want with the form data
     axios
-      .post("http://localhost:8081/applyLeave", data)
+      .post("http://192.168.0.10:8081/applyLeave", data)
       .then((res) => {
         if (res.data.Error) {
           alert(res.data.Error);
@@ -169,7 +169,7 @@ function addLeaveDetails() {
 
   const handleDelete = (id) => {
     axios
-      .delete("http://localhost:8081/deleteLeave/" + id)
+      .delete("http://192.168.0.10:8081/deleteLeave/" + id)
       .then((res) => {
         if (res.data.Status === "Success") {
           getLeaves();

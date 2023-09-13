@@ -20,7 +20,7 @@ function HrLogin() {
   const Submit = (data) => {
     // event.preventDefault(); 
     axios
-      .post("http://localhost:8081/hrLogin", data)
+      .post("http://192.168.0.10:8081/hrLogin", data)
       .then((res) => {
         if (res.data.Status === "Success") {
           const id = res.data.id;
