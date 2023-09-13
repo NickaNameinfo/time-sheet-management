@@ -3,7 +3,12 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
-import { Dialog, DialogTitle, TextField } from "@mui/material";
+import {
+  Dialog,
+  DialogTitle,
+  TextField,
+  TextareaAutosize,
+} from "@mui/material";
 
 function ProjectWorkDetails() {
   const containerStyle = { width: "100%", height: "100%" };
@@ -179,7 +184,7 @@ function ProjectWorkDetails() {
         console.log(res, "resres324", userDetails);
         if (res.data.Status === "Success") {
           let filterData = res.data.Result.filter(
-            (items) => items.userName === userDetails.data.userName
+            (items) => items.tlName === userDetails.data.employeeName
           );
           setRowData(filterData);
         } else {
@@ -226,7 +231,7 @@ function ProjectWorkDetails() {
       <Dialog
         fullWidth
         open={open}
-        maxWidth="md"
+        maxWidth="sm"
         onClose={handleClose}
         aria-labelledby="responsive-dialog-title"
       >
@@ -234,24 +239,27 @@ function ProjectWorkDetails() {
           id="alert-dialog-title"
           className="d-flex align-items-center justify-content-between"
         >
-          <h2>{"Add Command"}</h2>
+          <h3>{"Add Command"}</h3>
           <i
             class="fa-solid fa-xmark cursor-pointer"
             onClick={() => setOpen(false)}
             style={{ cursor: "pointer" }}
           ></i>
         </DialogTitle>
-        <div className="p-3">
-          <TextField
+        <div className="px-3">
+          <TextareaAutosize
             fullWidth
             variant="outlined"
             // value={formData?.[index]?.sunday}
-            type="number"
+            placeholder="Leave message"
+            className="textarea"
           />
+          <div>
+            <button type="submit" className="btn btn-primary button mt-2">
+              Submit
+            </button>
+          </div>
         </div>
-        <button type="submit" className="btn btn-primary button w-auto">
-          Submit
-        </button>
       </Dialog>
     </>
   );

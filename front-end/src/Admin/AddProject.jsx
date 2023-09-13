@@ -31,7 +31,11 @@ function AddProject() {
       .then((res) => {
         if (res.data.Status === "Success") {
           console.log(res.data.Result, "setEmpListsetEmpList");
-          setEmpList(res.data.Result.map((employee) => employee.employeeName));
+          setEmpList(
+            res.data.Result.map(
+              (employee) => employee.role === "Tl" && employee.employeeName
+            )
+          );
         } else {
           alert("Error");
         }

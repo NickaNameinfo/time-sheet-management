@@ -16,8 +16,6 @@ function TeamLeadHome() {
       {
         field: "projectName",
         minWidth: 170,
-        checkboxSelection: true,
-        headerCheckboxSelection: true,
       },
       { field: "referenceNo", minWidth: 170 },
       { field: "orderId", minWidth: 170 },
@@ -57,9 +55,9 @@ function TeamLeadHome() {
   const defaultColDef = useMemo(
     () => ({
       editable: false,
-      enableRowGroup: true,
-      enablePivot: true,
-      enableValue: true,
+      enableRowGroup: false,
+      enablePivot: false,
+      enableValue: false,
       sortable: true,
       resizable: true,
       filter: true,
@@ -77,7 +75,7 @@ function TeamLeadHome() {
         console.log(res, "resres324", userDetails);
         if (res.data.Status === "Success") {
           let filterData = res.data.Result.filter(
-            (items) => items.tlName === userDetails.data.tlName
+            (items) => items.tlName === userDetails.data.employeeName
           );
           setRowData(filterData);
         } else {
