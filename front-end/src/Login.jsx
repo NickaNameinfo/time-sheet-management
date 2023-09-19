@@ -20,13 +20,13 @@ function Login() {
     // event.preventDefault();
     console.log(data, "data1223423")
     axios
-      .post("http://localhost:8081/employeelogin", data, {
+      .post("http://192.168.0.10:8081/employeelogin", data, {
         withCredentials: true,
       })
       .then((res) => {
         console.log(res, "123123123123");
         if (res.status === 200) {
-          axios.get("http://localhost:8081/dashboard").then((ress) => {
+          axios.get("http://192.168.0.10:8081/dashboard").then((ress) => {
             console.log(ress, "ressressress");
             setRoles(ress.data.role?.split(","));
           });

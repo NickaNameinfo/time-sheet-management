@@ -19,7 +19,7 @@ const LeaveReport = () => {
 
   const onGridReady = (params) => {
     axios
-      .get("http://localhost:8081/getLeaveDetails")
+      .get("http://192.168.0.10:8081/getLeaveDetails")
       .then((res) => {
         if (res.data.Status === "Success") {
           setProjectDetails(res.data.Result);

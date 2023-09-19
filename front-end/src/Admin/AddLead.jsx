@@ -27,7 +27,7 @@ function AddLead() {
 
   useEffect((params) => {
     axios
-      .get("http://localhost:8081/getEmployee")
+      .get("http://192.168.0.10:8081/getEmployee")
       .then((res) => {
         if (res.data.Status === "Success") {
           console.log(res.data.Result, "setEmpListsetEmpList");
@@ -46,7 +46,7 @@ function AddLead() {
   const onSubmit = (data) => {
     console.log(data, "tests213");
     axios
-      .post("http://localhost:8081/lead/create", data)
+      .post("http://192.168.0.10:8081/lead/create", data)
       .then((res) => {
         if (res.data.Error) {
           alert(res.data.Error);

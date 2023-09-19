@@ -56,21 +56,21 @@ function Start() {
                       data-bs-interval="10000"
                     >
                       <img
-                        src="http://localhost:5173/src/assets/banner.jpg"
+                        src="http://192.168.0.10:5173//src/assets/banner.jpg"
                         className="d-block w-100"
                         alt="..."
                       />
                     </div>
                     <div className="carousel-item" data-bs-interval="2000">
                       <img
-                        src="http://localhost:5173/src/assets/banner.jpg"
+                        src="http://192.168.0.10:5173//src/assets/banner.jpg"
                         className="d-block w-100"
                         alt="..."
                       />
                     </div>
                     <div className="carousel-item">
                       <img
-                        src="http://localhost:5173/src/assets/banner.jpg"
+                        src="http://192.168.0.10:5173//src/assets/banner.jpg"
                         className="d-block w-100"
                         alt="..."
                       />
@@ -112,7 +112,7 @@ function Start() {
                   <div className="col-sm-12">
                     <div className="d-flex align-items-center justify-content-center h-100">
                       <img
-                        src="http://localhost:5173/src/assets/logo.png"
+                        src="http://192.168.0.10:5173//src/assets/logo.png"
                         width={250}
                       />
                     </div>

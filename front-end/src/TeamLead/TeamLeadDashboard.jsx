@@ -7,14 +7,14 @@ function TeamLeadDashboard() {
   const navigate = useNavigate();
   axios.defaults.withCredentials = true;
   useEffect(() => {
-    axios.get("http://localhost:8081/dashboard").then((res) => {
+    axios.get("http://192.168.0.10:8081/dashboard").then((res) => {
       console.log(res, "resresresres");
     });
   }, []);
 
   const handleLogout = () => {
     axios
-      .get("http://localhost:8081/logout")
+      .get("http://192.168.0.10:8081/logout")
       .then((res) => {
         navigate("/");
       })
@@ -25,7 +25,7 @@ function TeamLeadDashboard() {
       <div className="row flex-nowrap min-vh-91">
         <div className="col-auto px-sm-2 px-0 sidebar">
           <div className="logo">
-            <img src="http://localhost:5173/src/assets/logo.png" width={100} />
+            <img src="http://192.168.0.10:5173//src/assets/logo.png" width={100} />
             {/* <h2> Arris</h2> */}
           </div>
           <ul className="links">

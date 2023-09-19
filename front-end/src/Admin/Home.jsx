@@ -19,7 +19,7 @@ function Home() {
 
   const getProject = () => {
     axios
-      .get("http://localhost:8081/getProject")
+      .get("http://192.168.0.10:8081/getProject")
       .then((res) => {
         if (res.data.Status === "Success") {
           setProject(res.data.Result.length);
@@ -32,7 +32,7 @@ function Home() {
 
   const getTl = () => {
     axios
-      .get("http://localhost:8081/getLead")
+      .get("http://192.168.0.10:8081/getLead")
       .then((res) => {
         if (res.data.Status === "Success") {
           setLead(res.data.Result.length);
@@ -45,7 +45,7 @@ function Home() {
 
   const getEmployee = () => {
     axios
-      .get("http://localhost:8081/getEmployee")
+      .get("http://192.168.0.10:8081/getEmployee")
       .then((res) => {
         if (res.data.Status === "Success") {
           setEmployee(res.data.Result.length);
@@ -57,7 +57,7 @@ function Home() {
   };
   const getHr = () => {
     axios
-      .get("http://localhost:8081/getHr")
+      .get("http://192.168.0.10:8081/getHr")
       .then((res) => {
         if (res.data.Status === "Success") {
           setHr(res.data.Result.length);

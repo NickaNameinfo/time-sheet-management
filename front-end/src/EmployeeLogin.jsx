@@ -24,7 +24,7 @@ function EmployeeLogin() {
     };
   
     axios
-      .post("http://localhost:8081/employeelogin", date, config) // Pass the config object
+      .post("http://192.168.0.10:8081/employeelogin", date, config) // Pass the config object
       .then((res) => {
         if (res.data.Status === "Success") {
           const id = res.data.id;
