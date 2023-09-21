@@ -10,7 +10,13 @@ import path from "path";
 const app = express();
 app.use(
   cors({
-    origin: ["http://192.168.0.10:5173/", "http://192.168.0.10:5173", "http://192.168.0.10:8081", "http://192.168.0.10:9000"],
+    origin: [
+      "http://192.168.0.10:5173/",
+      "http://192.168.0.10:5173",
+      "http://192.168.0.10:8081",
+      "http://192.168.0.10:9000",
+      "http://localhost:5173",
+    ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true, // Allow credentials
   })
@@ -95,7 +101,7 @@ app.post("/create", upload.single("employeeImage"), (req, res) => {
 
 app.post("/applyLeave", (req, res) => {
   const baseSql =
-    "INSERT INTO leavedetails (`leaveType`,`leaveFrom`,`leaveTo`, `leaveHours`,`reason`, `employeeName`";
+    "INSERT INTO leavedetails (`leaveType`,`leaveFrom`,`leaveTo`, `leaveHours`,`reason`, `employeeName`, `employeeId`";
   let sql = baseSql;
   const values = [
     req.body.leaveType,
@@ -104,6 +110,7 @@ app.post("/applyLeave", (req, res) => {
     req.body.leaveHours,
     req.body.reason,
     req.body.employeeName,
+    req.body.employeeId,
   ];
 
   // Optional fields that are not required
@@ -118,6 +125,59 @@ app.post("/applyLeave", (req, res) => {
   sql += ") VALUES (?)";
 
   con.query(sql, [values], (err, result) => {
+    if (err) {
+      // Handle error
+      return res.json({ Error: err });
+    } else {
+      // Handle success
+      return res.json({ Status: "Success", Result: result });
+    }
+  });
+});
+
+app.put("/updateLeave/:id", (req, res) => {
+  const leaveId = req.params.id;
+  const {
+    leaveType,
+    leaveFrom,
+    leaveTo,
+    leaveHours,
+    reason,
+    employeeName,
+    employeeId,
+    leaveStatus,
+    totalLeaves,
+  } = req.body;
+
+  const sql = `
+    UPDATE leavedetails
+    SET
+      leaveType = ?,
+      leaveFrom = ?,
+      leaveTo = ?,
+      leaveHours = ?,
+      reason = ?,
+      employeeName = ?,
+      employeeId = ?,
+      leaveStatus = ?,
+      totalLeaves = ?
+    WHERE id = ?
+  `;
+
+  const values = [
+    leaveType,
+    leaveFrom,
+    leaveTo,
+    leaveHours,
+    reason,
+    employeeName,
+    employeeId,
+    leaveStatus,
+    totalLeaves,
+    leaveId, // id parameter for the WHERE clause
+  ];
+
+  con.query(sql, values, (err, result) => {
     if (err) {
       // Handle error
       return res.json({ Error: err });
@@ -190,6 +250,7 @@ const verifyUser = (req, res, next) => {
       req.id = decoded.id;
       req.role = decoded.role;
       req.employeeName = decoded.employeeName;
+      req.employeeId = decoded.employeeId;
       req.tlName = decoded.tlName;
       req.hrName = decoded.hrName;
       next();
@@ -198,10 +259,12 @@ const verifyUser = (req, res, next) => {
 };
 
 app.get("/dashboard", verifyUser, (req, res) => {
+  console.log(req, "reqreq342");
   return res.json({
     Status: "Success",
     role: req.role,
     id: req.id,
+    employeeId: req.employeeId,
     userName: req.userName,
     employeeName: req?.employeeName,
     tlName: req?.tlName,
@@ -279,6 +342,7 @@ app.post("/employeelogin", (req, res) => {
               id: result[0].id,
               userName: result[0].userName,
               employeeName: result[0].employeeName,
+              employeeId: result[0].EMPID,
             },
             "jwt-secret-key",
             { expiresIn: "1d" }
@@ -648,6 +712,14 @@ app.put("/project/updateWorkDetails/:id", (req, res) => {
 //     }
 //   });
 // });
+
+app.get("/getBioDetails", (req, res) => {
+  const sql = "SELECT * FROM devicelogs";
+  con.query(sql, (err, result) => {
+    if (err) return res.json({ Error: "Get Bio Details error in sql" });
+    return res.json({ Status: "Success", Result: result });
+  });
+});
 
 app.get("/getProject", (req, res) => {
   const sql = "SELECT * FROM project";

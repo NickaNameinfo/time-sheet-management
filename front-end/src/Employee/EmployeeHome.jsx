@@ -11,8 +11,9 @@ import {
   BsFillPersonBadgeFill,
   BsPersonCircle,
 } from "react-icons/bs";
-
+import commonData from "../../common.json";
 function EmployeeHome() {
+  const [totalLeaves, setTotalLeaves] = React.useState(null);
   const [sickLeave, setSickLeave] = useState(null);
   const [vacationLeave, setVacationLeave] = useState(null);
   const [reamaining, setRemaining] = useState(null);
@@ -20,33 +21,215 @@ function EmployeeHome() {
   const gridStyle = { height: "100%", width: "100%" };
   const [rowData, setRowData] = useState(null);
   const [weekData, setWeekDate] = React.useState(null);
+  const [inOutTIme, setInOutTime] = React.useState(null);
+  const [userDetails, setUserDetails] = React.useState(null);
+  const [appliedLeaves, setAppliedLeaves] = React.useState(null);
+  console.log(userDetails, "rowDatarowData", rowData);
+
+  React.useEffect(() => {
+    if (userDetails) {
+      getUserInfo();
+    }
+    getLeaves();
+  }, [userDetails]);
+
+  const getWorkMonth = (startDateString, endDateString) => {
+    const currentDate = new Date();
+    let totalMonths = 0;
+    let currentDateIterator = new Date(startDateString);
+    while (currentDateIterator < currentDate) {
+      if (currentDateIterator.getDate() >= 20) {
+        // If the current date is 20 or later in the month, increment the total months
+        totalMonths++;
+      }
+      // Move to the next month
+      currentDateIterator.setMonth(currentDateIterator.getMonth() + 1);
+      currentDateIterator.setDate(21);
+    }
+    console.log(totalMonths, "totalMonthstotalMonths");
+    return totalMonths; // Moved the return statement outside of the while loop
+  };
+
+  const getCurrentDateInFormat = () => {
+    const currentDate = new Date();
+    const year = currentDate.getFullYear();
+    const month = String(currentDate.getMonth() + 1).padStart(2, "0"); // Adding 1 because JavaScript months are zero-based
+    const day = String(currentDate.getDate()).padStart(2, "0");
+    const formattedDate = `${year}-${month}-${day}`;
+    return formattedDate;
+  };
+
+  const calculateAvailableLeaves = (
+    workingMonthsPerYear,
+    annualLeaveAllocation,
+    status
+  ) => {
+    let months = status === "Probation" ? 6 : 12;
+    const leavesPerMonth = annualLeaveAllocation / months; // Divide by 12 months in a year
+    const availableLeaves = Math.round(leavesPerMonth * workingMonthsPerYear);
+    return availableLeaves;
+  };
+
+  const getUserInfo = async () => {
+    let useResult = await axios.get(
+      `${commonData?.APIKEY}/get/${userDetails?.data?.id}`
+    );
+    let monthData = getWorkMonth(
+      useResult?.data?.Result[0]?.date,
+      getCurrentDateInFormat()
+    );
+
+    const annualLeaves =
+      useResult?.data?.Result[0]?.employeeStatus === "Probation" ? 6 : 18; // Total annual leave allocation
+    const availableLeaves = calculateAvailableLeaves(
+      monthData,
+      annualLeaves,
+      useResult?.data?.Result[0]?.employeeStatus
+    );
+    setTotalLeaves(availableLeaves);
+    setRemaining(availableLeaves - appliedLeaves?.length);
+    console.log(availableLeaves, "useResultuseResult", useResult);
+  };
+
+  const getLeaves = () => {
+    axios
+      .get(`${commonData?.APIKEY}/getLeaveDetails`)
+      .then((res) => {
+        if (res.data.Status === "Success") {
+          axios.get(`${commonData?.APIKEY}/dashboard`).then((result) => {
+            let tempFinalResult = res?.data?.Result?.filter(
+              (item) => item.employeeName === result?.data?.userName
+            );
+            setAppliedLeaves(tempFinalResult);
+
+            const vacationLeaveCount = tempFinalResult.filter(
+              (item) => item.leaveType === "Vecation"
+            ).length;
+            const scikLeaveCount = tempFinalResult.filter(
+              (item) => item.leaveType === "Sick Leave"
+            ).length;
+            console.log(tempFinalResult, "tempFinalResult", vacationLeaveCount);
+            setSickLeave(scikLeaveCount);
+            setVacationLeave(vacationLeaveCount);
+          });
+        }
+      })
+
+      .catch((err) => console.log(err));
+  };
 
   const columnDefs = useMemo(
     () => [
-      { field: weekData?.[0], cellRenderer: () => <p>9.30AM / 7.30PM</p> },
-      { field: weekData?.[1], cellRenderer: () => <p>9.30AM / 7.30PM</p> },
-      { field: weekData?.[2], cellRenderer: () => <p>9.30AM / 7.30PM</p> },
-      { field: weekData?.[3], cellRenderer: () => <p>9.30AM / 7.30PM</p> },
-      { field: weekData?.[4], cellRenderer: () => <p>9.30AM / 7.30PM</p> },
-      { field: weekData?.[5], cellRenderer: () => <p>9.30AM / 7.30PM</p> },
-      { field: weekData?.[6], cellRenderer: () => <p>9.30AM / 7.30PM</p> },
+      {
+        field: "type",
+      },
+      {
+        field: weekData?.[0],
+        cellRenderer: (params) => (
+          <p>
+            {formatDate(params.data?.item?.LogDate) === params.colDef.field
+              ? getInTime(params.data?.item?.LogDate)
+              : null}
+
+            {console.log(
+              formatDate(inOutTIme?.[0]?.LogDate),
+              "params.data",
+              params.data,
+              params.colDef.field
+            )}
+          </p>
+        ),
+      },
+      {
+        field: weekData?.[1],
+        cellRenderer: (params) => (
+          <p>
+            {formatDate(params.data?.item?.LogDate) === params.colDef.field
+              ? getInTime(params.data?.item?.LogDate)
+              : null}
+          </p>
+        ),
+      },
+      {
+        field: weekData?.[2],
+        cellRenderer: (params) => (
+          <p>
+            {formatDate(params.data?.item?.LogDate) === params.colDef.field
+              ? getInTime(params.data?.item?.LogDate)
+              : null}
+          </p>
+        ),
+      },
+      {
+        field: weekData?.[3],
+        cellRenderer: (params) => (
+          <p>
+            {formatDate(params.data?.item?.LogDate) === params.colDef.field
+              ? getInTime(params.data?.item?.LogDate)
+              : null}
+          </p>
+        ),
+      },
+      {
+        field: weekData?.[4],
+        cellRenderer: (params) => (
+          <p>
+            {formatDate(params.data?.item?.LogDate) === params.colDef.field
+              ? getInTime(params.data?.item?.LogDate)
+              : null}
+          </p>
+        ),
+      },
+      {
+        field: weekData?.[5],
+        cellRenderer: (params) => (
+          <p>
+            {formatDate(params.data?.item?.LogDate) === params.colDef.field
+              ? getInTime(params.data?.item?.LogDate)
+              : null}
+          </p>
+        ),
+      },
+      {
+        field: weekData?.[6],
+        cellRenderer: (params) => (
+          <p>
+            {formatDate(params.data?.item?.LogDate) === params.colDef.field
+              ? getInTime(params.data?.item?.LogDate)
+              : null}
+          </p>
+        ),
+      },
     ],
-    [weekData]
+    [weekData, rowData]
   );
 
   useEffect(() => {
     const currentYear = new Date().getFullYear();
     let datesss = getWeekDates(getCurrentWeekNumber(), currentYear);
     setWeekDate(datesss);
-    let data = [
-      {
-        inTime: "9.30AM",
-        outTIme: "7.30PM",
-      },
-    ];
-    console.log(datesss, "datesssdatesss");
-    setRowData(data);
+    getInOutTime();
   }, []);
+
+  const getInTime = (dateString) => {
+    const date = new Date(dateString);
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    const amOrPm = hours >= 12 ? "PM" : "AM";
+    const formattedHours = hours % 12 || 12; // Convert 0 to 12 for 12-hour format
+    const formattedMinutes = minutes.toString().padStart(2, "0"); // Ensure minutes are always two digits
+
+    return `${formattedHours}:${formattedMinutes} ${amOrPm}`;
+  };
+
+  const formatDate = (inputDate) => {
+    const date = new Date(inputDate);
+    const month = date.getMonth() + 1; // Month is zero-based, so add 1
+    const day = date.getDate();
+    const year = date.getFullYear();
+
+    return `${month}/${day}/${year}`;
+  };
 
   const getCurrentWeekNumber = () => {
     const now = new Date();
@@ -78,10 +261,39 @@ function EmployeeHome() {
       const date = addDays(startDate, daysToAdd + i);
       dates.push(date.toLocaleDateString());
     }
-    console.log(dates, "datesdates123234123");
     return dates;
   };
 
+  const getInOutTime = () => {
+    axios
+      .get(`${commonData?.APIKEY}/getBioDetails`)
+      .then(async (res) => {
+        if (res.data.Status === "Success") {
+          let userDetails = await axios.get(`${commonData?.APIKEY}/dashboard`);
+          setUserDetails(userDetails);
+          console.log(userDetails, "userDetails", res);
+          let result = res.data.Result?.filter(
+            (item) =>
+              String(item.UserId) === String(userDetails?.data?.employeeId)
+          );
+          setInOutTime(result);
+          let rowData = [
+            {
+              type: "IN",
+              item: result[0],
+            },
+            {
+              type: "OUT",
+              item: result[1],
+            },
+          ];
+          setRowData(rowData);
+        } else {
+          alert("Error");
+        }
+      })
+      .catch((err) => console.log(err));
+  };
   const defaultColDef = useMemo(
     () => ({
       editable: false,
@@ -98,19 +310,6 @@ function EmployeeHome() {
     []
   );
 
-  const handleDelete = (id) => {
-    axios
-      .delete("http://192.168.0.10:8081/deleteLeave/" + id)
-      .then((res) => {
-        if (res.data.Status === "Success") {
-          getLeaves();
-        } else {
-          alert("Error");
-        }
-      })
-      .catch((err) => console.log(err));
-  };
-
   return (
     <>
       {/* <div className="text-center pb-1 my-3 d-flex align-items-center justify-content-between px-3"> */}
@@ -125,7 +324,7 @@ function EmployeeHome() {
                   </div>
                   <div className="counts">
                     <p>Count</p>
-                    <h3>18</h3>
+                    <h3>{totalLeaves}</h3>
                   </div>
                 </div>
                 <div className="counterCardname">

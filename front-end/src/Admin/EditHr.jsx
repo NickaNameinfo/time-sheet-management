@@ -1,7 +1,7 @@
 import axios from 'axios';
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom';
-
+import commonData from "../../common.json"
 function EditHr() {
 	const [data, setData] = useState({
 		name: '',
@@ -14,7 +14,7 @@ function EditHr() {
 	const {id} = useParams();
 
 	useEffect(()=> {
-		axios.get('http://192.168.0.10:8081/get/'+id)
+		axios.get(`${commonData?.APIKEY}/get/`+id)
 		.then(res => {
 			setData({...data, name: res.data.Result[0].name,
 				email: res.data.Result[0].email,
@@ -27,7 +27,7 @@ function EditHr() {
 
 	const handleSubmit = (event) => {
 		event.preventDefault();
-		axios.put('http://192.168.0.10:8081/update/'+id, data)
+		axios.put(`${commonData?.APIKEY}/update/`+id, data)
 		.then(res => {
 			if(res.data.Status === "Success") {
 				navigate('/employee')

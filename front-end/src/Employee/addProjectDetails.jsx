@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
-
+import commonData from "../../common.json"
 function AddProjectDetails(props) {
   const {
     handleSubmit,
@@ -30,7 +30,7 @@ function AddProjectDetails(props) {
   console.log(projectList, "projectList", formDatas);
 
   useEffect(() => {
-    axios.get("http://192.168.0.10:8081/dashboard").then((res) => {
+    axios.get(`${commonData?.APIKEY}/dashboard`).then((res) => {
       setValue("employeeName", res?.data?.employeeName);
     });
     getProjectList();
@@ -55,7 +55,7 @@ function AddProjectDetails(props) {
 
   const getProjectList = () => {
     axios
-      .get("http://192.168.0.10:8081/getProject")
+      .get(`${commonData?.APIKEY}/getProject`)
       .then((res) => {
         if (res.data.Status === "Success") {
           setProjectList(res.data.Result);
@@ -70,7 +70,7 @@ function AddProjectDetails(props) {
     console.log(data, "tests213");
     // Perform any other actions you want with the form data
     axios
-      .post("http://192.168.0.10:8081/project/addWorkDetails", data)
+      .post(`${commonData?.APIKEY}/project/addWorkDetails`, data)
       .then((res) => {
         if (res.data.Error) {
           alert(res.data.Error);

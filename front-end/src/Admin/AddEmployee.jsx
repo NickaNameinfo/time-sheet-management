@@ -12,11 +12,14 @@ import {
   FormHelperText,
   InputLabel,
   MenuItem,
+  Radio,
+  RadioGroup,
   Select,
 } from "@mui/material";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
+import commonData from "../../common.json";
 
 function AddEmployee() {
   const {
@@ -26,7 +29,7 @@ function AddEmployee() {
     setValue,
   } = useForm();
   const navigate = useNavigate();
-  const [tempRole, setTempRole] = useState(["Employee"]); // Initialize tempRole state
+  const [tempRole, setTempRole] = useState("Employee"); // Initialize tempRole state
 
   const onSubmit = (data) => {
     const formdata = new FormData();
@@ -43,7 +46,7 @@ function AddEmployee() {
     formdata.append("role", tempRole);
     console.log(formdata, "formdataformdata");
     axios
-      .post("http://192.168.0.10:8081/create", formdata)
+      .post(`${commonData?.APIKEY}/create`, formdata)
       .then((res) => {
         if (res.data.Error) {
           alert(res.data.Error);
@@ -56,20 +59,15 @@ function AddEmployee() {
 
   const handleOnChange = (name, value) => {
     console.log(name, value, "changesings");
-    let updatedRoles = []; // Create a copy of the tempRole array
-
-    if (value === true) {
-      if (name === "Tl") {
-        updatedRoles.push("Tl"); // Add "Tl" role
-      }
-      if (name === "Admin") {
-        updatedRoles.push("Admin"); // Add "Admin" role
-      }
-    } else {
-      const index = updatedRoles.indexOf(name);
-      if (index !== -1) {
-        updatedRoles.splice(index, 1); // Remove the role from the array
-      }
+    let updatedRoles; // Create a copy of the tempRole array
+    if (name === "Tl") {
+      updatedRoles = "Tl"; // Add "Tl" role
+    }
+    if (name === "Admin") {
+      updatedRoles = "Admin"; // Add "Admin" role
+    }
+    if (name === "Employee") {
+      updatedRoles = "Employee";
     }
     setTempRole(updatedRoles); // Update the state with the new roles array
     console.log(updatedRoles, "updatedRoles");
@@ -136,8 +134,8 @@ function AddEmployee() {
                     <TextField
                       fullWidth
                       id="outlined-basic fullWidth"
-                      label="Enter Email "
-                      type="text"
+                      label="Enter Email"
+                      type="email"
                       variant="outlined"
                       {...field}
                       error={Boolean(errors.employeeEmail)}
@@ -160,7 +158,7 @@ function AddEmployee() {
                     <TextField
                       fullWidth
                       id="outlined-basic fullWidth"
-                      label="Enter Username "
+                      label="Enter Username"
                       variant="outlined"
                       type="text"
                       {...field}
@@ -321,47 +319,38 @@ function AddEmployee() {
             <div className="col-sm-4">
               <Box sx={{}}>
                 <FormControl fullWidth>
+                  <RadioGroup
+                    row
+                    value={tempRole}
+                    aria-labelledby="demo-row-radio-buttons-group-label"
+                    name="row-radio-buttons-group"
+                    onChange={(e) =>
+                      handleOnChange(e.target.value, e.target.checked)
+                    }
+                  >
+                    <FormControlLabel
+                      value="Tl"
+                      control={<Radio />}
+                      label="Tl"
+                    />
+                    <FormControlLabel
+                      value="Admin"
+                      control={<Radio />}
+                      label="Admin"
+                    />
+                    <FormControlLabel
+                      value="Employee"
+                      control={<Radio />}
+                      label="Employee"
+                    />
+                  </RadioGroup>
                   <FormGroup
                     style={{
                       display: "flex",
                       flexDirection: "row",
                       justifyContent: "space-between",
                     }}
-                  >
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          onChange={(e) =>
-                            handleOnChange("Tl", e.target.checked)
-                          }
-                        />
-                      }
-                      label="Tl"
-                    />
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          Employee
-                          onChange={(e) =>
-                            handleOnChange("Admin", e.target.checked)
-                          }
-                        />
-                      }
-                      label="Admin"
-                    />
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          disabled={true}
-                          defaultChecked={true}
-                          onChange={(e) =>
-                            handleOnChange("Employee", e.target.checked)
-                          }
-                        />
-                      }
-                      label="Employee"
-                    />
-                  </FormGroup>
+                  ></FormGroup>
                 </FormControl>
               </Box>
             </div>
@@ -375,6 +364,7 @@ function AddEmployee() {
                     <input
                       label="Employee Image"
                       variant="outlined"
+                      accept=".jpg, .png, .jpeg"
                       onChange={(e) =>
                         setValue("employeeImage", e.target.files[0])
                       }

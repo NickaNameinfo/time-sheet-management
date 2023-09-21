@@ -1,20 +1,20 @@
 import axios from 'axios';
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-
+import commonData from "../../common.json"
 function HrDetail() {
     const {id} = useParams();
     const navigate = useNavigate()
     const [employee, setEmployee] = useState([])
 
     useEffect(()=> {
-        axios.get('http://192.168.0.10:8081/get/'+id)
+        axios.get(`${commonData?.APIKEY}/get/`+id)
         .then(res => setEmployee(res.data.Result[0]))
         .catch(err => console.log(err));
     })
 
     const handleLogout = () => {
-		axios.get('http://192.168.0.10:8081/logout')
+		axios.get(`${commonData?.APIKEY}/logout`)
 		.then(res => {
 			navigate('/start')
 		}).catch(err => console.log(err));
@@ -23,7 +23,7 @@ function HrDetail() {
   return (
     <div>
         <div className='d-flex justify-content-center flex-column align-items-center mt-3'>
-            <img src={`http://192.168.0.10:8081/images/`+employee.image} alt="" className='empImg'/>
+            <img src={`${commonData?.APIKEY}/images/`+employee.image} alt="" className='empImg'/>
             <div className='d-flex align-items-center flex-column mt-5'>
                 <h3>Name: {employee.name}</h3>
                 <h3>Email: {employee.email}</h3>

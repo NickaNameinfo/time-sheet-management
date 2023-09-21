@@ -15,6 +15,7 @@ import {
   Select,
   TextField,
 } from "@mui/material";
+import commonData from "../../common.json"
 
 const TimeManagement = () => {
   const [projectList, setProjectList] = useState(null);
@@ -181,10 +182,10 @@ const TimeManagement = () => {
 
   const initData = () => {
     axios
-      .get("http://192.168.0.10:8081/getWrokDetails")
+      .get(`${commonData?.APIKEY}/getWrokDetails`)
       .then(async (res) => {
-        let userDetails = await axios.get("http://192.168.0.10:8081/dashboard");
-        axios.get("http://192.168.0.10:8081/getLeaveDetails").then((leaveRes) => {
+        let userDetails = await axios.get(`${commonData?.APIKEY}/dashboard`);
+        axios.get(`${commonData?.APIKEY}/getLeaveDetails`).then((leaveRes) => {
           console.log(leaveRes, "resres324234");
           if (leaveRes.data.Status === "Success") {
             let tempLeaveResult = leaveRes?.data?.Result?.filter(
@@ -195,7 +196,7 @@ const TimeManagement = () => {
           }
         });
         let employeeDetails = await axios.get(
-          "http://192.168.0.10:8081/getEmployee"
+          `${commonData?.APIKEY}/getEmployee`
         );
         console.log(selectedWeek, "selectedWeekselectedWeek");
         if (res.data.Status === "Success") {
@@ -257,7 +258,7 @@ const TimeManagement = () => {
       delete submitData.id;
       console.log(submitData, "submitDatasubmitData");
       axios
-        .post("http://192.168.0.10:8081/project/addWorkDetails", submitData)
+        .post(`${commonData?.APIKEY}/project/addWorkDetails`, submitData)
         .then((res) => {
           if (res.data.Error) {
             alert(res.data.Error);
@@ -287,7 +288,7 @@ const TimeManagement = () => {
     };
     let submitData = { ...params, ...tempObjec };
     axios
-      .put(`http://192.168.0.10:8081/project/updateWorkDetails/` + id, submitData)
+      .put(`${commonData?.APIKEY}/project/updateWorkDetails/` + id, submitData)
       .then(async (res) => {
         location.reload();
         alert("Update Successfully");
@@ -304,7 +305,7 @@ const TimeManagement = () => {
 
   const getProjectList = () => {
     axios
-      .get("http://192.168.0.10:8081/getProject")
+      .get(`${commonData?.APIKEY}/getProject`)
       .then((res) => {
         if (res.data.Status === "Success") {
           setProjectList(res.data.Result);

@@ -5,7 +5,7 @@ import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
-
+import commonData from "../../common.json"
 function Leads() {
   const gridStyle = { height: "100%", width: "100%" };
   const [rowData, setRowData] = useState([]);
@@ -61,7 +61,7 @@ function Leads() {
 
   const onGridReady = useCallback((params) => {
     axios
-      .get("http://192.168.0.10:8081/getLead")
+      .get(`${commonData?.APIKEY}/getLead`)
       .then((res) => {
         if (res.data.Status === "Success") {
           setRowData(res.data.Result);
@@ -74,7 +74,7 @@ function Leads() {
 
   const handleDelete = (id) => {
     axios
-      .delete("http://192.168.0.10:8081/lead/delete/" + id)
+      .delete(`${commonData?.APIKEY}/lead/delete/` + id)
       .then((res) => {
         if (res.data.Status === "Success") {
           window.location.reload(true);

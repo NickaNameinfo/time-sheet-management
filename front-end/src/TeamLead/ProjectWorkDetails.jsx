@@ -9,7 +9,7 @@ import {
   TextField,
   TextareaAutosize,
 } from "@mui/material";
-
+import commonData from "../../common.json"
 function ProjectWorkDetails() {
   const containerStyle = { width: "100%", height: "100%" };
   const gridStyle = { height: "100%", width: "100%" };
@@ -37,7 +37,7 @@ function ProjectWorkDetails() {
     console.log(apiTemp, "apiTempapiTempapiTemp", params.data);
     axios
       .put(
-        `http://192.168.0.10:8081/project/updateWorkDetails/` + params.data.id,
+        `${commonData?.APIKEY}/project/updateWorkDetails/` + params.data.id,
         apiTemp
       )
       .then(async (res) => {
@@ -178,9 +178,9 @@ function ProjectWorkDetails() {
 
   const onGridReady = useCallback((params) => {
     axios
-      .get("http://192.168.0.10:8081/getWrokDetails")
+      .get(`${commonData?.APIKEY}/getWrokDetails`)
       .then(async (res) => {
-        let userDetails = await axios.get("http://192.168.0.10:8081/dashboard");
+        let userDetails = await axios.get(`${commonData?.APIKEY}/dashboard`);
         console.log(res, "resres324", userDetails);
         if (res.data.Status === "Success") {
           let filterData = res.data.Result.filter(

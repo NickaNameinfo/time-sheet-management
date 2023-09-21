@@ -4,25 +4,55 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
+import commonData from "../../../common.json";
 
 const LeaveReport = () => {
   const containerStyle = { width: "100%", height: "100%" };
   const gridStyle = { height: "100%", width: "100%" };
   const [projectDetails, setProjectDetails] = useState([]);
-  const [workDetails, setWorkDetails] = useState([]);
-  const [projectWorkHours, setProjectWorkHours] = React.useState(null);
-  console.log(workDetails, "workDetailsworkDetails");
-
+  console.log(projectDetails, "projectDetails");
   React.useEffect(() => {
     onGridReady();
   }, []);
 
+  const getTotalLeaves = (data) => {
+    const countsByEmployee = {};
+
+    // Iterate through the data array and count entries for each employee
+    for (const entry of data) {
+      const { employeeId, employeeName } = entry;
+      const employeeKey = `${employeeId}-${employeeName}`;
+
+      if (!countsByEmployee[employeeKey]) {
+        countsByEmployee[employeeKey] = 1; // Initialize the count to 1 for a new employee
+      } else {
+        countsByEmployee[employeeKey]++; // Increment the count for an existing employee
+      }
+    }
+
+    // Convert the counts into an array of objects
+    const countsArray = Object.keys(countsByEmployee).map((employeeKey) => {
+      const [employeeId, employeeName] = employeeKey.split("-");
+      const count = countsByEmployee[employeeKey];
+      return {
+        employeeId,
+        employeeName,
+        count,
+      };
+    });
+
+    return countsArray;
+  };
+
   const onGridReady = (params) => {
     axios
-      .get("http://192.168.0.10:8081/getLeaveDetails")
+      .get(`${commonData?.APIKEY}/getLeaveDetails`)
       .then((res) => {
         if (res.data.Status === "Success") {
-          setProjectDetails(res.data.Result);
+          let result = getTotalLeaves(res.data.Result);
+          setProjectDetails(result);
+
+          console.log(result, "2342result");
         } else {
           alert("Error");
         }
@@ -37,31 +67,12 @@ const LeaveReport = () => {
         minWidth: 170,
       },
       {
-        field: "leaveType",
-        minWidth: 170,
-      },
-      {
-        field: "leaveFrom",
-        minWidth: 170,
-      },
-      {
-        field: "leaveTo",
-        minWidth: 170,
-      },
-      {
-        field: "leaveHours",
-        minWidth: 170,
-      },
-      {
-        field: "totalLeaves",
-        minWidth: 170,
-      },
-      {
-        field: "leaveStatus",
+        field: "count",
+        headerName : "Total Leaves",
         minWidth: 170,
       },
     ],
-    [projectWorkHours]
+    [projectDetails]
   );
 
   const defaultColDef = useMemo(

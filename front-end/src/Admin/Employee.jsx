@@ -5,7 +5,7 @@ import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
-
+import commonData from "../../common.json"
 function Employee() {
   const containerStyle = { width: "100%", height: "100%" };
   const gridStyle = { height: "100%", width: "100%" };
@@ -69,7 +69,7 @@ function Employee() {
 
   const onGridReady = useCallback((params) => {
     axios
-      .get("http://192.168.0.10:8081/getEmployee")
+      .get(`${commonData?.APIKEY}/getEmployee`)
       .then((res) => {
         if (res.data.Status === "Success") {
           setRowData(res.data.Result);
@@ -82,7 +82,7 @@ function Employee() {
 
   const handleDelete = (id) => {
     axios
-      .delete("http://192.168.0.10:8081/delete/" + id)
+      .delete(`${commonData?.APIKEY}/delete/` + id)
       .then((res) => {
         if (res.data.Status === "Success") {
           onGridReady();

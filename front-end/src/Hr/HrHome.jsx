@@ -1,6 +1,6 @@
 import axios from "axios";
 import React, { useEffect, useState } from "react";
-
+import commonData from "../../common.json"
 function HrHome() {
   return (
     <div>
@@ -90,7 +90,7 @@ function HrHome() {
               return <tr key={index}>
                   <td>{employee.name}</td>
                   <td>{
-                    <img src={`http://192.168.0.10:8081/images/`+employee.image} alt="" className='employee_image'/>
+                    <img src={``${commonData?.APIKEY}/images/`+employee.image} alt="" className='employee_image'/>
                     }</td>
                   <td>{employee.email}</td>
                   <td>{employee.address}</td>
