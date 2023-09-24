@@ -39,6 +39,10 @@ import YearlyReport from "./Admin/Reports/YearlyReport";
 import DesciplineCodeReport from "./Admin/Reports/DesciplineCodeReport";
 import MonthlyReport from "./Admin/Reports/MonthlyReport";
 import LeaveReport from "./Admin/Reports/LeaveReport";
+import { Settings } from "./Admin/Settings";
+import AddUpdates from "./Admin/AddUpdates";
+import { Discipline } from "./Admin/Discipline";
+import { Designation } from "./Admin/Designation";
 
 function App() {
   return (
@@ -48,12 +52,16 @@ function App() {
         <Route path="/Dashboard" element={<Dashboard />}>
           <Route path="" index element={<Home />}></Route>
           <Route path="/Dashboard/employee" element={<Employee />}></Route>
+          <Route path="/Dashboard/Settings" element={<Settings />}></Route>
+          <Route path="/Dashboard/AddUpdates" element={<AddUpdates />}></Route>
+          <Route path="/Dashboard/Discipline" element={<Discipline />}></Route>
+          <Route path="/Dashboard/Designation" element={<Designation />}></Route>
           <Route path="/Dashboard/lead" element={<Leads />}></Route>
           <Route path="/Dashboard/hr" element={<Hr />}></Route>
           <Route path="/Dashboard/projects" element={<Projects />}></Route>
           <Route path="/Dashboard/leaves" element={<Leaves />}></Route>
           <Route path="/Dashboard/profile" element={<Profile />}></Route>
-          <Route path="/Dashboard/create" element={<AddEmployee />}></Route>
+          <Route path="/Dashboard/create/:id?" element={<AddEmployee />}></Route>
           <Route path="/Dashboard/addLead" element={<AddLead />}></Route>
           <Route path="/Dashboard/addHr" element={<AddHr />}></Route>
           <Route path="/Dashboard/addProject" element={<AddProject />}></Route>
@@ -74,48 +82,18 @@ function App() {
         </Route>
 
         <Route path="/Employee" element={<EmployeeDashboard />}>
-          {/* <Route path="" index element={<EmployeeHome />}></Route>
-          <Route
-            path="/Employee/ProjectDetails"
-            element={<AddProjectDetails />}
-          ></Route>
-          <Route path="/Employee/Leaves" element={<AddLeaveDetails />}></Route> */}
-          {/* <Route
-            path="/Employee/TimeManagement"
-            element={<TimeManagement />}
-          ></Route> */}
-          {/* <Route
-            path="/Employee/Projects"
-            element={<Projects type="employee" />}
-          ></Route> */}
+         
         </Route>
 
         <Route path="/TeamLead" element={<TeamLeadDashboard />}>
-          {/* <Route path="" index element={<TeamLeadHome />}></Route>
-          <Route
-            path="/TeamLead/ProjectDetails"
-            element={<ProjectsList />}
-          ></Route>
-          <Route
-            path="/TeamLead/ProjectWorkDetails"
-            element={<ProjectWorkDetails />}
-          ></Route> */}
+        
         </Route>
 
         <Route path="/Hr" element={<HrDashboard />}>
-          {/* <Route path="" index element={<HrHome />}></Route>
-          <Route path="/Hr/employee" element={<EmployeeHr />}></Route>
-          <Route path="/Hr/create" element={<AddEmployeeHr />}></Route>
-          <Route
-            path="/Hr/employeeEdit/:id"
-            element={<EditEmployeeHr />}
-          ></Route> */}
+          
         </Route>
 
         <Route path="/login" element={<Login />}></Route>
-        {/* <Route path="/employeeLogin" element={<EmployeeLogin />}></Route>
-        <Route path="/TeamLeadLogin" element={<TeamLeadLogin />}></Route>
-        <Route path="/HrLogin" element={<HrLogin />}></Route> */}
       </Routes>
     </BrowserRouter>
   );

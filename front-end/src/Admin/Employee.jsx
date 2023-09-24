@@ -1,16 +1,21 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import Button from "@mui/material/Button";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
-import commonData from "../../common.json"
+import commonData from "../../common.json";
 function Employee() {
   const containerStyle = { width: "100%", height: "100%" };
   const gridStyle = { height: "100%", width: "100%" };
   const [rowData, setRowData] = useState([]);
   const [selectedRows, setSelectedRows] = useState(null);
+  const navigate = useNavigate();
+
+  const onClickEdit = (id) => {
+    navigate(`/Dashboard/create/${id}`);
+  };
 
   const columnDefs = useMemo(
     () => [
@@ -26,6 +31,19 @@ function Employee() {
       { field: "designation" },
       { field: "employeeStatus" },
       { field: "date", headerName: "Join Date" },
+      {
+        field: "Action",
+        headerName: "Action",
+        filter : false,
+        cellRenderer: (params) => {
+          return (
+            <i
+              class="fa-solid fa-pen-to-square"
+              onClick={() => onClickEdit(params?.data?.id)}
+            ></i>
+          );
+        },
+      },
     ],
     []
   );
@@ -97,7 +115,7 @@ function Employee() {
     const selectedItem = event.api.getSelectedRows();
     setSelectedRows(selectedItem);
   };
-  
+
   return (
     <>
       <div className="addBtn pb-1 my-3">

@@ -6,6 +6,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import multer from "multer";
 import path from "path";
+import { check, validationResult } from "express-validator";
 
 const app = express();
 app.use(
@@ -75,25 +76,23 @@ app.post("/create", upload.single("employeeImage"), (req, res) => {
       // If the userName doesn't exist, proceed with the insert operation
       const sql =
         "INSERT INTO employee (`employeeName`, `EMPID`, `employeeEmail`, `userName`, `password`, `role`,`discipline`, `designation`, `date`, `employeeImage`, `employeeStatus`) VALUES (?)";
-      bcrypt.hash(req.body.password.toString(), 10, (err, hash) => {
-        if (err) return res.json({ Error: "Error in hashing password" });
-        const values = [
-          req.body.employeeName,
-          req.body.EMPID,
-          req.body.employeeEmail,
-          req.body.userName,
-          hash,
-          req.body.role.toString(),
-          req.body.discipline,
-          req.body.designation,
-          req.body.date,
-          req.file.filename,
-          req.body.employeeStatus,
-        ];
-        con.query(sql, [values], (err, result) => {
-          if (err) return res.json({ Error: "Error in signup query" });
-          return res.json({ Status: "Success" });
-        });
+      if (err) return res.json({ Error: "Error in hashing password" });
+      const values = [
+        req.body.employeeName,
+        req.body.EMPID,
+        req.body.employeeEmail,
+        req.body.userName,
+        req.body.password,
+        req.body.role.toString(),
+        req.body.discipline,
+        req.body.designation,
+        req.body.date,
+        req.file.filename,
+        req.body.employeeStatus,
+      ];
+      con.query(sql, [values], (err, result) => {
+        if (err) return res.json({ Error: "Error in signup query" });
+        return res.json({ Status: "Success" });
       });
     }
   });
@@ -222,13 +221,86 @@ app.get("/get/:id", (req, res) => {
   });
 });
 
-app.put("/update/:id", (req, res) => {
-  const id = req.params.id;
-  const sql = "UPDATE employee set userNname = ? WHERE id = ?";
-  con.query(sql, [req.body.userNname, id], (err, result) => {
-    if (err) return res.json({ Error: "update employee error in sql" });
-    return res.json({ Status: "Success" });
-  });
+app.put("/update/:id", upload.single("employeeImage"), (req, res) => {
+  const employeeId = req.params.id;
+  console.log(req.body, "req.body");
+
+  // Check if the userName already exists in the database for a different employee
+  const checkUserNameSql =
+    "SELECT COUNT(*) AS count FROM employee WHERE `userName` = ? AND `id` <> ?";
+  con.query(
+    checkUserNameSql,
+    [req.body.userName, employeeId],
+    (err, result) => {
+      if (err) {
+        return res.json({ Error: "Error in checking userName" });
+      }
+      if (result[0].count > 0) {
+        // If the userName already exists for another employee, return an error message
+        return res.json({ Error: "userName already exists" });
+      } else {
+        // If the userName doesn't exist or exists for the same employee, proceed with the update operation
+        let updateSql =
+          "UPDATE employee SET `employeeName`=?, `EMPID`=?, `employeeEmail`=?, `userName`=?";
+        const values = [
+          req.body.employeeName,
+          req.body.EMPID,
+          req.body.employeeEmail,
+          req.body.userName,
+        ];
+
+        // Add optional fields if they are provided in the request
+        if (req.body.password) {
+          if (err) return res.json({ Error: "Error in hashing password" });
+          updateSql += ", `password`=?";
+          values.push(req.body.password);
+          continueUpdate();
+        } else {
+          continueUpdate();
+        }
+
+        function continueUpdate() {
+          if (req.body.role) {
+            updateSql += ", `role`=?";
+            values.push(req.body.role.toString());
+          }
+
+          if (req.body.discipline) {
+            updateSql += ", `discipline`=?";
+            values.push(req.body.discipline);
+          }
+
+          if (req.body.designation) {
+            updateSql += ", `designation`=?";
+            values.push(req.body.designation);
+          }
+
+          if (req.body.date) {
+            updateSql += ", `date`=?";
+            values.push(req.body.date);
+          }
+
+          if (req.file || req.body.employeeImage) {
+            updateSql += ", `employeeImage`=?";
+            values.push(req.file ? req.file.filename : req.body.employeeImage);
+          }
+
+          if (req.body.employeeStatus) {
+            updateSql += ", `employeeStatus`=?";
+            values.push(req.body.employeeStatus);
+          }
+
+          updateSql += " WHERE `id`=?";
+          values.push(employeeId);
+
+          con.query(updateSql, values, (err, result) => {
+            if (err) return res.json({ Error: "Error in update query" });
+            return res.json({ Status: "Success" });
+          });
+        }
+      }
+    }
+  );
 });
 
 app.delete("/delete/:id", (req, res) => {
@@ -309,54 +381,61 @@ app.post("/login", (req, res) => {
   });
 });
 
-app.post("/employeelogin", (req, res) => {
-  console.log(req.body, "req121212");
-  if (!req.body.userName || !req.body.password) {
-    return res.status(400).json({ error: "Missing userName or password" });
-  }
-
-  const sql = "SELECT * FROM employee WHERE userName = ?";
-  con.query(sql, [req.body.userName], (err, result) => {
-    if (err) {
-      console.error("Database error:", err);
-      return res.status(500).json({ error: "Internal Server Error" });
+app.post(
+  "/employeelogin",
+  [
+    check("userName").notEmpty().withMessage("Username is required"),
+    check("password").notEmpty().withMessage("Password is required"),
+  ],
+  (req, res) => {
+    // Check for validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
     }
 
-    if (result.length === 0) {
-      return res.status(401).json({ error: "Wrong Email or Password" });
-    }
+    const { userName, password } = req.body;
 
-    bcrypt.compare(
-      req.body.password.toString(),
-      result[0].password,
-      (err, response) => {
-        if (err) {
-          console.error("Bcrypt error:", err);
-          return res.status(500).json({ error: "Internal Server Error" });
-        }
+    // Query the database to fetch user data by userName
+    const sql = "SELECT * FROM employee WHERE userName = ?";
 
-        if (response) {
-          const token = jwt.sign(
-            {
-              role: result[0].role,
-              id: result[0].id,
-              userName: result[0].userName,
-              employeeName: result[0].employeeName,
-              employeeId: result[0].EMPID,
-            },
-            "jwt-secret-key",
-            { expiresIn: "1d" }
-          );
-          tokensss = token;
-          // Send the token as a response to the client
-          return res.status(200).json({ token });
-        } else {
-          return res.status(401).json({ error: "Authentication failed" });
-        }
+    con.query(sql, [userName], (err, results) => {
+      if (err) {
+        console.error("Database query error:", err);
+        return res.status(500).json({ error: "Internal Server Error" });
       }
-    );
-  });
-});
+
+      // Check if the user exists in the database
+      if (results.length === 0) {
+        return res.status(401).json({ error: "Wrong Email or Password" });
+      }
+
+      const user = results[0];
+      console.log(results, "results2321", password, user.password);
+      // Compare the provided password with the hashed password in the database
+
+      if (String(password) === String(user.password)) {
+        // Generate a JWT token
+        const token = jwt.sign(
+          {
+            role: user.role,
+            id: user.id,
+            userName: user.userName,
+            employeeName: user.employeeName,
+            employeeId: user.EMPID,
+          },
+          "jwt-secret-key",
+          { expiresIn: "1d" }
+        );
+        tokensss = token;
+        // Send the token as a response to the client
+        return res.status(200).json({ tokensss });
+      } else {
+        return res.status(401).json({ error: "Authentication failed" });
+      }
+    });
+  }
+);
 
 //teamLead Oprationss
 
@@ -655,63 +734,6 @@ app.put("/project/updateWorkDetails/:id", (req, res) => {
   });
 });
 
-// app.put("/project/updateWorkDetails/:id", (req, res) => {
-//   const id = req.params.id;
-//   const {
-//     employeeName,
-//     referenceNo,
-//     projectName,
-//     tlName,
-//     taskNo,
-//     areaofWork,
-//     totalHours,
-//     ...optionalFields
-//   } = req.body;
-
-//   const updateFields = [];
-//   const values = [];
-
-//   // Collect values and update fields for optional columns
-//   Object.keys(optionalFields).forEach((field) => {
-//     if (optionalFields[field] !== undefined) {
-//       updateFields.push(`\`${field}\` = ?`);
-//       values.push(optionalFields[field]);
-//     }
-//   });
-
-//   // Optional fields that are not required
-//   const mandatoryFields = [
-//     "employeeName",
-//     "referenceNo",
-//     "projectName",
-//     "tlName",
-//     "taskNo",
-//     "areaofWork",
-//     "totalHours",
-//   ];
-//   mandatoryFields.forEach((field) => {
-//     updateFields.push(`\`${field}\` = ?`);
-//     values.push(req.body[field]);
-//   });
-
-//   // Construct the SQL query
-//   const updateSql = `UPDATE workdetails SET ${updateFields.join(
-//     ", "
-//   )} WHERE id = ?`;
-
-//   // Add the id value to the values array
-//   values.push(id);
-
-//   con.query(updateSql, values, (err, result) => {
-//     if (err) {
-//       console.error("Error updating work details:", err);
-//       return res.json({ Status: "Error", Error: err });
-//     } else {
-//       console.log("Work details updated successfully");
-//       return res.json({ Status: "Success", Result: result });
-//     }
-//   });
-// });
 
 app.get("/getBioDetails", (req, res) => {
   const sql = "SELECT * FROM devicelogs";
@@ -737,11 +759,93 @@ app.get("/getWrokDetails", (req, res) => {
   });
 });
 
+app.get("/settings", (req, res) => {
+  const sql = "SELECT * FROM settings";
+  con.query(sql, (err, result) => {
+    if (err) return res.json({ Error: "Get settings error in sql" });
+    return res.json({ Status: "Success", Result: result });
+  });
+});
+
+app.get("/discipline", (req, res) => { 
+  const sql = "SELECT * FROM discipline";
+  con.query(sql, (err, result) => {
+    if (err) return res.json({ Error: "Get discipline error in sql" });
+    return res.json({ Status: "Success", Result: result });
+  });
+});
+
+app.get("/designation", (req, res) => {
+  const sql = "SELECT * FROM designation";
+  con.query(sql, (err, result) => {
+    if (err) return res.json({ Error: "Get designation error in sql" });
+    return res.json({ Status: "Success", Result: result });
+  });
+});
+
 app.delete("/project/delete/:id", (req, res) => {
   const id = req.params.id;
   const sql = "Delete FROM project WHERE id = ?";
   con.query(sql, [id], (err, result) => {
     if (err) return res.json({ Error: "delete employee error in sql" });
+    return res.json({ Status: "Success" });
+  });
+});
+
+app.post("/create/updates", upload.single("Announcements"), (req, res) => {
+  console.log("req.body", req.file);
+  const sql =
+    "INSERT INTO settings (`updateTitle`, `UpdateDisc`, `Announcements`) VALUES (?)";
+  const values = [req.body.updateTitle, req.body.UpdateDisc, req.file.filename];
+  con.query(sql, [values], (err, result) => {
+    if (err) return res.json({ Error: "Error in signup query" });
+    return res.json({ Status: "Success" });
+  });
+});
+
+app.post("/create/designation", (req, res) => {
+  console.log(req.body, "req.body");
+  const sql = "INSERT INTO designation (`designation`) VALUES (?)";
+  const values = [req.body.designation];
+  con.query(sql, [values], (err, result) => {
+    if (err) return res.json({ Error: "Error in signup query" });
+    return res.json({ Status: "Success" });
+  });
+});
+
+app.post("/create/discipline", (req, res) => {
+  console.log(req.body, "req.body");
+  const sql = "INSERT INTO discipline (`discipline`) VALUES (?)";
+  const values = [req.body.discipline];
+  con.query(sql, [values], (err, result) => {
+    if (err) return res.json({ Error: "Error in signup query" });
+    return res.json({ Status: "Success" });
+  });
+});
+
+app.delete("/updates/delete/:id", (req, res) => {
+  const id = req.params.id;
+  const sql = "Delete FROM settings WHERE id = ?";
+  con.query(sql, [id], (err, result) => {
+    if (err) return res.json({ Error: "delete settings error in sql" });
+    return res.json({ Status: "Success" });
+  });
+});
+
+app.delete("/designation/delete/:id", (req, res) => {
+  const id = req.params.id;
+  const sql = "Delete FROM designation WHERE id = ?";
+  con.query(sql, [id], (err, result) => {
+    if (err) return res.json({ Error: "delete designation error in sql" });
+    return res.json({ Status: "Success" });
+  });
+});
+
+app.delete("/discipline/delete/:id", (req, res) => {
+  const id = req.params.id;
+  const sql = "Delete FROM discipline WHERE id = ?";
+  con.query(sql, [id], (err, result) => {
+    if (err) return res.json({ Error: "delete discipline error in sql" });
     return res.json({ Status: "Success" });
   });
 });

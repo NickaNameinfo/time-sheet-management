@@ -19,6 +19,7 @@ function Login() {
   console.log(commonData, "data1223423");
   const Submit = (data) => {
     console.log(commonData, "data1223423");
+
     axios
       .post(`${commonData?.APIKEY}/employeelogin`, data, {
         withCredentials: true,
@@ -34,7 +35,11 @@ function Login() {
           setError(res.data.Error);
         }
       })
-      .catch((err) => console.log(err));
+      .catch((err) => {
+        if (err.response?.status === 401) {
+          setError("User Name or Password is incorrect.");
+        }
+      });
   };
 
   React.useEffect(() => {
@@ -65,7 +70,7 @@ function Login() {
                   <TextField
                     fullWidth
                     id="outlined-basic fullWidth"
-                    label="User Name"
+                    placeholder="User Name"
                     variant="outlined"
                     className="form-control rounded-1"
                     type="text"
@@ -87,7 +92,7 @@ function Login() {
                   <TextField
                     fullWidth
                     id="outlined-basic fullWidth"
-                    label="Enter password "
+                    placeholder="Enter password "
                     variant="outlined"
                     className="form-control rounded-1"
                     type="password"
