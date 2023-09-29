@@ -14,7 +14,7 @@ import {
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
-
+import commonData from "../../common.json"
 function AddProject() {
   const {
     handleSubmit,
@@ -27,7 +27,7 @@ function AddProject() {
 
   useEffect(() => {
     axios
-      .get("http://192.168.0.10:8081/getEmployee")
+      .get(`${commonData?.APIKEY}/getEmployee`)
       .then((res) => {
         if (res.data.Status === "Success") {
           console.log(res.data.Result, "setEmpListsetEmpList");
@@ -45,7 +45,7 @@ function AddProject() {
 
   const onSubmit = (data) => {
     axios
-      .post("http://192.168.0.10:8081/project/create", data)
+      .post(`${commonData?.APIKEY}/project/create`, data)
       .then((res) => {
         if (res.data.Error) {
           alert(res.data.Error);

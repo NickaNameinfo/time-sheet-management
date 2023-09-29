@@ -4,7 +4,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { Box, Button, TextField } from "@mui/material";
 import { Controller, useForm } from "react-hook-form";
-
+import commonData from "../common.json";
 function Login() {
   const {
     handleSubmit,
@@ -16,17 +16,18 @@ function Login() {
   const [error, setError] = useState("");
   const [roles, setRoles] = React.useState(null);
 
+  console.log(commonData, "data1223423");
   const Submit = (data) => {
-    // event.preventDefault();
-    console.log(data, "data1223423")
+    console.log(commonData, "data1223423");
+
     axios
-      .post("http://192.168.0.10:8081/employeelogin", data, {
+      .post(`${commonData?.APIKEY}/employeelogin`, data, {
         withCredentials: true,
       })
       .then((res) => {
         console.log(res, "123123123123");
         if (res.status === 200) {
-          axios.get("http://192.168.0.10:8081/dashboard").then((ress) => {
+          axios.get(`${commonData?.APIKEY}/dashboard`).then((ress) => {
             console.log(ress, "ressressress");
             setRoles(ress.data.role?.split(","));
           });
@@ -34,7 +35,11 @@ function Login() {
           setError(res.data.Error);
         }
       })
-      .catch((err) => console.log(err));
+      .catch((err) => {
+        if (err.response?.status === 401) {
+          setError("User Name or Password is incorrect.");
+        }
+      });
   };
 
   React.useEffect(() => {
@@ -65,7 +70,7 @@ function Login() {
                   <TextField
                     fullWidth
                     id="outlined-basic fullWidth"
-                    label="User Name"
+                    placeholder="User Name"
                     variant="outlined"
                     className="form-control rounded-1"
                     type="text"
@@ -87,7 +92,7 @@ function Login() {
                   <TextField
                     fullWidth
                     id="outlined-basic fullWidth"
-                    label="Enter password "
+                    placeholder="Enter password "
                     variant="outlined"
                     className="form-control rounded-1"
                     type="password"

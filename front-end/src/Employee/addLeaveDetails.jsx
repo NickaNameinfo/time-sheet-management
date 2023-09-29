@@ -16,7 +16,7 @@ import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
-
+import commonData from "../../common.json";
 function addLeaveDetails() {
   const {
     handleSubmit,
@@ -27,10 +27,10 @@ function addLeaveDetails() {
   } = useForm();
   const navigate = useNavigate();
   let formData = watch();
-  const containerStyle = { width: "100%", height: "100%"};
+  const containerStyle = { width: "100%", height: "100%" };
   const gridStyle = { height: "100%", width: "100%" };
   const [rowData, setRowData] = useState([]);
-  const[refresh, setRefresh] = useState(false)
+  const [refresh, setRefresh] = useState(false);
 
   const columnDefs = useMemo(
     () => [
@@ -70,8 +70,9 @@ function addLeaveDetails() {
   console.log(formData, "formData");
 
   useEffect(() => {
-    axios.get("http://192.168.0.10:8081/dashboard").then((result) => {
+    axios.get(`${commonData?.APIKEY}/dashboard`).then((result) => {
       setValue("employeeName", result?.data?.userName);
+      setValue("employeeId", result?.data?.employeeId);
     });
     getLeaves();
   }, [refresh]);
@@ -88,26 +89,17 @@ function addLeaveDetails() {
 
   const getLeaves = () => {
     axios
-      .get("http://192.168.0.10:8081/getLeaveDetails")
+      .get(`${commonData?.APIKEY}/getLeaveDetails`)
       .then((res) => {
+        console.log(res, "resr23234");
         if (res.data.Status === "Success") {
-          axios.get("http://192.168.0.10:8081/dashboard").then((result) => {
+          axios.get(`${commonData?.APIKEY}/dashboard`).then((result) => {
+            console.log(result, "resultresult");
             let tempFinalResult = res?.data?.Result?.filter(
-              (item) => item.employeeName === result?.data?.userName
+              (item) => Number(item.employeeId) === result?.data?.employeeId
             );
+            console.log(tempFinalResult, "tempFinalResulttempFinalResult");
             setRowData(tempFinalResult);
-
-            const vacationLeaveCount = tempFinalResult.filter(
-              (item) => item.leaveType === "Vecation"
-            ).length;
-            const scikLeaveCount = tempFinalResult.filter(
-              (item) => item.leaveType === "Sick Leave"
-            ).length;
-            const remainingCount = 18 - tempFinalResult?.length;
-            console.log(tempFinalResult,"tempFinalResult", vacationLeaveCount);
-            setSickLeave(scikLeaveCount);
-            setVacationLeave(vacationLeaveCount);
-            setRemaining(remainingCount);
           });
         }
       })
@@ -119,12 +111,13 @@ function addLeaveDetails() {
     console.log(data, "tests213");
     // Perform any other actions you want with the form data
     axios
-      .post("http://192.168.0.10:8081/applyLeave", data)
+      .post(`${commonData?.APIKEY}/applyLeave`, data)
       .then((res) => {
         if (res.data.Error) {
           alert(res.data.Error);
         } else {
-          setRefresh(true)
+          location.reload();
+          setRefresh(true);
         }
       })
       .catch((err) => console.log(err));
@@ -169,7 +162,7 @@ function addLeaveDetails() {
 
   const handleDelete = (id) => {
     axios
-      .delete("http://192.168.0.10:8081/deleteLeave/" + id)
+      .delete(`${commonData?.APIKEY}/deleteLeave/` + id)
       .then((res) => {
         if (res.data.Status === "Success") {
           getLeaves();

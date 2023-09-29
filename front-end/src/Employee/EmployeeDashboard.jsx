@@ -2,20 +2,20 @@ import React, { useEffect } from "react";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import { Link, Outlet, useNavigate } from "react-router-dom";
 import axios from "axios";
-
+import commonData from "../../common.json"
 function EmployeeDashboard() {
   const navigate = useNavigate();
   axios.defaults.withCredentials = true;
   const [isExpand, setIsExpand] = React.useState(false);
   useEffect(() => {
-    axios.get("http://192.168.0.10:8081/dashboard").then((res) => {
+    axios.get(`${commonData?.APIKEY}/dashboard`).then((res) => {
       console.log(res, "resresresres");
     });
   }, []);
 
   const handleLogout = () => {
     axios
-      .get("http://192.168.0.10:8081/logout")
+      .get(`${commonData?.APIKEY}/logout`)
       .then((res) => {
         navigate("/");
       })
@@ -26,7 +26,7 @@ function EmployeeDashboard() {
       <div className="row flex-nowrap min-vh-91">
         <div className="col-auto px-sm-2 px-0 sidebar">
           <div className="logo">
-            <img src="http://192.168.0.10:5173//src/assets/logo.png" width={100} />
+            <img src={`${commonData?.BASEURL}/src/assets/logo.png`} width={100} />
             {/* <h2> Arris</h2> */}
           </div>
           <ul className="links">

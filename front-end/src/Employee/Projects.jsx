@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
-
+import commonData from "../../common.json"
 function Projects() {
   const containerStyle = { width: "100%", height: "100%" };
   const gridStyle = { height: "100%", width: "100%" };
@@ -71,7 +71,7 @@ function Projects() {
 
   const onGridReady = useCallback((params) => {
     axios
-      .get("http://192.168.0.10:8081/getProject")
+      .get(`${commonData?.APIKEY}/getProject`)
       .then((res) => {
         if (res.data.Status === "Success") {
           setRowData(res.data.Result);
@@ -84,7 +84,7 @@ function Projects() {
 
   const handleDelete = (id) => {
     axios
-      .delete("http://192.168.0.10:8081/project/delete/" + id)
+      .delete(`${commonData?.APIKEY}/project/delete/` + id)
       .then((res) => {
         if (res.data.Status === "Success") {
           window.location.reload(true);

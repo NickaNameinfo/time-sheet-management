@@ -4,7 +4,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { Box, Button, TextField } from "@mui/material";
 import { Controller, useForm } from "react-hook-form";
-
+import commonData from "../common.json";
 function EmployeeLogin() {
   const {
     handleSubmit,
@@ -13,7 +13,7 @@ function EmployeeLogin() {
   } = useForm();
 
   axios.defaults.withCredentials = true;
-  const navigate = useNavigate();
+  const navigate = useNavigate(); 
   axios.defaults.withCredentials = true;
   const [error, setError] = useState("");
 
@@ -22,9 +22,9 @@ function EmployeeLogin() {
     const config = {
       withCredentials: true,
     };
-  
+
     axios
-      .post("http://192.168.0.10:8081/employeelogin", date, config) // Pass the config object
+      .post(`${commonData?.APIKEY}/employeelogin`, date, config) // Pass the config object
       .then((res) => {
         if (res.data.Status === "Success") {
           const id = res.data.id;
@@ -39,9 +39,10 @@ function EmployeeLogin() {
   return (
     <div className="d-flex justify-content-center align-items-center vh-100 loginPage">
       <div className="p-3 rounded w-25 border loginForm">
-       
-        <h2 className="d-flex justify-content-center align-items-center">Login</h2>
-          <form onSubmit={handleSubmit(Submit)}>
+        <h2 className="d-flex justify-content-center align-items-center">
+          Login
+        </h2>
+        <form onSubmit={handleSubmit(Submit)}>
           <div className="mb-3">
             <Controller
               control={control}
@@ -87,7 +88,9 @@ function EmployeeLogin() {
               )}
             />
           </div>
-          <small className="text-danger mb-2 d-flex justify-content-center align-items-center">{error && error}</small>
+          <small className="text-danger mb-2 d-flex justify-content-center align-items-center">
+            {error && error}
+          </small>
 
           <Button
             variant="contained"

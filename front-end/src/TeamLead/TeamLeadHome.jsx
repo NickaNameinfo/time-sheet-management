@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
-
+import commonData from "../../common.json"
 function TeamLeadHome() {
   const containerStyle = { width: "100%", height: "100%" };
   const gridStyle = { height: "100%", width: "100%" };
@@ -69,9 +69,9 @@ function TeamLeadHome() {
   );
   const onGridReady = useCallback((params) => {
     axios
-      .get("http://192.168.0.10:8081/getProject")
+      .get(`${commonData?.APIKEY}/getProject`)
       .then(async (res) => {
-        let userDetails = await axios.get("http://192.168.0.10:8081/dashboard");
+        let userDetails = await axios.get(`${commonData?.APIKEY}/dashboard`);
         console.log(res, "resres324", userDetails);
         if (res.data.Status === "Success") {
           let filterData = res.data.Result.filter(

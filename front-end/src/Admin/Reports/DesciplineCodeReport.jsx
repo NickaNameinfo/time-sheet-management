@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
+import commonData from "../../../common.json"
 
 const DesciplineCodeReport = () => {
   const containerStyle = { width: "100%", height: "100%" };
@@ -51,7 +52,7 @@ const DesciplineCodeReport = () => {
 
   const onGridReady = (params) => {
     axios
-      .get("http://192.168.0.10:8081/getProject")
+      .get(`${commonData?.APIKEY}/getProject`)
       .then((res) => {
         if (res.data.Status === "Success") {
           setProjectDetails(res.data.Result);
@@ -64,7 +65,7 @@ const DesciplineCodeReport = () => {
 
   const onGetWorkDetails = (params) => {
     axios
-      .get("http://192.168.0.10:8081/getWrokDetails")
+      .get(`${commonData?.APIKEY}/getWrokDetails`)
       .then((res) => {
         if (res.data.Status === "Success") {
           setWorkDetails(res.data.Result);

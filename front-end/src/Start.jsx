@@ -1,8 +1,25 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import Login from "./Login";
+import commonData from "../common.json";
+import axios from "axios";
 
 function Start() {
+  const [rowData, setRowData] = React.useState([]);
+
+  React.useEffect(() => {
+    axios
+      .get(`${commonData?.APIKEY}/settings`)
+      .then((res) => {
+        if (res.data.Status === "Success") {
+          setRowData(res.data.Result);
+        } else {
+          alert("Error");
+        }
+      })
+      .catch((err) => console.log(err));
+  }, []);
+
   return (
     <>
       <div className="vh-100 loginPage">
@@ -15,30 +32,16 @@ function Start() {
                     Updates
                   </h3>
                   <marquee direction="up">
-                    <div className="updates">
-                      <div>
-                        <h4>Update 1</h4>
-                        <p className="m-0">Test</p>
-                      </div>
-                    </div>
-                    <div className="updates">
-                      <div>
-                        <h4>Update 1</h4>
-                        <p className="m-0">Test</p>
-                      </div>
-                    </div>
-                    <div className="updates">
-                      <div>
-                        <h4>Update 1</h4>
-                        <p className="m-0">Test</p>
-                      </div>
-                    </div>
-                    <div className="updates">
-                      <div>
-                        <h4>Update 1</h4>
-                        <p className="m-0">Test</p>
-                      </div>
-                    </div>
+                    {rowData?.map((res) => {
+                      return (
+                        <div className="updates">
+                          <div>
+                            <h4>{res?.updateTitle}</h4>
+                            <p className="m-0">{res?.UpdateDisc}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </marquee>
                 </div>
               </div>
@@ -56,25 +59,19 @@ function Start() {
                       data-bs-interval="10000"
                     >
                       <img
-                        src="http://192.168.0.10:5173//src/assets/banner.jpg"
+                        src={`${commonData?.BASEURL}/src/assets/banner.jpg`}
                         className="d-block w-100"
                         alt="..."
                       />
                     </div>
-                    <div className="carousel-item" data-bs-interval="2000">
-                      <img
-                        src="http://192.168.0.10:5173//src/assets/banner.jpg"
-                        className="d-block w-100"
-                        alt="..."
-                      />
-                    </div>
-                    <div className="carousel-item">
-                      <img
-                        src="http://192.168.0.10:5173//src/assets/banner.jpg"
-                        className="d-block w-100"
-                        alt="..."
-                      />
-                    </div>
+                    {rowData?.map((res) => {
+                      console.log(res, "res134234234", res?.Announcements);
+                      return (
+                        <div className="carousel-item" data-bs-interval="2000">
+                          <img src="E:\ArulKumar\important-files\ibss\timesheetmanagement\time-sheet-management\back-end\public\images\Announcements_1695582154441.png" className="d-block w-100" alt="..." />
+                        </div>
+                      );
+                    })}
                   </div>
                   <button
                     className="carousel-control-prev"
@@ -112,7 +109,7 @@ function Start() {
                   <div className="col-sm-12">
                     <div className="d-flex align-items-center justify-content-center h-100">
                       <img
-                        src="http://192.168.0.10:5173//src/assets/logo.png"
+                        src={`${commonData?.BASEURL}/src/assets/logo.png`}
                         width={250}
                       />
                     </div>

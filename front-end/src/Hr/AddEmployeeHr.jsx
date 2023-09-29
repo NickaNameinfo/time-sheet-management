@@ -1,7 +1,7 @@
 import axios from 'axios';
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom';
-
+import commonData from "../../common.json"
 function AddEmployeeHr() {
 	const [data, setData] = useState({
 		name: '',
@@ -23,7 +23,7 @@ function AddEmployeeHr() {
 		formdata.append("salary", data.salary);
 		formdata.append("image", data.image);
 		
-		axios.post('http://192.168.0.10:8081/create', formdata)
+		axios.post(`${commonData?.APIKEY}/create`, formdata)
 		.then(res => {
 			navigate('/Dashboard/employee')
 		})

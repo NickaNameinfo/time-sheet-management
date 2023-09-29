@@ -4,12 +4,30 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
-
+import commonData from "../../common.json";
 function Leaves() {
   const containerStyle = { width: "100%", height: "100%" };
   const gridStyle = { height: "100%", width: "100%" };
   const [rowData, setRowData] = useState([]);
   const [refresh, setRefresh] = useState(false);
+
+  const updateLeaveDetails = (status, params) => {
+    let apiTemp = {
+      ...params.data,
+      approvedDate: new Date(),
+      leaveStatus: status,
+    };
+    console.log(apiTemp, "apiTempapiTempapiTemp", params.data);
+    axios
+      .put(`${commonData?.APIKEY}/updateLeave/` + params.data.id, apiTemp)
+      .then(async (res) => {
+        setRefresh(true);
+        alert("Update Successfully");
+        location.reload();
+      });
+    console.log(params.data, "datadatadatadata");
+  };
+
   const columnDefs = useMemo(
     () => [
       {
@@ -37,14 +55,14 @@ function Leaves() {
               class="fa-solid fa-check"
               onClick={() => {
                 setRefresh(true);
-                updateProjectDetails("approved", params);
+                updateLeaveDetails("approved", params);
               }}
             ></i>
             <i
               class="fa-regular fa-circle-xmark"
               onClick={() => {
                 setRefresh(true);
-                updateProjectDetails("rejected", params);
+                updateLeaveDetails("rejected", params);
               }}
             ></i>
           </div>
@@ -93,7 +111,7 @@ function Leaves() {
 
   const onGridReady = useCallback((params) => {
     axios
-      .get("http://192.168.0.10:8081/getLeaveDetails")
+      .get(`${commonData?.APIKEY}/getLeaveDetails`)
       .then((res) => {
         if (res.data.Status === "Success") {
           setRowData(res.data.Result);

@@ -11,7 +11,7 @@ import {
     MenuItem,
     Select,
 } from "@mui/material";
-
+import commonData from "../../common.json"
 function AddHr() {
   const {
     handleSubmit,
@@ -24,7 +24,7 @@ function AddHr() {
   const onSubmit = (data) => {
     console.log(data, "tests213");
     axios
-      .post("http://192.168.0.10:8081/hr/create", data)
+      .post(`${commonData?.APIKEY}/hr/create`, data)
       .then((res) => {
         if (res.data.Error) {
           alert(res.data.Error);

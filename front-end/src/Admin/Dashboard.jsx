@@ -1,7 +1,8 @@
-import React, { useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import { Link, Outlet, useNavigate } from "react-router-dom";
 import axios from "axios";
+import commonData from "../../common.json";
 
 function Dashboard() {
   const [roles, setRoles] = React.useState(null);
@@ -10,7 +11,7 @@ function Dashboard() {
   axios.defaults.withCredentials = true;
 
   useEffect(() => {
-    axios.get("http://192.168.0.10:8081/dashboard").then((res) => {
+    axios.get(`${commonData?.APIKEY}/dashboard`).then((res) => {
       console.log(res, "resresresres12345");
       if (res.data.Status === "Success") {
         setRoles(res.data.role?.split(","));
@@ -20,18 +21,22 @@ function Dashboard() {
 
   const handleLogout = () => {
     axios
-      .get("http://192.168.0.10:8081/logout")
+      .get(`${commonData?.APIKEY}/logout`)
       .then((res) => {
         navigate("/");
       })
       .catch((err) => console.log(err));
   };
+
   return (
     <div className="container-fluid arris-page">
       <div className="row flex-nowrap min-vh-91">
         <div className="col-auto px-sm-2 px-0 sidebar">
           <div className="logo">
-            <img src="http://192.168.0.10:5173//src/assets/logo.png" width={100} />
+            <img
+              src={`${commonData?.BASEURL}/src/assets/logo.png`}
+              width={100}
+            />
             {/* <h2> Arris</h2> */}
           </div>
 
@@ -162,6 +167,19 @@ function Dashboard() {
               <Link to="/Dashboard/AddLeaves">
                 <span className="txt_col">Apply Leave</span>
               </Link>
+            </li>
+            <li className="multimenu">
+              <div className="d-flex justify-content-center">
+                <span className="material-symbols-outlined fa-solid fa-gear"></span>
+                <Link>
+                  <span className="txt_col">Settings</span>
+                </Link>
+              </div>
+              <ul className="submenu">
+                <Link to="/Dashboard/Settings">Updates</Link>
+                <Link to="/Dashboard/Discipline">Discipline</Link>
+                <Link to="/Dashboard/Designation">Designation</Link>
+              </ul>
             </li>
             <li onClick={() => handleLogout()}>
               <span className="material-symbols-outlined  fs-5 bi-power"></span>

@@ -4,6 +4,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { Box, Button, TextField } from "@mui/material";
 import { Controller, useForm } from "react-hook-form";
+import commonData from"../common.json"
 
 function HrLogin() {
   const {
@@ -20,7 +21,7 @@ function HrLogin() {
   const Submit = (data) => {
     // event.preventDefault(); 
     axios
-      .post("http://192.168.0.10:8081/hrLogin", data)
+      .post(`${commonData?.APIKEY}/hrLogin`, data)
       .then((res) => {
         if (res.data.Status === "Success") {
           const id = res.data.id;

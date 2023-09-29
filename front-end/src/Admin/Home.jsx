@@ -1,7 +1,7 @@
 import axios from "axios";
 import React, { useEffect, useState } from "react";
 import {  BsBadgeTmFill, BsBarChartLineFill, BsFillHCircleFill, BsFillPersonBadgeFill, BsPersonCircle } from "react-icons/bs";
-
+import commonData from "../../common.json"
 // import "./style.css";
 
 function Home() {
@@ -19,7 +19,7 @@ function Home() {
 
   const getProject = () => {
     axios
-      .get("http://192.168.0.10:8081/getProject")
+      .get(`${commonData?.APIKEY}/getProject`)
       .then((res) => {
         if (res.data.Status === "Success") {
           setProject(res.data.Result.length);
@@ -32,7 +32,7 @@ function Home() {
 
   const getTl = () => {
     axios
-      .get("http://192.168.0.10:8081/getLead")
+      .get(`${commonData?.APIKEY}/getLead`)
       .then((res) => {
         if (res.data.Status === "Success") {
           setLead(res.data.Result.length);
@@ -45,7 +45,7 @@ function Home() {
 
   const getEmployee = () => {
     axios
-      .get("http://192.168.0.10:8081/getEmployee")
+      .get(`${commonData?.APIKEY}/getEmployee`)
       .then((res) => {
         if (res.data.Status === "Success") {
           setEmployee(res.data.Result.length);
@@ -57,7 +57,7 @@ function Home() {
   };
   const getHr = () => {
     axios
-      .get("http://192.168.0.10:8081/getHr")
+      .get(`${commonData?.APIKEY}/getHr`)
       .then((res) => {
         if (res.data.Status === "Success") {
           setHr(res.data.Result.length);
