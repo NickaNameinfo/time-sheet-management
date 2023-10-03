@@ -24,7 +24,7 @@ function EmployeeHome() {
   const [inOutTIme, setInOutTime] = React.useState(null);
   const [userDetails, setUserDetails] = React.useState(null);
   const [appliedLeaves, setAppliedLeaves] = React.useState(null);
-  console.log(userDetails, "rowDatarowData", rowData);
+  console.log(inOutTIme, "rowDatarowData", rowData);
 
   React.useEffect(() => {
     if (userDetails) {
@@ -215,7 +215,7 @@ function EmployeeHome() {
     const date = new Date(dateString);
     const hours = date.getHours();
     const minutes = date.getMinutes();
-    const amOrPm = hours >= 12 ? "PM" : "AM";
+    const amOrPm = hours >= 12 ? "AM" : "PM";
     const formattedHours = hours % 12 || 12; // Convert 0 to 12 for 12-hour format
     const formattedMinutes = minutes.toString().padStart(2, "0"); // Ensure minutes are always two digits
 
@@ -264,35 +264,41 @@ function EmployeeHome() {
     return dates;
   };
 
-  const getInOutTime = () => {
-    axios
-      .get(`${commonData?.APIKEY}/getBioDetails`)
-      .then(async (res) => {
-        if (res.data.Status === "Success") {
-          let userDetails = await axios.get(`${commonData?.APIKEY}/dashboard`);
-          setUserDetails(userDetails);
-          console.log(userDetails, "userDetails", res);
-          let result = res.data.Result?.filter(
-            (item) =>
-              String(item.UserId) === String(userDetails?.data?.employeeId)
-          );
-          setInOutTime(result);
-          let rowData = [
-            {
-              type: "IN",
-              item: result[0],
-            },
-            {
-              type: "OUT",
-              item: result[1],
-            },
-          ];
-          setRowData(rowData);
-        } else {
-          alert("Error");
-        }
+  function filterValues(data, filterCriteria) {
+    return data.map((subArray) =>
+      subArray.filter((obj) => {
+        // Customize your filtering criteria here
+        return obj.age === filterCriteria.age;
       })
-      .catch((err) => console.log(err));
+    );
+  }
+
+  const getInOutTime = async () => {
+    let userDetails = await axios.get(`${commonData?.APIKEY}/dashboard`);
+    console.log(userDetails, "userDetails1123");
+    let data = {
+      userId: Number(userDetails?.data?.employeeId),
+      logDate: getCurrentDateInFormat(),
+    };
+    let tiemResult = await axios.post(
+      `${commonData?.APIKEY}/filterTimeSheet`,
+      data
+    );
+
+    setUserDetails(userDetails);
+    console.log(userDetails, "userDetails", tiemResult);
+    setInOutTime(tiemResult.data);
+    let rowData = [
+      {
+        type: "IN",
+        item: tiemResult.data[0],
+      },
+      {
+        type: "OUT",
+        item: tiemResult.data[1],
+      },
+    ];
+    setRowData(rowData);
   };
   const defaultColDef = useMemo(
     () => ({
