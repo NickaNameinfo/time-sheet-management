@@ -741,19 +741,26 @@ app.get("/getBioDetails", (req, res) => {
   });
 });
 
-// Create an endpoint to filter data
 app.post("/filterTimeSheet", (req, res) => {
   console.log(req.body, "reqbodadasdy");
-  // const sql = "SELECT * FROM devicelogsinfo WHERE UserId = ? AND DATE(LogDate) = ?";
-  const sql = `SELECT * FROM devicelogsinfo WHERE DATE(LogDate) = '${req.body.logDate}'`;
-  if (!req.body.userId || !req.body.logDate) {
+
+  if (
+    !req.body.userId ||
+    !req.body.logDates ||
+    !Array.isArray(req.body.logDates)
+  ) {
     return res
       .status(400)
-      .json({ error: "Both userId and logDate are required." });
+      .json({ error: "userId and an array of logDates are required." });
   }
 
+  // Create a comma-separated string of dates for the SQL query
+  const dateList = req.body.logDates.map((date) => `'${date}'`).join(",");
+
+  const sql = `SELECT *, DATE_FORMAT(LogDate, '%Y-%m-%d %H:%i:%s') AS FormattedLogDate FROM devicelogsinfo  WHERE DATE(LogDate) IN (${dateList})  AND UserId = ?`;
+
   // Execute the SQL query with parameters
-  con.query(sql, [req.body.userId, req.body.logDate], (err, results) => {
+  con.query(sql, [req.body.userId], (err, results) => {
     if (err) {
       console.error("Error executing SQL query:", err);
       return res.status(500).json({ error: "Internal Server Error" });

@@ -31,7 +31,7 @@ function Start() {
                   <h3 className="text-center bg-white py-2 border-bottom">
                     Updates
                   </h3>
-                  <marquee direction="up">
+                  <marquee direction="up" scrollamount="5">
                     {rowData?.map((res) => {
                       return (
                         <div className="updates">
@@ -68,7 +68,11 @@ function Start() {
                       console.log(res, "res134234234", res?.Announcements);
                       return (
                         <div className="carousel-item" data-bs-interval="2000">
-                          <img src="E:\ArulKumar\important-files\ibss\timesheetmanagement\time-sheet-management\back-end\public\images\Announcements_1695582154441.png" className="d-block w-100" alt="..." />
+                          <img
+                            src="E:\ArulKumar\important-files\ibss\timesheetmanagement\time-sheet-management\back-end\public\images\Announcements_1695582154441.png"
+                            className="d-block w-100"
+                            alt="..."
+                          />
                         </div>
                       );
                     })}
@@ -107,12 +111,27 @@ function Start() {
               <div className="startDesign">
                 <div className="row">
                   <div className="col-sm-12">
-                    <div className="d-flex align-items-center justify-content-center h-100">
-                      <img
-                        src={`${commonData?.BASEURL}/src/assets/logo.png`}
-                        width={250}
-                      />
+                    <div className="d-flex align-items-center justify-content-center h-100 flex-column">
+                      <div className="w-100 text-center">
+                        <img
+                          src={`${commonData?.BASEURL}/src/assets/logo.png`}
+                          width={150}
+                        />
+                      </div>
+                      
+                      <ul className="updateslist">
+                        <li>
+                          <a>Circular</a>
+                        </li>
+                        <li>
+                          <a>Photo Gallery</a>
+                        </li>
+                        <li>
+                          <a>View Excel / Word</a>
+                        </li>
+                      </ul>
                     </div>
+                    
                   </div>
                   <div className="col-sm-12">
                     <div className="loginSection">
