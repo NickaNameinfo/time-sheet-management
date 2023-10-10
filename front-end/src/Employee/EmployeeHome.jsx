@@ -24,7 +24,7 @@ function EmployeeHome() {
   const [inOutTIme, setInOutTime] = React.useState(null);
   const [userDetails, setUserDetails] = React.useState(null);
   const [appliedLeaves, setAppliedLeaves] = React.useState(null);
-  console.log(userDetails, "rowDatarowData", rowData);
+  console.log(inOutTIme, "rowDatarowData", rowData);
 
   React.useEffect(() => {
     if (userDetails) {
@@ -32,6 +32,19 @@ function EmployeeHome() {
     }
     getLeaves();
   }, [userDetails]);
+
+  useEffect(() => {
+    const currentYear = new Date().getFullYear();
+    let datesss = getWeekDates(getCurrentWeekNumber(), currentYear);
+    setWeekDate(datesss);
+  }, []);
+
+  React,
+    useEffect(() => {
+      if (weekData) {
+        getInOutTime(weekData);
+      }
+    }, [weekData]);
 
   const getWorkMonth = (startDateString, endDateString) => {
     const currentDate = new Date();
@@ -118,85 +131,97 @@ function EmployeeHome() {
       .catch((err) => console.log(err));
   };
 
+  const formatDate = (inputDate) => {
+    const date = new Date(inputDate);
+    const month = String(date.getMonth() + 1).padStart(2, "0"); // Month is zero-based, so add 1 and pad with leading zero if needed
+    const day = String(date.getDate()).padStart(2, "0"); // Pad with leading zero if needed
+    const year = date.getFullYear();
+
+    return `${year}-${month}-${day}`;
+  };
+
   const columnDefs = useMemo(
     () => [
       {
         field: "type",
       },
       {
-        field: weekData?.[0],
+        field: formatDate(weekData?.[0]),
         cellRenderer: (params) => (
           <p>
-            {formatDate(params.data?.item?.LogDate) === params.colDef.field
-              ? getInTime(params.data?.item?.LogDate)
-              : null}
+             {Object.keys(params.data?.item)?.[0] === params.colDef.field
+              ? `${params.data?.item[formatDate(weekData?.[0])]?.["IN"]?.[0]} / ${params.data?.item[formatDate(weekData?.[0])]?.["OUT"]?.[0]}`
+              : "NAN"}
 
             {console.log(
-              formatDate(inOutTIme?.[0]?.LogDate),
+              // params,
               "params.data",
-              params.data,
-              params.colDef.field
+              params.colDef.field,
+
+              // Object.keys(params.data?.item)?.[0]
+              params.data?.item[formatDate(weekData?.[0])]?.["IN"]?.[0],
+              // formatDate(weekData?.[0])
             )}
           </p>
         ),
       },
       {
-        field: weekData?.[1],
+        field: formatDate(weekData?.[1]),
         cellRenderer: (params) => (
           <p>
-            {formatDate(params.data?.item?.LogDate) === params.colDef.field
-              ? getInTime(params.data?.item?.LogDate)
-              : null}
+            {Object.keys(params.data?.item)?.[1] === params.colDef.field
+              ? `${params.data?.item[formatDate(weekData?.[1])]?.["IN"]?.[0]} / ${params.data?.item[formatDate(weekData?.[1])]?.["OUT"]?.[0]}`
+              : "NAN"}
           </p>
         ),
       },
       {
-        field: weekData?.[2],
+        field: formatDate(weekData?.[2]),
         cellRenderer: (params) => (
           <p>
-            {formatDate(params.data?.item?.LogDate) === params.colDef.field
-              ? getInTime(params.data?.item?.LogDate)
-              : null}
+            {Object.keys(params.data?.item)?.[2] === params.colDef.field
+              ? `${params.data?.item[formatDate(weekData?.[2])]?.["IN"]?.[0]} / ${params.data?.item[formatDate(weekData?.[2])]?.["OUT"]?.[0]}`
+              : "NAN"}
           </p>
         ),
       },
       {
-        field: weekData?.[3],
+        field: formatDate(weekData?.[3]),
         cellRenderer: (params) => (
           <p>
-            {formatDate(params.data?.item?.LogDate) === params.colDef.field
-              ? getInTime(params.data?.item?.LogDate)
-              : null}
+            {Object.keys(params.data?.item)?.[3] === params.colDef.field
+              ? `${params.data?.item[formatDate(weekData?.[3])]?.["IN"]?.[0]} / ${params.data?.item[formatDate(weekData?.[3])]?.["OUT"]?.[0]}`
+              : "NAN"}
           </p>
         ),
       },
       {
-        field: weekData?.[4],
+        field: formatDate(weekData?.[4]),
         cellRenderer: (params) => (
           <p>
-            {formatDate(params.data?.item?.LogDate) === params.colDef.field
-              ? getInTime(params.data?.item?.LogDate)
-              : null}
+            {Object.keys(params.data?.item)?.[4] === params.colDef.field
+              ? `${params.data?.item[formatDate(weekData?.[4])]?.["IN"]?.[0]} / ${params.data?.item[formatDate(weekData?.[4])]?.["OUT"]?.[0]}`
+              : "NAN"}
           </p>
         ),
       },
       {
-        field: weekData?.[5],
+        field: formatDate(weekData?.[5]),
         cellRenderer: (params) => (
           <p>
-            {formatDate(params.data?.item?.LogDate) === params.colDef.field
-              ? getInTime(params.data?.item?.LogDate)
-              : null}
+            {Object.keys(params.data?.item)?.[5] === params.colDef.field
+              ? `${params.data?.item[formatDate(weekData?.[5])]?.["IN"]?.[0]} / ${params.data?.item[formatDate(weekData?.[5])]?.["OUT"]?.[0]}`
+              : "NAN"}
           </p>
         ),
       },
       {
-        field: weekData?.[6],
+        field: formatDate(weekData?.[6]),
         cellRenderer: (params) => (
           <p>
-            {formatDate(params.data?.item?.LogDate) === params.colDef.field
-              ? getInTime(params.data?.item?.LogDate)
-              : null}
+            {Object.keys(params.data?.item)?.[6] === params.colDef.field
+              ? `${params.data?.item[formatDate(weekData?.[6])]?.["IN"]?.[0]} / ${params.data?.item[formatDate(weekData?.[6])]?.["OUT"]?.[0]}`
+              : "NAN"}
           </p>
         ),
       },
@@ -204,31 +229,15 @@ function EmployeeHome() {
     [weekData, rowData]
   );
 
-  useEffect(() => {
-    const currentYear = new Date().getFullYear();
-    let datesss = getWeekDates(getCurrentWeekNumber(), currentYear);
-    setWeekDate(datesss);
-    getInOutTime();
-  }, []);
-
   const getInTime = (dateString) => {
     const date = new Date(dateString);
     const hours = date.getHours();
     const minutes = date.getMinutes();
-    const amOrPm = hours >= 12 ? "PM" : "AM";
+    const amOrPm = hours >= 12 ? "AM" : "PM";
     const formattedHours = hours % 12 || 12; // Convert 0 to 12 for 12-hour format
     const formattedMinutes = minutes.toString().padStart(2, "0"); // Ensure minutes are always two digits
 
     return `${formattedHours}:${formattedMinutes} ${amOrPm}`;
-  };
-
-  const formatDate = (inputDate) => {
-    const date = new Date(inputDate);
-    const month = date.getMonth() + 1; // Month is zero-based, so add 1
-    const day = date.getDate();
-    const year = date.getFullYear();
-
-    return `${month}/${day}/${year}`;
   };
 
   const getCurrentWeekNumber = () => {
@@ -264,36 +273,73 @@ function EmployeeHome() {
     return dates;
   };
 
-  const getInOutTime = () => {
-    axios
-      .get(`${commonData?.APIKEY}/getBioDetails`)
-      .then(async (res) => {
-        if (res.data.Status === "Success") {
-          let userDetails = await axios.get(`${commonData?.APIKEY}/dashboard`);
-          setUserDetails(userDetails);
-          console.log(userDetails, "userDetails", res);
-          let result = res.data.Result?.filter(
-            (item) =>
-              String(item.UserId) === String(userDetails?.data?.employeeId)
-          );
-          setInOutTime(result);
-          let rowData = [
-            {
-              type: "IN",
-              item: result[0],
-            },
-            {
-              type: "OUT",
-              item: result[1],
-            },
-          ];
-          setRowData(rowData);
-        } else {
-          alert("Error");
+  const getInOutTime = async (dates) => {
+    try {
+      // Fetch user details
+      const userDetailsResponse = await axios.get(`${commonData?.APIKEY}/dashboard`);
+      const userDetails = userDetailsResponse.data;
+      console.log(userDetails, "userDetails1123");
+  
+      // Convert dates to the "YYYY-MM-DD" format
+      const convertedDates = dates?.map((date) => {
+        const parts = date.split("/");
+        // Ensure proper padding for month and day values
+        return `${parts[2]}-${parts[0].padStart(2, "0")}-${parts[1].padStart(2, "0")}`;
+      });
+  
+      // Prepare data for filtering
+      const data = {
+        userId: Number(userDetails?.employeeId),
+        logDates: convertedDates,
+      };
+  
+      // Fetch time sheet data
+      const timeSheetResponse = await axios.post(`${commonData?.APIKEY}/filterTimeSheet`, data);
+      const timeSheetData = timeSheetResponse.data;
+  
+      // Update state with user details and time sheet data
+      setUserDetails(userDetails);
+      console.log(userDetails, "userDetails", timeSheetData);
+  
+      // Group data by date
+      const dateWiseData = {};
+  
+      timeSheetData.forEach((item) => {
+        const formattedLogDate = item.FormattedLogDate.slice(0, 10); // Extract date portion only
+        const time = item.FormattedLogDate.slice(11, 16); // Extract time portion only
+  
+        if (!dateWiseData[formattedLogDate]) {
+          dateWiseData[formattedLogDate] = { IN: [], OUT: [] };
         }
-      })
-      .catch((err) => console.log(err));
+  
+        if (parseInt(time.split(":")[0]) < 12) {
+          dateWiseData[formattedLogDate]["IN"].push(time);
+        } else {
+          dateWiseData[formattedLogDate]["OUT"].push(time);
+        }
+      });
+  
+      // Prepare rowData with "IN" and "OUT" items
+      const rowData = [
+        {
+          type: "IN / OUT",
+          item: dateWiseData,
+        },
+        // {
+        //   type: "OUT",
+        //   item: dateWiseData,
+        // },
+      ];
+  
+      console.log(rowData, "rowData1231");
+      setRowData(rowData);
+    } catch (error) {
+      console.error("Error in getInOutTime:", error);
+      // Handle the error here, e.g., set an error state or display an error message.
+    }
   };
+  
+
   const defaultColDef = useMemo(
     () => ({
       editable: false,
