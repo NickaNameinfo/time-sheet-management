@@ -4,12 +4,24 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
-import commonData from "../../common.json"
+import commonData from "../../common.json";
 function Projects(props) {
   const containerStyle = { width: "100%", height: "100%" };
   const gridStyle = { height: "100%", width: "100%" };
   const [rowData, setRowData] = useState([]);
+  const [roles, setRoles] = React.useState(null);
   const [selectedRows, setSelectedRows] = useState(null);
+
+  console.log(roles, "roles1234");
+
+  React.useEffect(() => {
+    axios.get(`${commonData?.APIKEY}/dashboard`).then((res) => {
+      console.log(res, "resresresres12345");
+      if (res.data.Status === "Success") {
+        setRoles(res.data.role?.split(","));
+      }
+    });
+  }, []);
 
   const columnDefs = useMemo(
     () => [
@@ -103,7 +115,7 @@ function Projects(props) {
 
   return (
     <>
-      {props.type === "Admin" && (
+      {roles?.[0] === "Admin" && (
         <div className="addBtn pb-1 my-3">
           <Link to="/Dashboard/addProject" className="btn">
             Add Project

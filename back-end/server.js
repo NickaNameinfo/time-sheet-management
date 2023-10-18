@@ -31,7 +31,7 @@ const con = mysql.createConnection({
   host: "localhost",
   user: "root",
   password: "",
-  database: "signup",
+  database: "signup1",
 });
 
 const storage = multer.diskStorage({
@@ -75,8 +75,12 @@ app.post("/create", upload.single("employeeImage"), (req, res) => {
     } else {
       // If the userName doesn't exist, proceed with the insert operation
       const sql =
-        "INSERT INTO employee (`employeeName`, `EMPID`, `employeeEmail`, `userName`, `password`, `role`,`discipline`, `designation`, `date`, `employeeImage`, `employeeStatus`) VALUES (?)";
+        "INSERT INTO employee (`employeeName`, `EMPID`, `employeeEmail`, `userName`, `password`, `role`, `discipline`, `designation`, `date`, `employeeImage`, `employeeStatus`) VALUES (?)";
       if (err) return res.json({ Error: "Error in hashing password" });
+
+      // Check if req.file is defined and set the image filename accordingly
+      const imageFilename = req.file ? req.file.filename : 'default-image-filename.jpg';
+
       const values = [
         req.body.employeeName,
         req.body.EMPID,
@@ -87,9 +91,10 @@ app.post("/create", upload.single("employeeImage"), (req, res) => {
         req.body.discipline,
         req.body.designation,
         req.body.date,
-        req.file.filename,
+        imageFilename, // Use the image filename or a default value
         req.body.employeeStatus,
       ];
+
       con.query(sql, [values], (err, result) => {
         if (err) return res.json({ Error: "Error in signup query" });
         return res.json({ Status: "Success" });
@@ -97,6 +102,7 @@ app.post("/create", upload.single("employeeImage"), (req, res) => {
     }
   });
 });
+
 
 app.post("/applyLeave", (req, res) => {
   const baseSql =
