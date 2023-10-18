@@ -77,6 +77,7 @@ function AddEmployee() {
         date: res?.data?.Result[0]?.date,
         tempRole: res?.data?.Result[0]?.role,
       };
+      setTempRole(res?.data?.Result[0]?.role)
       Object.keys(tempData).forEach((key) => {
         setValue(key, tempData[key]);
       });
@@ -196,7 +197,7 @@ function AddEmployee() {
                       id="outlined-basic fullWidth"
                       placeholder="Employee ID"
                       variant="outlined"
-                      type="number"
+                      type="text"
                       {...field}
                       error={Boolean(errors.EMPID)}
                       helperText={errors.EMPID && errors.EMPID.message}
@@ -254,6 +255,7 @@ function AddEmployee() {
               <Controller
                 control={control}
                 name="password"
+                rules={{ required: "Password is required." }}
                 render={({ field }) => (
                   <Box sx={{}}>
                     <TextField

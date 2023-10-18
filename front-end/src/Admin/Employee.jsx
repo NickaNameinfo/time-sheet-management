@@ -11,17 +11,22 @@ function Employee() {
   const gridStyle = { height: "100%", width: "100%" };
   const [rowData, setRowData] = useState([]);
   const [selectedRows, setSelectedRows] = useState(null);
+  console.log(selectedRows, "selectedRows342342")
   const navigate = useNavigate();
 
   const onClickEdit = (id) => {
     navigate(`/Dashboard/create/${id}`);
   };
 
+  React.useEffect(() => {
+    setSelectedRows(null)
+  },[])
   const columnDefs = useMemo(
     () => [
       {
         field: "employeeName",
         minWidth: 170,
+        checkboxSelection: true,
       },
       { field: "EMPID" },
       { field: "employeeEmail" },
@@ -34,7 +39,7 @@ function Employee() {
       {
         field: "Action",
         headerName: "Action",
-        filter : false,
+        filter: false,
         cellRenderer: (params) => {
           return (
             <i
@@ -104,6 +109,7 @@ function Employee() {
       .then((res) => {
         if (res.data.Status === "Success") {
           onGridReady();
+          location.reload()
         } else {
           alert("Error");
         }
