@@ -24,15 +24,14 @@ function EmployeeHome() {
   const [inOutTIme, setInOutTime] = React.useState(null);
   const [userDetails, setUserDetails] = React.useState(null);
   const [appliedLeaves, setAppliedLeaves] = React.useState(null);
-  console.log(inOutTIme, "rowDatarowData", rowData, weekData);
+  console.log(totalLeaves, "rowDatarowData", rowData, weekData);
 
   React.useEffect(() => {
     if (userDetails) {
       getUserInfo();
     }
     getLeaves();
-    getCompOffLeave();
-  }, [userDetails]);
+  }, [userDetails, compOffLeave]);
 
   useEffect(() => {
     const currentYear = new Date().getFullYear();
@@ -100,7 +99,22 @@ function EmployeeHome() {
       annualLeaves,
       useResult?.data?.Result[0]?.employeeStatus
     );
-    setTotalLeaves(availableLeaves);
+    axios
+      .get(`${commonData?.APIKEY}/getcompOffDetails`)
+      .then((res) => {
+        if (res.data.Status === "Success") {
+          axios.get(`${commonData?.APIKEY}/dashboard`).then((result) => {
+            let tempFinalResult = res?.data?.Result?.filter(
+              (item) => item.employeeName === result?.data?.userName
+            );
+            setCompOffLeave(tempFinalResult?.length);
+            console.log(earnedLeave, "tempFinalResult");
+          });
+        }
+      })
+      .catch((err) => console.log(err));
+
+    setTotalLeaves(Number(availableLeaves) + Number(compOffLeave));
     setRemaining(availableLeaves - appliedLeaves?.length);
     console.log(availableLeaves, "useResultuseResult", useResult);
   };
@@ -130,32 +144,6 @@ function EmployeeHome() {
       })
       .catch((err) => console.log(err));
   };
-  const getCompOffLeave = () => {
-    axios
-      .get(`${commonData?.APIKEY}/getcompOffDetails`)
-      .then((res) => {
-        if (res.data.Status === "Success") {
-          axios.get(`${commonData?.APIKEY}/dashboard`).then((result) => {
-            let tempFinalResult = res?.data?.Result?.filter(
-              (item) => item.employeeName === result?.data?.userName
-            );
-            setCompOffLeave(tempFinalResult?.length);
-
-            const compOffLeave = tempFinalResult.filter(
-              (item) => item.leaveType === "Comp-off"
-            ).length;
-
-            let earnedLeave = compOffLeave - (tempFinalResult?.length || 0);
-            earnedLeave = earnedLeave < 0 ? 0 : earnedLeave;
-            setEarned(earnedLeave);
-            console.log(earnedLeave, "tempFinalResult");
-          });
-        }
-      })
-
-      .catch((err) => console.log(err));
-  };
-
   const formatDate = (inputDate) => {
     const date = new Date(inputDate);
     const month = String(date.getMonth() + 1).padStart(2, "0"); // Month is zero-based, so add 1 and pad with leading zero if needed
