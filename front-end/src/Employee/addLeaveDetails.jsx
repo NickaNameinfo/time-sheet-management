@@ -199,10 +199,11 @@ function addLeaveDetails() {
                         {...field}
                         error={Boolean(errors.leaveType)}
                       >
-                        <MenuItem value={"Vecation"}>Vecation</MenuItem>
+                        <MenuItem value={"Vecation"}>Casual Leave</MenuItem>
                         <MenuItem value={"Sick Leave"}>Sick Leave</MenuItem>
                         <MenuItem value={"Earned Leave"}>Earned Leave</MenuItem>
-                        <MenuItem value={"Comp-off"}>Comp Off Leave</MenuItem>
+                        <MenuItem value={"Comp-off"}>Comp Off</MenuItem>
+                        <MenuItem value={"LOP"}>LOP</MenuItem>
                       </Select>
                     )}
                   />
