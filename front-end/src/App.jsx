@@ -43,6 +43,9 @@ import { Settings } from "./Admin/Settings";
 import AddUpdates from "./Admin/AddUpdates";
 import { Discipline } from "./Admin/Discipline";
 import { Designation } from "./Admin/Designation";
+import { Areaofwork } from "./Admin/Areaofwork";
+import { Variations } from "./Admin/Variations";
+import CompOff from "./Employee/CompOff";
 
 function App() {
   return (
@@ -55,6 +58,8 @@ function App() {
           <Route path="/Dashboard/Settings" element={<Settings />}></Route>
           <Route path="/Dashboard/AddUpdates" element={<AddUpdates />}></Route>
           <Route path="/Dashboard/Discipline" element={<Discipline />}></Route>
+          <Route path="/Dashboard/Areaofwork" element={<Areaofwork />}></Route>
+          <Route path="/Dashboard/Variations" element={<Variations />}></Route>
           <Route path="/Dashboard/Designation" element={<Designation />}></Route>
           <Route path="/Dashboard/lead" element={<Leads />}></Route>
           <Route path="/Dashboard/hr" element={<Hr />}></Route>
@@ -75,6 +80,7 @@ function App() {
           <Route path="/Dashboard/EmployeeHome" element={<EmployeeHome />}></Route>
           <Route path="/Dashboard/AddProjectDetails" element={<AddProjectDetails />}></Route>
           <Route path="/Dashboard/AddLeaves" element={<AddLeaveDetails />}></Route>
+          <Route path="/Dashboard/CompOff" element={<CompOff />}></Route>
           <Route path="/Dashboard/TimeManagement" element={<TimeManagement />}></Route>
           <Route path="/Dashboard/TeamLeadHome" element={<TeamLeadHome />}></Route>
           <Route path="/Dashboard/TeamLeadProject" element={<ProjectsList />}></Route>

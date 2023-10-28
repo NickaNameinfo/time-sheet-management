@@ -14,7 +14,7 @@ import {
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
-import commonData from "../../common.json"
+import commonData from "../../common.json";
 function AddProject() {
   const {
     handleSubmit,
@@ -99,7 +99,6 @@ function AddProject() {
                 control={control}
                 name="orderId"
                 defaultValue=""
-                rules={{ required: "Name is required." }}
                 render={({ field }) => (
                   <TextField
                     fullWidth
@@ -119,7 +118,6 @@ function AddProject() {
                 control={control}
                 name="positionNumber"
                 defaultValue=""
-                rules={{ required: "Position Number required." }}
                 render={({ field }) => (
                   <TextField
                     fullWidth
@@ -141,7 +139,6 @@ function AddProject() {
                 control={control}
                 name="subPositionNumber"
                 defaultValue=""
-                rules={{ required: "SubPosition Number is required." }}
                 render={({ field }) => (
                   <TextField
                     fullWidth
@@ -271,7 +268,6 @@ function AddProject() {
                 control={control}
                 name="subDivision"
                 defaultValue=""
-                rules={{ required: "Sub Division is required." }}
                 render={({ field }) => (
                   <TextField
                     fullWidth
@@ -378,6 +374,26 @@ function AddProject() {
                       errors.allotatedHours && errors.allotatedHours.message
                     }
                     type="number"
+                  />
+                )}
+              />
+            </div>
+            <div className="col-sm-12">
+              <Controller
+                control={control}
+                name="summary"
+                defaultValue=""
+                rules={{ required: "summary is required." }}
+                render={({ field }) => (
+                  <TextField
+                    fullWidth
+                    id="outlined-basic fullWidth"
+                    label="summary"
+                    variant="outlined"
+                    type="text"
+                    {...field}
+                    error={Boolean(errors.summary)}
+                    helperText={errors.summary && errors.summary.message}
                   />
                 )}
               />

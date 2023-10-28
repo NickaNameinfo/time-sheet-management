@@ -31,7 +31,7 @@ const con = mysql.createConnection({
   host: "localhost",
   user: "root",
   password: "",
-  database: "signup1",
+  database: "singup",
 });
 
 const storage = multer.diskStorage({
@@ -79,7 +79,9 @@ app.post("/create", upload.single("employeeImage"), (req, res) => {
       if (err) return res.json({ Error: "Error in hashing password" });
 
       // Check if req.file is defined and set the image filename accordingly
-      const imageFilename = req.file ? req.file.filename : 'default-image-filename.jpg';
+      const imageFilename = req.file
+        ? req.file.filename
+        : "default-image-filename.jpg";
 
       const values = [
         req.body.employeeName,
@@ -102,7 +104,6 @@ app.post("/create", upload.single("employeeImage"), (req, res) => {
     }
   });
 });
-
 
 app.post("/applyLeave", (req, res) => {
   const baseSql =
@@ -140,13 +141,41 @@ app.post("/applyLeave", (req, res) => {
   });
 });
 
-app.put("/updateLeave/:id", (req, res) => {
+app.post("/applycompOff", (req, res) => {
+  const baseSql =
+    "INSERT INTO compoff (`leaveType`,`leaveFrom`,`reason`, `employeeName`, `employeeId`";
+  let sql = baseSql;
+  const values = [
+    req.body.leaveType,
+    req.body.leaveFrom,
+    req.body.reason,
+    req.body.employeeName,
+    req.body.employeeId,
+  ];
+
+  // Optional fields that are not required
+  if (req.body.leaveStatus !== undefined) {
+    sql += ", `leaveStatus`";
+    values.push(req.body.leaveStatus);
+  }
+  sql += ") VALUES (?)";
+
+  con.query(sql, [values], (err, result) => {
+    if (err) {
+      // Handle error
+      return res.json({ Error: err });
+    } else {
+      // Handle success
+      return res.json({ Status: "Success", Result: result });
+    }
+  });
+});
+
+app.put("/compOff/:id", (req, res) => {
   const leaveId = req.params.id;
   const {
     leaveType,
     leaveFrom,
-    leaveTo,
-    leaveHours,
     reason,
     employeeName,
     employeeId,
@@ -159,8 +188,6 @@ app.put("/updateLeave/:id", (req, res) => {
     SET
       leaveType = ?,
       leaveFrom = ?,
-      leaveTo = ?,
-      leaveHours = ?,
       reason = ?,
       employeeName = ?,
       employeeId = ?,
@@ -172,8 +199,6 @@ app.put("/updateLeave/:id", (req, res) => {
   const values = [
     leaveType,
     leaveFrom,
-    leaveTo,
-    leaveHours,
     reason,
     employeeName,
     employeeId,
@@ -193,19 +218,19 @@ app.put("/updateLeave/:id", (req, res) => {
   });
 });
 
-app.get("/getLeaveDetails", (req, res) => {
-  const sql = "SELECT * FROM leavedetails";
+app.get("/getcompOffDetails", (req, res) => {
+  const sql = "SELECT * FROM compOff";
   con.query(sql, (err, result) => {
-    if (err) return res.json({ Error: "Get leavedetails error in sql" });
+    if (err) return res.json({ Error: "Get compOff error in sql" });
     return res.json({ Status: "Success", Result: result });
   });
 });
 
-app.delete("/deleteLeave/:id", (req, res) => {
+app.delete("/deletecompOff/:id", (req, res) => {
   const id = req.params.id;
-  const sql = "Delete FROM leavedetails WHERE id = ?";
+  const sql = "Delete FROM compOff WHERE id = ?";
   con.query(sql, [id], (err, result) => {
-    if (err) return res.json({ Error: "delete leavedetails error in sql" });
+    if (err) return res.json({ Error: "delete compOff error in sql" });
     return res.json({ Status: "Success" });
   });
 });
@@ -605,7 +630,7 @@ app.post("/hrLogin", (req, res) => {
 //Projects Apis
 app.post("/project/create", (req, res) => {
   const sql =
-    "INSERT INTO project (`tlName`,`orderId`,`positionNumber`, `subPositionNumber`,`projectNo`,`taskJobNo`, `referenceNo`,`desciplineCode`, `projectName`,`subDivision`,`startDate`,`targetDate`,`allotatedHours`) VALUES (?)";
+    "INSERT INTO project (`tlName`,`orderId`,`positionNumber`, `subPositionNumber`,`projectNo`,`taskJobNo`, `referenceNo`,`desciplineCode`, `projectName`,`subDivision`,`startDate`,`targetDate`,`allotatedHours`, `summary`) VALUES (?)";
   const values = [
     req.body.tlName,
     req.body.orderId,
@@ -620,6 +645,7 @@ app.post("/project/create", (req, res) => {
     req.body.startDate,
     req.body.targetDate,
     req.body.allotatedHours,
+    req.body.summary,
   ];
   con.query(sql, [values], (err, result) => {
     console.log(err, "error");
@@ -784,6 +810,28 @@ app.get("/getProject", (req, res) => {
   });
 });
 
+app.put("/project/update/completion/:projectId", (req, res) => {
+  const projectId = req.params.projectId; // Extract the project ID from the URL
+  const newCompletion = req.body.completion; // Get the new completion value from the request body
+
+  const sql = "UPDATE project SET completion = ? WHERE id = ?";
+  const values = [newCompletion, projectId];
+
+  con.query(sql, values, (err, result) => {
+    if (err) {
+      console.log(err, "error");
+      return res.json({ Error: "Inside update Project query" });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.json({ Error: "Project not found or no update required" });
+    }
+
+    return res.json({ Status: "Success" });
+  });
+});
+
+
 app.get("/getWrokDetails", (req, res) => {
   const sql = "SELECT * FROM workdetails";
   con.query(sql, (err, result) => {
@@ -804,6 +852,22 @@ app.get("/discipline", (req, res) => {
   const sql = "SELECT * FROM discipline";
   con.query(sql, (err, result) => {
     if (err) return res.json({ Error: "Get discipline error in sql" });
+    return res.json({ Status: "Success", Result: result });
+  });
+});
+
+app.get("/areaofwork", (req, res) => {
+  const sql = "SELECT * FROM areaofwork";
+  con.query(sql, (err, result) => {
+    if (err) return res.json({ Error: "Get areaofwork error in sql" });
+    return res.json({ Status: "Success", Result: result });
+  });
+});
+
+app.get("/variation", (req, res) => {
+  const sql = "SELECT * FROM variation";
+  con.query(sql, (err, result) => {
+    if (err) return res.json({ Error: "Get variation error in sql" });
     return res.json({ Status: "Success", Result: result });
   });
 });
@@ -856,6 +920,26 @@ app.post("/create/discipline", (req, res) => {
   });
 });
 
+app.post("/create/areaofwork", (req, res) => {
+  console.log(req.body, "req.body");
+  const sql = "INSERT INTO areaofwork (`areaofwork`) VALUES (?)";
+  const values = [req.body.areaofwork];
+  con.query(sql, [values], (err, result) => {
+    if (err) return res.json({ Error: "Error in signup query" });
+    return res.json({ Status: "Success" });
+  });
+});
+
+app.post("/create/variation", (req, res) => {
+  console.log(req.body, "req.body");
+  const sql = "INSERT INTO variation (`variation`) VALUES (?)";
+  const values = [req.body.variation];
+  con.query(sql, [values], (err, result) => {
+    if (err) return res.json({ Error: "Error in signup query" });
+    return res.json({ Status: "Success" });
+  });
+});
+
 app.delete("/updates/delete/:id", (req, res) => {
   const id = req.params.id;
   const sql = "Delete FROM settings WHERE id = ?";
@@ -879,6 +963,15 @@ app.delete("/discipline/delete/:id", (req, res) => {
   const sql = "Delete FROM discipline WHERE id = ?";
   con.query(sql, [id], (err, result) => {
     if (err) return res.json({ Error: "delete discipline error in sql" });
+    return res.json({ Status: "Success" });
+  });
+});
+
+app.delete("/variation/delete/:id", (req, res) => {
+  const id = req.params.id;
+  const sql = "Delete FROM variation WHERE id = ?";
+  con.query(sql, [id], (err, result) => {
+    if (err) return res.json({ Error: "delete variation error in sql" });
     return res.json({ Status: "Success" });
   });
 });

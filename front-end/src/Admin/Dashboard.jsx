@@ -168,6 +168,12 @@ function Dashboard() {
                 <span className="txt_col">Apply Leave</span>
               </Link>
             </li>
+            <li>
+              <span className="material-symbols-outlined fs-5  bi-journal-check "></span>
+              <Link to="/Dashboard/CompOff">
+                <span className="txt_col">Comp-Off</span>
+              </Link>
+            </li>
             <li className="multimenu">
               <div className="d-flex justify-content-center">
                 <span className="material-symbols-outlined fa-solid fa-gear"></span>
@@ -179,6 +185,8 @@ function Dashboard() {
                 <Link to="/Dashboard/Settings">Updates</Link>
                 <Link to="/Dashboard/Discipline">Discipline</Link>
                 <Link to="/Dashboard/Designation">Designation</Link>
+                <Link to="/Dashboard/Areaofwork">Area of Work</Link>
+                <Link to="/Dashboard/Variations">Variation</Link>
               </ul>
             </li>
             <li onClick={() => handleLogout()}>

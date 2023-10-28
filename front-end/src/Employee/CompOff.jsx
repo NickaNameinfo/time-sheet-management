@@ -3,7 +3,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
 import Box from "@mui/material/Box";
-import { 
+import {
   FormControl,
   FormHelperText,
   InputLabel,
@@ -17,7 +17,8 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import commonData from "../../common.json";
-function addLeaveDetails() {
+
+function CompOff() {
   const {
     handleSubmit,
     control,
@@ -25,7 +26,7 @@ function addLeaveDetails() {
     setValue,
     watch,
   } = useForm();
-  const navigate = useNavigate();
+
   let formData = watch();
   const containerStyle = { width: "100%", height: "100%" };
   const gridStyle = { height: "100%", width: "100%" };
@@ -40,8 +41,6 @@ function addLeaveDetails() {
       },
       { field: "leaveType" },
       { field: "leaveFrom" },
-      { field: "leaveTo" },
-      { field: "leaveHours" },
       { field: "reason" },
       { field: "leaveStatus" },
       {
@@ -71,32 +70,27 @@ function addLeaveDetails() {
 
   useEffect(() => {
     axios.get(`${commonData?.APIKEY}/dashboard`).then((result) => {
+      console.log(result, "result12121")
       setValue("employeeName", result?.data?.userName);
-      setValue("employeeId", result?.data?.employeeId?.replace(/[A-Za-z]/g, ''));
+      setValue(
+        "employeeId",
+        result?.data?.employeeId?.replace(/[A-Za-z]/g, "")
+      );
     });
     getLeaves();
   }, [refresh]);
 
-  useEffect(() => {
-    if (formData.leaveFrom !== "" && formData?.leaveTo !== "") {
-      const timeDifference = Math.abs(
-        new Date(formData.leaveTo) - new Date(formData.leaveFrom)
-      );
-      let Difference_In_Days = timeDifference / (1000 * 3600 * 24);
-      setValue("leaveHours", Difference_In_Days);
-    }
-  }, [formData.leaveFrom, formData.leaveTo]);
-
   const getLeaves = () => {
     axios
-      .get(`${commonData?.APIKEY}/getLeaveDetails`)
+      .get(`${commonData?.APIKEY}/getcompOffDetails`)
       .then((res) => {
         console.log(res, "resr23234");
         if (res.data.Status === "Success") {
           axios.get(`${commonData?.APIKEY}/dashboard`).then((result) => {
             console.log(result, "resultresult");
             let tempFinalResult = res?.data?.Result?.filter(
-              (item) => Number(item.employeeId?.replace(/[A-Za-z]/g, '')) === Number(result?.data?.employeeId?.replace(/[A-Za-z]/g, ''))
+              (item) =>
+                Number(item.employeeId?.replace(/[A-Za-z]/g, "")) === Number(result?.data?.employeeId?.replace(/[A-Za-z]/g, ""))
             );
             console.log(tempFinalResult, "tempFinalResulttempFinalResult");
             setRowData(tempFinalResult);
@@ -111,13 +105,12 @@ function addLeaveDetails() {
     console.log(data, "tests213");
     // Perform any other actions you want with the form data
     axios
-      .post(`${commonData?.APIKEY}/applyLeave`, data)
+      .post(`${commonData?.APIKEY}/applycompOff`, data)
       .then((res) => {
         if (res.data.Error) {
           alert(res.data.Error);
         } else {
-          // location.reload();
-          setRefresh(true);
+          location.reload()
         }
       })
       .catch((err) => console.log(err));
@@ -162,7 +155,7 @@ function addLeaveDetails() {
 
   const handleDelete = (id) => {
     axios
-      .delete(`${commonData?.APIKEY}/deleteLeave/` + id)
+      .delete(`${commonData?.APIKEY}/deletecompOff/` + id)
       .then((res) => {
         if (res.data.Status === "Success") {
           getLeaves();
@@ -176,7 +169,7 @@ function addLeaveDetails() {
   return (
     <div className="mainBody">
       <div className="mt-4">
-        <h2 className="heading">Apply Leave</h2>
+        {/* <h2 className="heading">Manage Project</h2> */}
 
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="gy-3 row">
@@ -199,10 +192,7 @@ function addLeaveDetails() {
                         {...field}
                         error={Boolean(errors.leaveType)}
                       >
-                        <MenuItem value={"Vecation"}>Vecation</MenuItem>
-                        <MenuItem value={"Sick Leave"}>Sick Leave</MenuItem>
-                        <MenuItem value={"Earned Leave"}>Earned Leave</MenuItem>
-                        <MenuItem value={"Comp-off"}>Comp Off Leave</MenuItem>
+                        <MenuItem value={"CompOff"}>Comp off</MenuItem>
                       </Select>
                     )}
                   />
@@ -249,61 +239,6 @@ function addLeaveDetails() {
                   </FormHelperText>
                 </Box>
               </div>
-              <div className="col-sm-4">
-                <Box>
-                  <LocalizationProvider dateAdapter={AdapterDayjs}>
-                    <Controller
-                      fullWidth:fullWidth
-                      name="leaveTo" // Make sure the name matches the field name in your form
-                      control={control}
-                      defaultValue="" // Set the default value here if needed
-                      rules={{ required: "Leave To is Required." }}
-                      render={({ field }) => (
-                        <DatePicker
-                          label="Leave To"
-                          {...field}
-                          error={Boolean(errors.leaveTo)}
-                          helperText={errors.leaveTo && errors.leaveTo.message}
-                          renderInput={(props) => (
-                            <TextField {...props} fullWidth />
-                          )}
-                          onChange={(newValue) =>
-                            setValue(
-                              "leaveTo",
-                              dayjs(newValue).format("YYYY-MM-DD")
-                            )
-                          }
-                          format="YYYY-MM-DD"
-                        />
-                      )}
-                    />
-                  </LocalizationProvider>
-                  <FormHelperText>
-                    {errors.leaveTo && errors.leaveTo.message}
-                  </FormHelperText>
-                </Box>{" "}
-              </div>
-            </div>
-
-            <div className="col-sm-12">
-              <Controller
-                control={control}
-                name="leaveHours"
-                defaultValue=""
-                rules={{ required: "Leave Days required." }}
-                render={({ field }) => (
-                  <TextField
-                    fullWidth
-                    id="outlined-basic fullWidth"
-                    label="Leave Days"
-                    variant="outlined"
-                    type="number"
-                    {...field}
-                    error={Boolean(errors.leaveHours)}
-                    helperText={errors.leaveHours && errors.leaveHours.message}
-                  />
-                )}
-              />
             </div>
             <div className="col-sm-12">
               <Controller
@@ -357,4 +292,4 @@ function addLeaveDetails() {
   );
 }
 
-export default addLeaveDetails;
+export default CompOff;
