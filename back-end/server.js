@@ -225,6 +225,13 @@ app.get("/getcompOffDetails", (req, res) => {
     return res.json({ Status: "Success", Result: result });
   });
 });
+app.get("/getLeaveDetails", (req, res) => {
+  const sql = "SELECT * FROM leavedetails";
+  con.query(sql, (err, result) => {
+    if (err) return res.json({ Error: "Get leavedetails error in sql" });
+    return res.json({ Status: "Success", Result: result });
+  });
+});
 
 app.delete("/deletecompOff/:id", (req, res) => {
   const id = req.params.id;

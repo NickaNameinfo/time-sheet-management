@@ -24,7 +24,7 @@ function EmployeeHome() {
   const [inOutTIme, setInOutTime] = React.useState(null);
   const [userDetails, setUserDetails] = React.useState(null);
   const [appliedLeaves, setAppliedLeaves] = React.useState(null);
-  console.log(inOutTIme, "rowDatarowData", rowData, compOffLeave);
+  console.log(inOutTIme, "rowDatarowData", rowData, weekData);
 
   React.useEffect(() => {
     if (userDetails) {
@@ -174,11 +174,13 @@ function EmployeeHome() {
         field: formatDate(weekData?.[0]),
         cellRenderer: (params) => (
           <p>
-            {Object.keys(params.data?.item)?.[0] === params.colDef.field
+            {Object.keys(params.data?.item).includes(params.colDef.field)
               ? `${
                   params.data?.item[formatDate(weekData?.[0])]?.["IN"]?.[0]
                 } / ${
-                  params.data?.item[formatDate(weekData?.[0])]?.["OUT"]?.[0] ? params.data?.item[formatDate(weekData?.[0])]?.["OUT"]?.[0] : "NP"
+                  params.data?.item[formatDate(weekData?.[0])]?.["OUT"]?.[0]
+                    ? params.data?.item[formatDate(weekData?.[0])]?.["OUT"]?.[0]
+                    : "NP"
                 }`
               : "NP"}
 
@@ -198,11 +200,13 @@ function EmployeeHome() {
         field: formatDate(weekData?.[1]),
         cellRenderer: (params) => (
           <p>
-            {Object.keys(params.data?.item)?.[0] === params.colDef.field
+            {Object.keys(params.data?.item).includes(params.colDef.field)
               ? `${
                   params.data?.item[formatDate(weekData?.[1])]?.["IN"]?.[0]
                 } / ${
-                  params.data?.item[formatDate(weekData?.[1])]?.["OUT"]?.[0] ? params.data?.item[formatDate(weekData?.[1])]?.["OUT"]?.[0] : "NP"
+                  params.data?.item[formatDate(weekData?.[1])]?.["OUT"]?.[0]
+                    ? params.data?.item[formatDate(weekData?.[1])]?.["OUT"]?.[0]
+                    : "NP"
                 }`
               : "NP"}
           </p>
@@ -212,11 +216,13 @@ function EmployeeHome() {
         field: formatDate(weekData?.[2]),
         cellRenderer: (params) => (
           <p>
-            {Object.keys(params.data?.item)?.[0] === params.colDef.field
+            {Object.keys(params.data?.item).includes(params.colDef.field)
               ? `${
                   params.data?.item[formatDate(weekData?.[2])]?.["IN"]?.[0]
                 } / ${
-                  params.data?.item[formatDate(weekData?.[2])]?.["OUT"]?.[0] ? params.data?.item[formatDate(weekData?.[2])]?.["OUT"]?.[0] : "NP"
+                  params.data?.item[formatDate(weekData?.[2])]?.["OUT"]?.[0]
+                    ? params.data?.item[formatDate(weekData?.[2])]?.["OUT"]?.[0]
+                    : "NP"
                 }`
               : "NP"}
           </p>
@@ -232,11 +238,13 @@ function EmployeeHome() {
               "sdfkjasovjas",
               params.data
             )}
-            {Object.keys(params.data?.item)?.[0] === params.colDef.field
+            {Object.keys(params.data?.item).includes(params.colDef.field)
               ? `${
                   params.data?.item[formatDate(weekData?.[3])]?.["IN"]?.[0]
                 } / ${
-                  params.data?.item[formatDate(weekData?.[3])]?.["OUT"]?.[0] ? params.data?.item[formatDate(weekData?.[3])]?.["OUT"]?.[0] : "NP"
+                  params.data?.item[formatDate(weekData?.[3])]?.["OUT"]?.[0]
+                    ? params.data?.item[formatDate(weekData?.[3])]?.["OUT"]?.[0]
+                    : "NP"
                 }`
               : "NP"}
           </p>
@@ -246,11 +254,13 @@ function EmployeeHome() {
         field: formatDate(weekData?.[4]),
         cellRenderer: (params) => (
           <p>
-            {Object.keys(params.data?.item)?.[0] === params.colDef.field
+            {Object.keys(params.data?.item).includes(params.colDef.field)
               ? `${
                   params.data?.item[formatDate(weekData?.[4])]?.["IN"]?.[0]
                 } / ${
-                  params.data?.item[formatDate(weekData?.[4])]?.["OUT"]?.[0] ? params.data?.item[formatDate(weekData?.[4])]?.["OUT"]?.[0] : "NP"
+                  params.data?.item[formatDate(weekData?.[4])]?.["OUT"]?.[0]
+                    ? params.data?.item[formatDate(weekData?.[4])]?.["OUT"]?.[0]
+                    : "NP"
                 }`
               : "NP"}
           </p>
@@ -260,11 +270,13 @@ function EmployeeHome() {
         field: formatDate(weekData?.[5]),
         cellRenderer: (params) => (
           <p>
-            {Object.keys(params.data?.item)?.[0] === params.colDef.field
+            {Object.keys(params.data?.item).includes(params.colDef.field)
               ? `${
                   params.data?.item[formatDate(weekData?.[5])]?.["IN"]?.[0]
                 } / ${
-                  params.data?.item[formatDate(weekData?.[5])]?.["OUT"]?.[0] ? params.data?.item[formatDate(weekData?.[5])]?.["OUT"]?.[0] : "NP"
+                  params.data?.item[formatDate(weekData?.[5])]?.["OUT"]?.[0]
+                    ? params.data?.item[formatDate(weekData?.[5])]?.["OUT"]?.[0]
+                    : "NP"
                 }`
               : "NP"}
           </p>
@@ -274,11 +286,13 @@ function EmployeeHome() {
         field: formatDate(weekData?.[6]),
         cellRenderer: (params) => (
           <p>
-            {Object.keys(params.data?.item)?.[0] === params.colDef.field
+            {Object.keys(params.data?.item).includes(params.colDef.field)
               ? `${
                   params.data?.item[formatDate(weekData?.[6])]?.["IN"]?.[0]
                 } / ${
-                  params.data?.item[formatDate(weekData?.[6])]?.["OUT"]?.[0] ? params.data?.item[formatDate(weekData?.[6])]?.["OUT"]?.[0] : "NP"
+                  params.data?.item[formatDate(weekData?.[6])]?.["OUT"]?.[0]
+                    ? params.data?.item[formatDate(weekData?.[6])]?.["OUT"]?.[0]
+                    : "NP"
                 }`
               : "NP"}
           </p>
@@ -447,22 +461,6 @@ function EmployeeHome() {
             <div className="col">
               <div className="counterCard">
                 <div className="counterCardmain">
-                  <div className="smallboxE">
-                    <BsPersonCircle className="icon_admin" />
-                  </div>
-                  <div className="counts">
-                    <p>Count</p>
-                    <h3>{sickLeave} </h3>
-                  </div>
-                </div>
-                <div className="counterCardname">
-                  <p className="counterCardTitle">Sick Leave</p>
-                </div>
-              </div>
-            </div>
-            <div className="col">
-              <div className="counterCard">
-                <div className="counterCardmain">
                   <div className="smallboxHR">
                     <BsFillHCircleFill className="icon_admin" />
                   </div>
@@ -479,16 +477,16 @@ function EmployeeHome() {
             <div className="col">
               <div className="counterCard">
                 <div className="counterCardmain">
-                  <div className="smallboxP">
-                    <BsBarChartLineFill className="icon_admin" />
+                  <div className="smallboxE">
+                    <BsPersonCircle className="icon_admin" />
                   </div>
                   <div className="counts">
                     <p>Count</p>
-                    <h3>{reamaining} </h3>
+                    <h3>{sickLeave} </h3>
                   </div>
                 </div>
                 <div className="counterCardname">
-                  <p className="counterCardTitle">Remaining Leave</p>
+                  <p className="counterCardTitle">Sick Leave</p>
                 </div>
               </div>
             </div>
@@ -521,6 +519,22 @@ function EmployeeHome() {
                 </div>
                 <div className="counterCardname">
                   <p className="counterCardTitle">Comp-off Leave</p>
+                </div>
+              </div>
+            </div>
+            <div className="col">
+              <div className="counterCard">
+                <div className="counterCardmain">
+                  <div className="smallboxP">
+                    <BsBarChartLineFill className="icon_admin" />
+                  </div>
+                  <div className="counts">
+                    <p>Count</p>
+                    <h3>{reamaining} </h3>
+                  </div>
+                </div>
+                <div className="counterCardname">
+                  <p className="counterCardTitle">Remaining Leave</p>
                 </div>
               </div>
             </div>
