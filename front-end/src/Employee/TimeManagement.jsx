@@ -15,7 +15,7 @@ import {
   Select,
   TextField,
 } from "@mui/material";
-import commonData from "../../common.json"
+import commonData from "../../common.json";
 
 const TimeManagement = () => {
   const [projectList, setProjectList] = useState(null);
@@ -33,6 +33,8 @@ const TimeManagement = () => {
   const [selectedWeek, setSelectedWeek] = React.useState(null);
   const [weekNumberList, setWeekNumberList] = React.useState(null);
   const [refresh, setRefresh] = React.useState(false);
+  const [areaofWork, setAreaofWork] = React.useState(null);
+  const [variation, setVariation] = React.useState(null);
   console.log(weekNumberList, "formStateformState", weekData);
 
   console.log("projectDetails", projectWorkList);
@@ -51,6 +53,8 @@ const TimeManagement = () => {
     ];
     setWeekNumberList(tempList);
     setSelectedWeek(String(getCurrentWeekNumber()));
+    getAreaofWorkDeails();
+    getVariation();
   }, [selectedWeek, refresh]);
 
   // React.useEffect(() => {
@@ -226,6 +230,17 @@ const TimeManagement = () => {
       .catch((err) => console.log(err));
   };
 
+  const getAreaofWorkDeails = () => {
+    axios.get(`${commonData?.APIKEY}/areaofwork`).then((res) => {
+      setAreaofWork(res.data.Result);
+    });
+  };
+  const getVariation = () => {
+    axios.get(`${commonData?.APIKEY}/variation`).then((res) => {
+      setVariation(res.data.Result);
+    });
+  };
+
   const onSubmit = (data, index) => {
     let errorMessages = {};
     if (formData[index]?.areaofWork === "") {
@@ -373,7 +388,11 @@ const TimeManagement = () => {
 
   const isDateInclude = (date) => {
     let isDateIncluded = leaveList?.some((item) => {
-      console.log(getDateYear(item?.leaveFrom), "8080e23423", getDateYear(date));
+      console.log(
+        getDateYear(item?.leaveFrom),
+        "8080e23423",
+        getDateYear(date)
+      );
       return getDateYear(item.leaveFrom) === getDateYear(date);
     });
     console.log(date, "adfasdfdate", isDateIncluded);
@@ -635,7 +654,13 @@ const TimeManagement = () => {
                             )
                           }
                         >
-                          <MenuItem value={"Ui"}>UI</MenuItem>
+                          {areaofWork?.map((res) => {
+                            return (
+                              <MenuItem value={res?.areaofwork}>
+                                {res?.areaofwork}
+                              </MenuItem>
+                            );
+                          })}
                         </Select>
                         <FormHelperText>
                           {errorMessage?.[index]?.areaofWork}
@@ -664,7 +689,13 @@ const TimeManagement = () => {
                             )
                           }
                         >
-                          <MenuItem value={"Ui"}>UI</MenuItem>
+                          {variation?.map((res) => {
+                            return (
+                              <MenuItem value={res?.variation}>
+                                {res?.variation}
+                              </MenuItem>
+                            );
+                          })}
                         </Select>
                         <FormHelperText>
                           {errorMessage?.[index]?.variation}
