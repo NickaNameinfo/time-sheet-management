@@ -116,7 +116,7 @@ function addLeaveDetails() {
         if (res.data.Error) {
           alert(res.data.Error);
         } else {
-          // location.reload();
+          location.reload();
           setRefresh(true);
         }
       })
