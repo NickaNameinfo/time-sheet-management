@@ -1,6 +1,4 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import Button from "@mui/material/Button";
-import { Link } from "react-router-dom";
 import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
@@ -17,6 +15,8 @@ function EmployeeHome() {
   const [sickLeave, setSickLeave] = useState(null);
   const [vacationLeave, setVacationLeave] = useState(null);
   const [reamaining, setRemaining] = useState(null);
+  const [earned, setEarned] = useState(null);
+  const [compOffLeave, setCompOffLeave] = useState(null);
   const containerStyle = { width: "100%", height: "100%" };
   const gridStyle = { height: "100%", width: "100%" };
   const [rowData, setRowData] = useState(null);
@@ -24,13 +24,14 @@ function EmployeeHome() {
   const [inOutTIme, setInOutTime] = React.useState(null);
   const [userDetails, setUserDetails] = React.useState(null);
   const [appliedLeaves, setAppliedLeaves] = React.useState(null);
-  console.log(inOutTIme, "rowDatarowData", rowData);
+  console.log(inOutTIme, "rowDatarowData", rowData, compOffLeave);
 
   React.useEffect(() => {
     if (userDetails) {
       getUserInfo();
     }
     getLeaves();
+    getCompOffLeave();
   }, [userDetails]);
 
   useEffect(() => {
@@ -127,6 +128,30 @@ function EmployeeHome() {
           });
         }
       })
+      .catch((err) => console.log(err));
+  };
+  const getCompOffLeave = () => {
+    axios
+      .get(`${commonData?.APIKEY}/getcompOffDetails`)
+      .then((res) => {
+        if (res.data.Status === "Success") {
+          axios.get(`${commonData?.APIKEY}/dashboard`).then((result) => {
+            let tempFinalResult = res?.data?.Result?.filter(
+              (item) => item.employeeName === result?.data?.userName
+            );
+            setCompOffLeave(tempFinalResult?.length);
+
+            const compOffLeave = tempFinalResult.filter(
+              (item) => item.leaveType === "Comp-off"
+            ).length;
+
+            let earnedLeave = compOffLeave - (tempFinalResult?.length || 0);
+            earnedLeave = earnedLeave < 0 ? 0 : earnedLeave;
+            setEarned(earnedLeave);
+            console.log(earnedLeave, "tempFinalResult");
+          });
+        }
+      })
 
       .catch((err) => console.log(err));
   };
@@ -149,9 +174,13 @@ function EmployeeHome() {
         field: formatDate(weekData?.[0]),
         cellRenderer: (params) => (
           <p>
-             {Object.keys(params.data?.item)?.[0] === params.colDef.field
-              ? `${params.data?.item[formatDate(weekData?.[0])]?.["IN"]?.[0]} / ${params.data?.item[formatDate(weekData?.[0])]?.["OUT"]?.[0]}`
-              : "NAN"}
+            {Object.keys(params.data?.item)?.[0] === params.colDef.field
+              ? `${
+                  params.data?.item[formatDate(weekData?.[0])]?.["IN"]?.[0]
+                } / ${
+                  params.data?.item[formatDate(weekData?.[0])]?.["OUT"]?.[0] ? params.data?.item[formatDate(weekData?.[0])]?.["OUT"]?.[0] : "NP"
+                }`
+              : "NP"}
 
             {console.log(
               // params,
@@ -159,7 +188,7 @@ function EmployeeHome() {
               params.colDef.field,
 
               // Object.keys(params.data?.item)?.[0]
-              params.data?.item[formatDate(weekData?.[0])]?.["IN"]?.[0],
+              params.data?.item[formatDate(weekData?.[0])]?.["IN"]?.[0]
               // formatDate(weekData?.[0])
             )}
           </p>
@@ -169,9 +198,13 @@ function EmployeeHome() {
         field: formatDate(weekData?.[1]),
         cellRenderer: (params) => (
           <p>
-            {Object.keys(params.data?.item)?.[1] === params.colDef.field
-              ? `${params.data?.item[formatDate(weekData?.[1])]?.["IN"]?.[0]} / ${params.data?.item[formatDate(weekData?.[1])]?.["OUT"]?.[0]}`
-              : "NAN"}
+            {Object.keys(params.data?.item)?.[0] === params.colDef.field
+              ? `${
+                  params.data?.item[formatDate(weekData?.[1])]?.["IN"]?.[0]
+                } / ${
+                  params.data?.item[formatDate(weekData?.[1])]?.["OUT"]?.[0] ? params.data?.item[formatDate(weekData?.[1])]?.["OUT"]?.[0] : "NP"
+                }`
+              : "NP"}
           </p>
         ),
       },
@@ -179,9 +212,13 @@ function EmployeeHome() {
         field: formatDate(weekData?.[2]),
         cellRenderer: (params) => (
           <p>
-            {Object.keys(params.data?.item)?.[2] === params.colDef.field
-              ? `${params.data?.item[formatDate(weekData?.[2])]?.["IN"]?.[0]} / ${params.data?.item[formatDate(weekData?.[2])]?.["OUT"]?.[0]}`
-              : "NAN"}
+            {Object.keys(params.data?.item)?.[0] === params.colDef.field
+              ? `${
+                  params.data?.item[formatDate(weekData?.[2])]?.["IN"]?.[0]
+                } / ${
+                  params.data?.item[formatDate(weekData?.[2])]?.["OUT"]?.[0] ? params.data?.item[formatDate(weekData?.[2])]?.["OUT"]?.[0] : "NP"
+                }`
+              : "NP"}
           </p>
         ),
       },
@@ -189,9 +226,19 @@ function EmployeeHome() {
         field: formatDate(weekData?.[3]),
         cellRenderer: (params) => (
           <p>
-            {Object.keys(params.data?.item)?.[3] === params.colDef.field
-              ? `${params.data?.item[formatDate(weekData?.[3])]?.["IN"]?.[0]} / ${params.data?.item[formatDate(weekData?.[3])]?.["OUT"]?.[0]}`
-              : "NAN"}
+            {console.log(
+              Object.keys(params.data?.item)?.[0],
+              params.colDef.field,
+              "sdfkjasovjas",
+              params.data
+            )}
+            {Object.keys(params.data?.item)?.[0] === params.colDef.field
+              ? `${
+                  params.data?.item[formatDate(weekData?.[3])]?.["IN"]?.[0]
+                } / ${
+                  params.data?.item[formatDate(weekData?.[3])]?.["OUT"]?.[0] ? params.data?.item[formatDate(weekData?.[3])]?.["OUT"]?.[0] : "NP"
+                }`
+              : "NP"}
           </p>
         ),
       },
@@ -199,9 +246,13 @@ function EmployeeHome() {
         field: formatDate(weekData?.[4]),
         cellRenderer: (params) => (
           <p>
-            {Object.keys(params.data?.item)?.[4] === params.colDef.field
-              ? `${params.data?.item[formatDate(weekData?.[4])]?.["IN"]?.[0]} / ${params.data?.item[formatDate(weekData?.[4])]?.["OUT"]?.[0]}`
-              : "NAN"}
+            {Object.keys(params.data?.item)?.[0] === params.colDef.field
+              ? `${
+                  params.data?.item[formatDate(weekData?.[4])]?.["IN"]?.[0]
+                } / ${
+                  params.data?.item[formatDate(weekData?.[4])]?.["OUT"]?.[0] ? params.data?.item[formatDate(weekData?.[4])]?.["OUT"]?.[0] : "NP"
+                }`
+              : "NP"}
           </p>
         ),
       },
@@ -209,9 +260,13 @@ function EmployeeHome() {
         field: formatDate(weekData?.[5]),
         cellRenderer: (params) => (
           <p>
-            {Object.keys(params.data?.item)?.[5] === params.colDef.field
-              ? `${params.data?.item[formatDate(weekData?.[5])]?.["IN"]?.[0]} / ${params.data?.item[formatDate(weekData?.[5])]?.["OUT"]?.[0]}`
-              : "NAN"}
+            {Object.keys(params.data?.item)?.[0] === params.colDef.field
+              ? `${
+                  params.data?.item[formatDate(weekData?.[5])]?.["IN"]?.[0]
+                } / ${
+                  params.data?.item[formatDate(weekData?.[5])]?.["OUT"]?.[0] ? params.data?.item[formatDate(weekData?.[5])]?.["OUT"]?.[0] : "NP"
+                }`
+              : "NP"}
           </p>
         ),
       },
@@ -219,9 +274,13 @@ function EmployeeHome() {
         field: formatDate(weekData?.[6]),
         cellRenderer: (params) => (
           <p>
-            {Object.keys(params.data?.item)?.[6] === params.colDef.field
-              ? `${params.data?.item[formatDate(weekData?.[6])]?.["IN"]?.[0]} / ${params.data?.item[formatDate(weekData?.[6])]?.["OUT"]?.[0]}`
-              : "NAN"}
+            {Object.keys(params.data?.item)?.[0] === params.colDef.field
+              ? `${
+                  params.data?.item[formatDate(weekData?.[6])]?.["IN"]?.[0]
+                } / ${
+                  params.data?.item[formatDate(weekData?.[6])]?.["OUT"]?.[0] ? params.data?.item[formatDate(weekData?.[6])]?.["OUT"]?.[0] : "NP"
+                }`
+              : "NP"}
           </p>
         ),
       },
@@ -276,49 +335,57 @@ function EmployeeHome() {
   const getInOutTime = async (dates) => {
     try {
       // Fetch user details
-      const userDetailsResponse = await axios.get(`${commonData?.APIKEY}/dashboard`);
+      const userDetailsResponse = await axios.get(
+        `${commonData?.APIKEY}/dashboard`
+      );
       const userDetails = userDetailsResponse.data;
       console.log(userDetails, "userDetails1123");
-  
+
       // Convert dates to the "YYYY-MM-DD" format
       const convertedDates = dates?.map((date) => {
         const parts = date.split("/");
         // Ensure proper padding for month and day values
-        return `${parts[2]}-${parts[0].padStart(2, "0")}-${parts[1].padStart(2, "0")}`;
+        return `${parts[2]}-${parts[0].padStart(2, "0")}-${parts[1].padStart(
+          2,
+          "0"
+        )}`;
       });
-  
+
       // Prepare data for filtering
       const data = {
-        userId: Number(userDetails?.employeeId),
+        userId: Number(userDetails?.employeeId?.replace(/[A-Za-z]/g, "")),
         logDates: convertedDates,
       };
-  
+
       // Fetch time sheet data
-      const timeSheetResponse = await axios.post(`${commonData?.APIKEY}/filterTimeSheet`, data);
+      const timeSheetResponse = await axios.post(
+        `${commonData?.APIKEY}/filterTimeSheet`,
+        data
+      );
       const timeSheetData = timeSheetResponse.data;
-  
+
       // Update state with user details and time sheet data
       setUserDetails(userDetails);
       console.log(userDetails, "userDetails", timeSheetData);
-  
+
       // Group data by date
       const dateWiseData = {};
-  
+
       timeSheetData.forEach((item) => {
         const formattedLogDate = item.FormattedLogDate.slice(0, 10); // Extract date portion only
         const time = item.FormattedLogDate.slice(11, 16); // Extract time portion only
-  
+
         if (!dateWiseData[formattedLogDate]) {
           dateWiseData[formattedLogDate] = { IN: [], OUT: [] };
         }
-  
+
         if (parseInt(time.split(":")[0]) < 12) {
           dateWiseData[formattedLogDate]["IN"].push(time);
         } else {
           dateWiseData[formattedLogDate]["OUT"].push(time);
         }
       });
-  
+
       // Prepare rowData with "IN" and "OUT" items
       const rowData = [
         {
@@ -330,7 +397,7 @@ function EmployeeHome() {
         //   item: dateWiseData,
         // },
       ];
-  
+
       console.log(rowData, "rowData1231");
       setRowData(rowData);
     } catch (error) {
@@ -338,7 +405,6 @@ function EmployeeHome() {
       // Handle the error here, e.g., set an error state or display an error message.
     }
   };
-  
 
   const defaultColDef = useMemo(
     () => ({
@@ -434,7 +500,7 @@ function EmployeeHome() {
                   </div>
                   <div className="counts">
                     <p>Count</p>
-                    <h3>{reamaining} </h3>
+                    <h3>{earned} </h3>
                   </div>
                 </div>
                 <div className="counterCardname">
@@ -450,11 +516,11 @@ function EmployeeHome() {
                   </div>
                   <div className="counts">
                     <p>Count</p>
-                    <h3>{reamaining} </h3>
+                    <h3>{compOffLeave} </h3>
                   </div>
                 </div>
                 <div className="counterCardname">
-                  <p className="counterCardTitle">Composition Leave</p>
+                  <p className="counterCardTitle">Comp-off Leave</p>
                 </div>
               </div>
             </div>

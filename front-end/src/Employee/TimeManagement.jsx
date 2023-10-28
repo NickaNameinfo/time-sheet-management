@@ -165,13 +165,13 @@ const TimeManagement = () => {
       areaofWork: "",
       variation: "",
       subDivision: "",
-      monday: null,
-      tuesday: null,
-      wednesday: null,
-      thursday: null,
-      friday: null,
-      saturday: null,
-      sunday: null,
+      monday: 0,
+      tuesday: 0,
+      wednesday: 0,
+      thursday: 0,
+      friday: 0,
+      saturday: 0,
+      sunday: 0,
       totalHours: 0,
       status: "",
       sentDate: "",
@@ -372,8 +372,8 @@ const TimeManagement = () => {
   };
 
   const isDateInclude = (date) => {
-    let isDateIncluded = leaveList.some((item) => {
-      console.log(getDateYear(item.leaveFrom), "8080e23423", getDateYear(date));
+    let isDateIncluded = leaveList?.some((item) => {
+      console.log(getDateYear(item?.leaveFrom), "8080e23423", getDateYear(date));
       return getDateYear(item.leaveFrom) === getDateYear(date);
     });
     console.log(date, "adfasdfdate", isDateIncluded);

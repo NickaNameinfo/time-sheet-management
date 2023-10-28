@@ -95,22 +95,21 @@ const ProjectReport = () => {
 
   const columnDefs = useMemo(
     () => [
-      {
+      { 
         field: "orderId",
         minWidth: 170,
       },
       { field: "projectNo" },
       { field: "projectName" },
       {
-        field: "% Completion",
-        valueGetter: (params) =>
-          calculateProjectValues(params, projectWorkHours).completionPercentage,
+        field: "completion",
+        // valueGetter: (params) =>
+        //   calculateProjectValues(params, projectWorkHours).completionPercentage,
       },
       {
         field: "% Utilized",
         valueGetter: (params) =>
-          calculateProjectValues(params, projectWorkHours)
-            .utilizationPercentage,
+          calculateProjectValues(params, projectWorkHours).completionPercentage,
       },
       { field: "allotatedHours" },
       {

@@ -41,6 +41,7 @@ function Projects(props) {
       { field: "startDate", minWidth: 170 },
       { field: "targetDate", minWidth: 170 },
       { field: "allotatedHours", minWidth: 170 },
+      { field: "summary", minWidth: 170 },
     ],
     []
   );
