@@ -39,6 +39,26 @@ function EmployeeHome() {
     setWeekDate(datesss);
   }, []);
 
+  React.useEffect(() => {
+    if (
+      vacationLeave !== null &&
+      sickLeave !== null &&
+      earned !== null &&
+      compOffLeave !== null
+    ) {
+      setRemaining(
+        (Number(vacationLeave) || 0) -
+          (Number(sickLeave) || 0) -
+          (Number(earned) || 0) -
+          (Number(compOffLeave) || 0)
+      );
+    } else {
+      // Handle the case where one or more values are null or undefined
+      // You might set an error message or handle it in some other way
+      setRemaining(0); // or another suitable default value
+    }
+  }, [vacationLeave, sickLeave, earned, earned]);
+
   React,
     useEffect(() => {
       if (weekData) {
@@ -105,17 +125,28 @@ function EmployeeHome() {
         if (res.data.Status === "Success") {
           axios.get(`${commonData?.APIKEY}/dashboard`).then((result) => {
             let tempFinalResult = res?.data?.Result?.filter(
-              (item) => item.employeeName === result?.data?.userName
+              (item) =>
+                item.employeeName === result?.data?.userName &&
+                item?.leaveStatus === "approved"
             );
-            setCompOffLeave(tempFinalResult?.length);
-            console.log(earnedLeave, "tempFinalResult");
+            const hoursInADay = 9; // Assuming a 9-hour workday
+
+            const daysWorked = tempFinalResult
+              .filter((entry) => entry.workHours !== "")
+              .map((entry) => Math.ceil(entry.workHours / hoursInADay))
+              .reduce((total, days) => total + days, 0);
+
+            setCompOffLeave(daysWorked);
+            console.log(daysWorked, "tempFinalResult");
           });
         }
       })
       .catch((err) => console.log(err));
 
     setTotalLeaves(Number(availableLeaves) + Number(compOffLeave));
-    setRemaining(availableLeaves - appliedLeaves?.length);
+
+    // setRemaining(availableLeaves - appliedLeaves?.length);
+
     console.log(availableLeaves, "useResultuseResult", useResult);
   };
 
@@ -126,7 +157,9 @@ function EmployeeHome() {
         if (res.data.Status === "Success") {
           axios.get(`${commonData?.APIKEY}/dashboard`).then((result) => {
             let tempFinalResult = res?.data?.Result?.filter(
-              (item) => item.employeeName === result?.data?.userName
+              (item) =>
+                item.employeeName === result?.data?.userName &&
+                item?.leaveStatus === "approved"
             );
             setAppliedLeaves(tempFinalResult);
 
@@ -136,7 +169,16 @@ function EmployeeHome() {
             const scikLeaveCount = tempFinalResult.filter(
               (item) => item.leaveType === "Sick Leave"
             ).length;
-            console.log(tempFinalResult, "tempFinalResult", vacationLeaveCount);
+            const earnedLeaveCount = tempFinalResult.filter(
+              (item) => item.leaveType === "Earned Leave"
+            ).length;
+
+            console.log(
+              earnedLeaveCount,
+              "tempFinalResult",
+              vacationLeaveCount
+            );
+            setEarned(earnedLeaveCount);
             setSickLeave(scikLeaveCount);
             setVacationLeave(vacationLeaveCount);
           });
@@ -394,10 +436,6 @@ function EmployeeHome() {
           type: "IN / OUT",
           item: dateWiseData,
         },
-        // {
-        //   type: "OUT",
-        //   item: dateWiseData,
-        // },
       ];
 
       console.log(rowData, "rowData1231");

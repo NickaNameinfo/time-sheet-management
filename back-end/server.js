@@ -143,7 +143,7 @@ app.post("/applyLeave", (req, res) => {
 
 app.post("/applycompOff", (req, res) => {
   const baseSql =
-    "INSERT INTO compoff (`leaveType`,`leaveFrom`,`reason`, `employeeName`, `employeeId`";
+    "INSERT INTO compoff (`leaveType`,`leaveFrom`,`reason`, `employeeName`, `employeeId`, `workHours`";
   let sql = baseSql;
   const values = [
     req.body.leaveType,
@@ -151,6 +151,7 @@ app.post("/applycompOff", (req, res) => {
     req.body.reason,
     req.body.employeeName,
     req.body.employeeId,
+    req.body.workHours,
   ];
 
   // Optional fields that are not required
@@ -238,6 +239,15 @@ app.delete("/deletecompOff/:id", (req, res) => {
   const sql = "Delete FROM compOff WHERE id = ?";
   con.query(sql, [id], (err, result) => {
     if (err) return res.json({ Error: "delete compOff error in sql" });
+    return res.json({ Status: "Success" });
+  });
+});
+
+app.delete("/deleteLeave/:id", (req, res) => {
+  const id = req.params.id;
+  const sql = "Delete FROM leavedetails WHERE id = ?";
+  con.query(sql, [id], (err, result) => {
+    if (err) return res.json({ Error: "delete leavedetails error in sql" });
     return res.json({ Status: "Success" });
   });
 });

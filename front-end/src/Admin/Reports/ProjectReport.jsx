@@ -101,6 +101,7 @@ const ProjectReport = () => {
       },
       { field: "projectNo" },
       { field: "projectName" },
+      { field: "desciplineCode" },
       {
         field: "completion",
         // valueGetter: (params) =>

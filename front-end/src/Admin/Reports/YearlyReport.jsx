@@ -153,6 +153,7 @@ const YearlyReport = () => {
         minWidth: 170,
       },
       { field: "projectName", minWidth: 170 },
+      { field: "desciplineCode" },
       { field: "allotatedHours" },
       {
         field: "totalHours",

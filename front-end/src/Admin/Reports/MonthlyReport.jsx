@@ -123,6 +123,7 @@ const MonthlyReport = () => {
         },
       },
       { field: "projectName", minWidth: 170 },
+      { field: "desciplineCode" },
       ...monthColumns.map(generateMonthColumn),
     ],
     [projectWorkHours]
