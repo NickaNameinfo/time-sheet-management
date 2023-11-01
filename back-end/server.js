@@ -226,6 +226,7 @@ app.get("/getcompOffDetails", (req, res) => {
     return res.json({ Status: "Success", Result: result });
   });
 });
+
 app.get("/getLeaveDetails", (req, res) => {
   const sql = "SELECT * FROM leavedetails";
   con.query(sql, (err, result) => {
@@ -398,6 +399,7 @@ app.get("/adminCount", (req, res) => {
     return res.json(result);
   });
 });
+
 app.get("/employeeCount", (req, res) => {
   const sql = "Select count(id) as employee from employee";
   con.query(sql, (err, result) => {
@@ -670,6 +672,54 @@ app.post("/project/create", (req, res) => {
     return res.json({ Status: "Success" });
   });
 });
+
+app.put("/project/update/:projectId", (req, res) => {
+  const projectId = req.params.projectId;
+  const sql = `
+    UPDATE project 
+    SET 
+      tlName = ?,
+      orderId = ?,
+      positionNumber = ?,
+      subPositionNumber = ?,
+      projectNo = ?,
+      taskJobNo = ?,
+      referenceNo = ?,
+      desciplineCode = ?,
+      projectName = ?,
+      subDivision = ?,
+      startDate = ?,
+      targetDate = ?,
+      allotatedHours = ?,
+      summary = ?
+    WHERE id = ?
+  `;
+  const values = [
+    req.body.tlName,
+    req.body.orderId,
+    req.body.positionNumber,
+    req.body.subPositionNumber,
+    req.body.projectNo,
+    req.body.taskJobNo,
+    req.body.referenceNo,
+    req.body.desciplineCode,
+    req.body.projectName,
+    req.body.subDivision,
+    req.body.startDate,
+    req.body.targetDate,
+    req.body.allotatedHours,
+    req.body.summary,
+    projectId, // Use the project ID to specify which project to update
+  ];
+  con.query(sql, values, (err, result) => {
+    if (err) {
+      console.log(err, "error");
+      return res.json({ Error: "Inside update Project query" });
+    }
+    return res.json({ Status: "Success" });
+  });
+});
+''
 
 app.post("/project/addWorkDetails", (req, res) => {
   const baseSql =
