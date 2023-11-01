@@ -115,6 +115,7 @@ const WeeklyReport = () => {
       },
       // { field: "discipline" },
       { field: "projectName", minWidth: 170 },
+      { field: "desciplineCode" },
       ...weekFields, // Include dynamically generated week fields
     ];
   }, [projectWorkHours]);

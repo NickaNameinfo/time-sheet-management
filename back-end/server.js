@@ -143,7 +143,7 @@ app.post("/applyLeave", (req, res) => {
 
 app.post("/applycompOff", (req, res) => {
   const baseSql =
-    "INSERT INTO compoff (`leaveType`,`leaveFrom`,`reason`, `employeeName`, `employeeId`";
+    "INSERT INTO compoff (`leaveType`,`leaveFrom`,`reason`, `employeeName`, `employeeId`, `workHours`";
   let sql = baseSql;
   const values = [
     req.body.leaveType,
@@ -151,6 +151,7 @@ app.post("/applycompOff", (req, res) => {
     req.body.reason,
     req.body.employeeName,
     req.body.employeeId,
+    req.body.workHours,
   ];
 
   // Optional fields that are not required
@@ -225,6 +226,7 @@ app.get("/getcompOffDetails", (req, res) => {
     return res.json({ Status: "Success", Result: result });
   });
 });
+
 app.get("/getLeaveDetails", (req, res) => {
   const sql = "SELECT * FROM leavedetails";
   con.query(sql, (err, result) => {
@@ -238,6 +240,15 @@ app.delete("/deletecompOff/:id", (req, res) => {
   const sql = "Delete FROM compOff WHERE id = ?";
   con.query(sql, [id], (err, result) => {
     if (err) return res.json({ Error: "delete compOff error in sql" });
+    return res.json({ Status: "Success" });
+  });
+});
+
+app.delete("/deleteLeave/:id", (req, res) => {
+  const id = req.params.id;
+  const sql = "Delete FROM leavedetails WHERE id = ?";
+  con.query(sql, [id], (err, result) => {
+    if (err) return res.json({ Error: "delete leavedetails error in sql" });
     return res.json({ Status: "Success" });
   });
 });
@@ -388,6 +399,7 @@ app.get("/adminCount", (req, res) => {
     return res.json(result);
   });
 });
+
 app.get("/employeeCount", (req, res) => {
   const sql = "Select count(id) as employee from employee";
   con.query(sql, (err, result) => {
@@ -660,6 +672,54 @@ app.post("/project/create", (req, res) => {
     return res.json({ Status: "Success" });
   });
 });
+
+app.put("/project/update/:projectId", (req, res) => {
+  const projectId = req.params.projectId;
+  const sql = `
+    UPDATE project 
+    SET 
+      tlName = ?,
+      orderId = ?,
+      positionNumber = ?,
+      subPositionNumber = ?,
+      projectNo = ?,
+      taskJobNo = ?,
+      referenceNo = ?,
+      desciplineCode = ?,
+      projectName = ?,
+      subDivision = ?,
+      startDate = ?,
+      targetDate = ?,
+      allotatedHours = ?,
+      summary = ?
+    WHERE id = ?
+  `;
+  const values = [
+    req.body.tlName,
+    req.body.orderId,
+    req.body.positionNumber,
+    req.body.subPositionNumber,
+    req.body.projectNo,
+    req.body.taskJobNo,
+    req.body.referenceNo,
+    req.body.desciplineCode,
+    req.body.projectName,
+    req.body.subDivision,
+    req.body.startDate,
+    req.body.targetDate,
+    req.body.allotatedHours,
+    req.body.summary,
+    projectId, // Use the project ID to specify which project to update
+  ];
+  con.query(sql, values, (err, result) => {
+    if (err) {
+      console.log(err, "error");
+      return res.json({ Error: "Inside update Project query" });
+    }
+    return res.json({ Status: "Success" });
+  });
+});
+''
 
 app.post("/project/addWorkDetails", (req, res) => {
   const baseSql =

@@ -3,7 +3,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
 import Box from "@mui/material/Box";
-import { 
+import {
   FormControl,
   FormHelperText,
   InputLabel,
@@ -38,12 +38,16 @@ function addLeaveDetails() {
         field: "employeeName",
         minWidth: 170,
       },
+      {
+        field: "employeeId",
+        minWidth: 170,
+      },
       { field: "leaveType" },
       { field: "leaveFrom" },
       { field: "leaveTo" },
-      { field: "leaveHours" },
+      { field: "leaveHours", headerName: "No of Days" },
       { field: "reason" },
-      { field: "leaveStatus" },
+      { field: "leaveStatus", headerName: "Approval Status" },
       {
         headerName: "Action",
         pinned: "right",
@@ -72,18 +76,22 @@ function addLeaveDetails() {
   useEffect(() => {
     axios.get(`${commonData?.APIKEY}/dashboard`).then((result) => {
       setValue("employeeName", result?.data?.userName);
-      setValue("employeeId", result?.data?.employeeId?.replace(/[A-Za-z]/g, ''));
+      setValue(
+        "employeeId",
+        result?.data?.employeeId?.replace(/[A-Za-z]/g, "")
+      );
     });
     getLeaves();
   }, [refresh]);
 
   useEffect(() => {
-    if (formData.leaveFrom !== "" && formData?.leaveTo !== "") {
-      const timeDifference = Math.abs(
-        new Date(formData.leaveTo) - new Date(formData.leaveFrom)
-      );
-      let Difference_In_Days = timeDifference / (1000 * 3600 * 24);
-      setValue("leaveHours", Difference_In_Days);
+    if (formData.leaveFrom !== "" && formData.leaveTo !== "") {
+      const from = new Date(formData.leaveFrom);
+      const to = new Date(formData.leaveTo);
+
+      const timeDifference = Math.abs(to - from);
+      const differenceInDays = Math.ceil(timeDifference / (1000 * 3600 * 12));
+      setValue("leaveHours", Math.max(1, differenceInDays));
     }
   }, [formData.leaveFrom, formData.leaveTo]);
 
@@ -96,7 +104,9 @@ function addLeaveDetails() {
           axios.get(`${commonData?.APIKEY}/dashboard`).then((result) => {
             console.log(result, "resultresult");
             let tempFinalResult = res?.data?.Result?.filter(
-              (item) => Number(item.employeeId?.replace(/[A-Za-z]/g, '')) === Number(result?.data?.employeeId?.replace(/[A-Za-z]/g, ''))
+              (item) =>
+                Number(item.employeeId?.replace(/[A-Za-z]/g, "")) ===
+                Number(result?.data?.employeeId?.replace(/[A-Za-z]/g, ""))
             );
             console.log(tempFinalResult, "tempFinalResulttempFinalResult");
             setRowData(tempFinalResult);
@@ -199,7 +209,7 @@ function addLeaveDetails() {
                         {...field}
                         error={Boolean(errors.leaveType)}
                       >
-                        <MenuItem value={"Vecation"}>Casual Leave</MenuItem>
+                        <MenuItem value={"Casual Leave"}>Casual Leave</MenuItem>
                         <MenuItem value={"Sick Leave"}>Sick Leave</MenuItem>
                         <MenuItem value={"Earned Leave"}>Earned Leave</MenuItem>
                         <MenuItem value={"Comp-off"}>Comp Off</MenuItem>

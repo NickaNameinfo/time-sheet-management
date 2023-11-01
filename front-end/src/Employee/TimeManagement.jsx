@@ -255,6 +255,10 @@ const TimeManagement = () => {
     if (formData[index]?.referenceNo === "") {
       errorMessages["referenceNo"] = "This fiedl is required";
     }
+    if (!formData?.[index]?.totalHours || formData?.[index]?.totalHours === 0) {
+      errorMessages["TotalWrok"] = "This fiedl is required";
+      alert("Total work hours should not 0");
+    }
     console.log(errorMessages, "errorMessageerrorMessage", errorMessage, index);
     setErrorMessage(() => ({
       [index]: errorMessages,

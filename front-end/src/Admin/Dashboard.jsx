@@ -174,7 +174,7 @@ function Dashboard() {
                 <span className="txt_col">Comp-Off</span>
               </Link>
             </li>
-            <li className="multimenu">
+            {roles?.[0] === "Admin" && <li className="multimenu">
               <div className="d-flex justify-content-center">
                 <span className="material-symbols-outlined fa-solid fa-gear"></span>
                 <Link>
@@ -188,7 +188,8 @@ function Dashboard() {
                 <Link to="/Dashboard/Areaofwork">Area of Work</Link>
                 <Link to="/Dashboard/Variations">Variation</Link>
               </ul>
-            </li>
+            </li>}
+            
             <li onClick={() => handleLogout()}>
               <span className="material-symbols-outlined  fs-5 bi-power"></span>
               <Link>

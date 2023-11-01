@@ -39,10 +39,13 @@ function CompOff() {
         field: "employeeName",
         minWidth: 170,
       },
-      { field: "leaveType" },
-      { field: "leaveFrom" },
-      { field: "reason" },
-      { field: "leaveStatus" },
+      {
+        field: "employeeId",
+        minWidth: 170,
+      },
+      { field: "workHours" },
+      { field: "leaveFrom", headerName : "Worked on" },
+      { field: "leaveStatus", headerName: "Approval Status" },
       {
         headerName: "Action",
         pinned: "right",
@@ -70,7 +73,7 @@ function CompOff() {
 
   useEffect(() => {
     axios.get(`${commonData?.APIKEY}/dashboard`).then((result) => {
-      console.log(result, "result12121")
+      console.log(result, "result12121");
       setValue("employeeName", result?.data?.userName);
       setValue(
         "employeeId",
@@ -90,7 +93,8 @@ function CompOff() {
             console.log(result, "resultresult");
             let tempFinalResult = res?.data?.Result?.filter(
               (item) =>
-                Number(item.employeeId?.replace(/[A-Za-z]/g, "")) === Number(result?.data?.employeeId?.replace(/[A-Za-z]/g, ""))
+                Number(item.employeeId?.replace(/[A-Za-z]/g, "")) ===
+                Number(result?.data?.employeeId?.replace(/[A-Za-z]/g, ""))
             );
             console.log(tempFinalResult, "tempFinalResulttempFinalResult");
             setRowData(tempFinalResult);
@@ -110,7 +114,7 @@ function CompOff() {
         if (res.data.Error) {
           alert(res.data.Error);
         } else {
-          location.reload()
+          location.reload();
         }
       })
       .catch((err) => console.log(err));
@@ -183,7 +187,7 @@ function CompOff() {
                     name="leaveType" // Make sure the name matches the field name in your form
                     control={control}
                     rules={{ required: "Leave Type is Required" }}
-                    defaultValue="" // Set the default value here if needed
+                    defaultValue="CompOff" // Set the default value here if needed
                     render={({ field }) => (
                       <Select
                         labelId="demo-simple-select-label"
@@ -239,6 +243,36 @@ function CompOff() {
                   </FormHelperText>
                 </Box>
               </div>
+              <div className="col-sm-4">
+                <Box sx={{}}>
+                  <LocalizationProvider dateAdapter={AdapterDayjs}>
+                    <Controller
+                      fullWidth
+                      name="workHours" // Make sure the name matches the field name in your form
+                      control={control}
+                      defaultValue="" // Set the default value here if needed
+                      rules={{ required: "Work Hours is Required." }}
+                      render={({ field }) => (
+                        <TextField
+                          fullWidth
+                          id="outlined-basic fullWidth"
+                          label="Work Hours"
+                          variant="outlined"
+                          type="number"
+                          {...field}
+                          error={Boolean(errors.workHours)}
+                          helperText={
+                            errors.workHours && errors.workHours.message
+                          }
+                        />
+                      )}
+                    />
+                  </LocalizationProvider>
+                  <FormHelperText>
+                    {errors.leaveFrom && errors.leaveFrom.message}
+                  </FormHelperText>
+                </Box>
+              </div>
             </div>
             <div className="col-sm-12">
               <Controller
@@ -250,7 +284,7 @@ function CompOff() {
                   <TextField
                     fullWidth
                     id="outlined-basic fullWidth"
-                    label="Reason"
+                    label="Project Details"
                     variant="outlined"
                     type="text"
                     {...field}
