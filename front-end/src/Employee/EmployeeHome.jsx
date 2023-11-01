@@ -209,7 +209,10 @@ function EmployeeHome() {
                   params.data?.item[formatDate(weekData?.[0])]?.["IN"]?.[0]
                 } / ${
                   params.data?.item[formatDate(weekData?.[0])]?.["OUT"]?.[0]
-                    ? params.data?.item[formatDate(weekData?.[0])]?.["OUT"]?.[0]
+                    ? params.data?.item[formatDate(weekData?.[0])]?.["OUT"]?.[
+                        params.data?.item[formatDate(weekData?.[0])]?.["OUT"]
+                          ?.length - 1
+                      ]
                     : "NP"
                 }`
               : "NP"}
@@ -235,7 +238,10 @@ function EmployeeHome() {
                   params.data?.item[formatDate(weekData?.[1])]?.["IN"]?.[0]
                 } / ${
                   params.data?.item[formatDate(weekData?.[1])]?.["OUT"]?.[0]
-                    ? params.data?.item[formatDate(weekData?.[1])]?.["OUT"]?.[0]
+                    ? params.data?.item[formatDate(weekData?.[1])]?.["OUT"]?.[
+                        params.data?.item[formatDate(weekData?.[1])]?.["OUT"]
+                          ?.length - 1
+                      ]
                     : "NP"
                 }`
               : "NP"}
@@ -251,7 +257,10 @@ function EmployeeHome() {
                   params.data?.item[formatDate(weekData?.[2])]?.["IN"]?.[0]
                 } / ${
                   params.data?.item[formatDate(weekData?.[2])]?.["OUT"]?.[0]
-                    ? params.data?.item[formatDate(weekData?.[2])]?.["OUT"]?.[0]
+                    ? params.data?.item[formatDate(weekData?.[2])]?.["OUT"]?.[
+                        params.data?.item[formatDate(weekData?.[2])]?.["OUT"]
+                          ?.length - 1
+                      ]
                     : "NP"
                 }`
               : "NP"}
@@ -273,7 +282,10 @@ function EmployeeHome() {
                   params.data?.item[formatDate(weekData?.[3])]?.["IN"]?.[0]
                 } / ${
                   params.data?.item[formatDate(weekData?.[3])]?.["OUT"]?.[0]
-                    ? params.data?.item[formatDate(weekData?.[3])]?.["OUT"]?.[0]
+                    ? params.data?.item[formatDate(weekData?.[3])]?.["OUT"]?.[
+                        params.data?.item[formatDate(weekData?.[3])]?.["OUT"]
+                          ?.length - 1
+                      ]
                     : "NP"
                 }`
               : "NP"}
@@ -289,7 +301,10 @@ function EmployeeHome() {
                   params.data?.item[formatDate(weekData?.[4])]?.["IN"]?.[0]
                 } / ${
                   params.data?.item[formatDate(weekData?.[4])]?.["OUT"]?.[0]
-                    ? params.data?.item[formatDate(weekData?.[4])]?.["OUT"]?.[0]
+                    ? params.data?.item[formatDate(weekData?.[4])]?.["OUT"]?.[
+                        params.data?.item[formatDate(weekData?.[4])]?.["OUT"]
+                          ?.length - 1
+                      ]
                     : "NP"
                 }`
               : "NP"}
@@ -305,7 +320,10 @@ function EmployeeHome() {
                   params.data?.item[formatDate(weekData?.[5])]?.["IN"]?.[0]
                 } / ${
                   params.data?.item[formatDate(weekData?.[5])]?.["OUT"]?.[0]
-                    ? params.data?.item[formatDate(weekData?.[5])]?.["OUT"]?.[0]
+                    ? params.data?.item[formatDate(weekData?.[5])]?.["OUT"]?.[
+                        params.data?.item[formatDate(weekData?.[5])]?.["OUT"]
+                          ?.length - 1
+                      ]
                     : "NP"
                 }`
               : "NP"}
@@ -321,7 +339,10 @@ function EmployeeHome() {
                   params.data?.item[formatDate(weekData?.[6])]?.["IN"]?.[0]
                 } / ${
                   params.data?.item[formatDate(weekData?.[6])]?.["OUT"]?.[0]
-                    ? params.data?.item[formatDate(weekData?.[6])]?.["OUT"]?.[0]
+                    ? params.data?.item[formatDate(weekData?.[6])]?.["OUT"]?.[
+                        params.data?.item[formatDate(weekData?.[6])]?.["OUT"]
+                          ?.length - 1
+                      ]
                     : "NP"
                 }`
               : "NP"}
