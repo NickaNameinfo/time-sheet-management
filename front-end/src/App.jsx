@@ -69,7 +69,7 @@ function App() {
           <Route path="/Dashboard/create/:id?" element={<AddEmployee />}></Route>
           <Route path="/Dashboard/addLead" element={<AddLead />}></Route>
           <Route path="/Dashboard/addHr" element={<AddHr />}></Route>
-          <Route path="/Dashboard/addProject" element={<AddProject />}></Route>
+          <Route path="/Dashboard/addProject/:id?" element={<AddProject />}></Route>
           <Route path="/Dashboard/Reports/ProjectReport"  element={<ProjectReport />}></Route>
           <Route path="/Dashboard/Reports/WeeklyReport"  element={<WeeklyReport />}></Route>
           <Route path="/Dashboard/Reports/MonthlyReport"  element={<MonthlyReport />}></Route>

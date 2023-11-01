@@ -649,7 +649,7 @@ app.post("/hrLogin", (req, res) => {
 //Projects Apis
 app.post("/project/create", (req, res) => {
   const sql =
-    "INSERT INTO project (`tlName`,`orderId`,`positionNumber`, `subPositionNumber`,`projectNo`,`taskJobNo`, `referenceNo`,`desciplineCode`, `projectName`,`subDivision`,`startDate`,`targetDate`,`allotatedHours`, `summary`) VALUES (?)";
+    "INSERT INTO project (`tlName`,`orderId`,`positionNumber`, `subPositionNumber`,`projectNo`,`taskJobNo`, `referenceNo`,`desciplineCode`, `projectName`,`subDivision`,`startDate`,`targetDate`,`allotatedHours`) VALUES (?)";
   const values = [
     req.body.tlName,
     req.body.orderId,
@@ -664,7 +664,7 @@ app.post("/project/create", (req, res) => {
     req.body.startDate,
     req.body.targetDate,
     req.body.allotatedHours,
-    req.body.summary,
+    // req.body.summary,
   ];
   con.query(sql, [values], (err, result) => {
     console.log(err, "error");
@@ -690,8 +690,7 @@ app.put("/project/update/:projectId", (req, res) => {
       subDivision = ?,
       startDate = ?,
       targetDate = ?,
-      allotatedHours = ?,
-      summary = ?
+      allotatedHours = ?
     WHERE id = ?
   `;
   const values = [
@@ -707,8 +706,7 @@ app.put("/project/update/:projectId", (req, res) => {
     req.body.subDivision,
     req.body.startDate,
     req.body.targetDate,
-    req.body.allotatedHours,
-    req.body.summary,
+    req.body.allotatedHours,  // Corrected the field name here
     projectId, // Use the project ID to specify which project to update
   ];
   con.query(sql, values, (err, result) => {
@@ -719,7 +717,7 @@ app.put("/project/update/:projectId", (req, res) => {
     return res.json({ Status: "Success" });
   });
 });
-''
+
 
 app.post("/project/addWorkDetails", (req, res) => {
   const baseSql =
@@ -876,6 +874,23 @@ app.get("/getProject", (req, res) => {
     return res.json({ Status: "Success", Result: result });
   });
 });
+
+app.get("/getProject/:id", (req, res) => {
+  const projectId = req.params.id;
+  const sql = "SELECT * FROM project WHERE id = ?";
+  con.query(sql, [projectId], (err, result) => {
+    if (err) {
+      return res.json({ Error: "Get project by ID error in SQL" });
+    }
+
+    if (result.length === 0) {
+      return res.json({ Error: "Project not found" });
+    }
+
+    return res.json({ Status: "Success", Result: result[0]});
+  });
+});
+
 
 app.put("/project/update/completion/:projectId", (req, res) => {
   const projectId = req.params.projectId; // Extract the project ID from the URL

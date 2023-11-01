@@ -25,7 +25,7 @@ function Projects(props) {
   }, []);
 
   const onClickEdit = (id) => {
-    navigate(`/Dashboard/create/${id}`);
+    navigate(`/Dashboard/addProject/${id}`);
   };
 
   const columnDefs = useMemo(
@@ -47,11 +47,11 @@ function Projects(props) {
       { field: "startDate", minWidth: 170 },
       { field: "targetDate", minWidth: 170 },
       { field: "allotatedHours", minWidth: 170 },
-      { field: "summary", minWidth: 170 },
+      // { field: "summary", minWidth: 170 },
       {
         field: "Action",
         headerName: "Action",
-        editable : false,
+        editable: false,
         filter: false,
         cellRenderer: (params) => {
           return (

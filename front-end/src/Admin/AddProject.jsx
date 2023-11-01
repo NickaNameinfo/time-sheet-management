@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
@@ -21,9 +21,13 @@ function AddProject() {
     control,
     formState: { errors },
     setValue,
+    watch,
   } = useForm();
-  const navigate = useNavigate();
   const [empList, setEmpList] = useState(null);
+
+  let formDatas = watch();
+  const navigate = useNavigate();
+  const { id } = useParams();
 
   useEffect(() => {
     axios
@@ -43,9 +47,53 @@ function AddProject() {
       .catch((err) => console.log(err));
   }, []);
 
+  React.useEffect(() => {
+    if (id) {
+      getEmployeeDetails(id);
+    }
+  }, [id]);
+
   const onSubmit = (data) => {
     axios
       .post(`${commonData?.APIKEY}/project/create`, data)
+      .then((res) => {
+        if (res.data.Error) {
+          alert(res.data.Error);
+        } else {
+          navigate("/Dashboard/Projects");
+        }
+      })
+      .catch((err) => console.log(err));
+  };
+
+  const getEmployeeDetails = async (id) => {
+    await axios.get(`${commonData?.APIKEY}/getProject/${id}`).then((res) => {
+      console.log(res, "res2342342");
+      let tempData = {
+        tlName: res?.data?.Result?.tlName,
+        orderId: res?.data?.Result?.orderId,
+        positionNumber: res?.data?.Result?.positionNumber,
+        subPositionNumber: res?.data?.Result?.subPositionNumber,
+        projectNo: res?.data?.Result?.projectNo,
+        taskJobNo: res?.data?.Result?.taskJobNo,
+        referenceNo: res?.data?.Result?.referenceNo,
+        desciplineCode: res?.data?.Result?.desciplineCode,
+        projectName: res?.data?.Result?.projectName,
+        subDivision: res?.data?.Result?.subDivision,
+        startDate: res?.data?.Result?.startDate,
+        targetDate: res?.data?.Result?.targetDate,
+        allotatedHours: res?.data?.Result?.allotatedHours,
+        // summary: "234",
+      };
+      Object.keys(tempData).forEach((key) => {
+        setValue(key, tempData[key]);
+      });
+    });
+  };
+
+  const updateProject = (data) => {
+    axios
+      .put(`${commonData?.APIKEY}/project/update/${id}`, data)
       .then((res) => {
         if (res.data.Error) {
           alert(res.data.Error);
@@ -61,7 +109,7 @@ function AddProject() {
       <div className="mt-4">
         <h2 className="heading">Manage Project</h2>
 
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={handleSubmit(id ? updateProject : onSubmit)}>
           <div className="gy-3 row">
             <div className="col-sm-12">
               <Box sx={{}}>
@@ -290,12 +338,14 @@ function AddProject() {
                   <Controller
                     name="startDate" // Make sure the name matches the field name in your form
                     control={control}
+                    value={dayjs(formDatas?.startDate)}
                     defaultValue="" // Set the default value here if needed
                     rules={{ required: "Start Date is Required." }}
                     render={({ field }) => (
                       <DatePicker
                         label="Start Date"
-                        {...field}
+                        // {...field}
+                        value={dayjs(formDatas?.startDate)}
                         error={Boolean(errors.startDate)}
                         helperText={
                           errors.startDate && errors.startDate.message
@@ -331,7 +381,7 @@ function AddProject() {
                     render={({ field }) => (
                       <DatePicker
                         label="Target Date"
-                        {...field}
+                        value={dayjs(formDatas?.targetDate)}
                         error={Boolean(errors.targetDate)}
                         helperText={
                           errors.targetDate && errors.targetDate.message
@@ -378,7 +428,7 @@ function AddProject() {
                 )}
               />
             </div>
-            <div className="col-sm-12">
+            {/* <div className="col-sm-12">
               <Controller
                 control={control}
                 name="summary"
@@ -397,7 +447,7 @@ function AddProject() {
                   />
                 )}
               />
-            </div>
+            </div> */}
           </div>
           <button type="submit" className="btn btn-primary button">
             Submit
