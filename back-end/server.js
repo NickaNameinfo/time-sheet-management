@@ -971,6 +971,60 @@ app.delete("/project/delete/:id", (req, res) => {
   });
 });
 
+app.put("/updateLeave/:id", (req, res) => {
+  const leaveId = req.params.id;
+  const {
+    leaveType,
+    leaveFrom,
+    leaveTo,
+    leaveHours,
+    reason,
+    employeeName,
+    employeeId,
+    leaveStatus,
+    totalLeaves,
+  } = req.body;
+
+  const sql = `
+    UPDATE leavedetails
+    SET
+      leaveType = ?,
+      leaveFrom = ?,
+      leaveTo = ?,
+      leaveHours = ?,
+      reason = ?,
+      employeeName = ?,
+      employeeId = ?,
+      leaveStatus = ?,
+      totalLeaves = ?
+    WHERE id = ?
+  `;
+
+  const values = [
+    leaveType,
+    leaveFrom,
+    leaveTo,
+    leaveHours,
+    reason,
+    employeeName,
+    employeeId,
+    leaveStatus,
+    totalLeaves,
+    leaveId, // id parameter for the WHERE clause
+  ];
+
+  con.query(sql, values, (err, result) => {
+    if (err) {
+      // Handle error
+      return res.json({ Error: err });
+    } else {
+      // Handle success
+      return res.json({ Status: "Success", Result: result });
+    }
+  });
+});
+
+
 app.post("/create/updates", upload.single("Announcements"), (req, res) => {
   console.log("req.body", req.file);
   const sql =
