@@ -30,7 +30,7 @@ function Dashboard() {
 
   return (
     <div className="container-fluid arris-page">
-      <div className="row flex-nowrap min-vh-91">
+      <div className="row flex-nowrap">
         <div className="col-auto px-sm-2 px-0 sidebar">
           <div className="logo">
             <img
@@ -78,13 +78,24 @@ function Dashboard() {
                     <span className="txt_col">Manage Hr</span>
                   </Link>
                 </li>
-
-                <li>
+                <li className="multimenu">
+                  <div className="d-flex justify-content-center">
+                    <span className="material-symbols-outlined fa-solid fa-gear"></span>
+                    <Link>
+                      <span className="txt_col">Approvels</span>
+                    </Link>
+                  </div>
+                  <ul className="submenu">
+                    <Link to="/Dashboard/Leaves">Leave Details</Link>
+                    <Link to="/Dashboard/CompOffList">Comp-Off Details</Link>
+                  </ul>
+                </li>
+                {/* <li>
                   <span className="material-symbols-outlined fs-5  bi-journal-check "></span>
                   <Link to="/Dashboard/Leaves">
                     <span className="txt_col">Leave Details</span>
                   </Link>
-                </li>
+                </li> */}
                 <li className="multimenu">
                   <div className="d-flex justify-content-center">
                     <span className="material-symbols-outlined fs-5  bi-clipboard-data-fill"></span>
@@ -174,22 +185,24 @@ function Dashboard() {
                 <span className="txt_col">Comp-Off</span>
               </Link>
             </li>
-            {roles?.[0] === "Admin" && <li className="multimenu">
-              <div className="d-flex justify-content-center">
-                <span className="material-symbols-outlined fa-solid fa-gear"></span>
-                <Link>
-                  <span className="txt_col">Settings</span>
-                </Link>
-              </div>
-              <ul className="submenu">
-                <Link to="/Dashboard/Settings">Updates</Link>
-                <Link to="/Dashboard/Discipline">Discipline</Link>
-                <Link to="/Dashboard/Designation">Designation</Link>
-                <Link to="/Dashboard/Areaofwork">Area of Work</Link>
-                <Link to="/Dashboard/Variations">Variation</Link>
-              </ul>
-            </li>}
-            
+            {roles?.[0] === "Admin" && (
+              <li className="multimenu">
+                <div className="d-flex justify-content-center">
+                  <span className="material-symbols-outlined fa-solid fa-gear"></span>
+                  <Link>
+                    <span className="txt_col">Settings</span>
+                  </Link>
+                </div>
+                <ul className="submenu">
+                  <Link to="/Dashboard/Settings">Updates</Link>
+                  <Link to="/Dashboard/Discipline">Discipline</Link>
+                  <Link to="/Dashboard/Designation">Designation</Link>
+                  <Link to="/Dashboard/Areaofwork">Area of Work</Link>
+                  <Link to="/Dashboard/Variations">Variation</Link>
+                </ul>
+              </li>
+            )}
+
             <li onClick={() => handleLogout()}>
               <span className="material-symbols-outlined  fs-5 bi-power"></span>
               <Link>

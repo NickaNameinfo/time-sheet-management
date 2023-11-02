@@ -342,7 +342,7 @@ function addLeaveDetails() {
           </button>
         </form>
       </div>
-      <div style={{ width: "100%", height: "100%" }}>
+      <div style={{ width: "100%", height: "500px",  marginBottom : "10%" }}>
         <div className="text-center pb-1 my-3">
           <h4>Leave Details</h4>
         </div>

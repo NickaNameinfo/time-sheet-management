@@ -44,7 +44,8 @@ function CompOff() {
         minWidth: 170,
       },
       { field: "workHours" },
-      { field: "leaveFrom", headerName : "Worked on" },
+      { field: "eligibility", headerName: "Compensation eligibility" },
+      { field: "leaveFrom", headerName: "Worked on" },
       { field: "leaveStatus", headerName: "Approval Status" },
       {
         headerName: "Action",
@@ -181,18 +182,18 @@ function CompOff() {
               <Box sx={{}}>
                 <FormControl fullWidth>
                   <InputLabel id="demo-simple-select-label">
-                    Leave Type is Required
+                    Comp Off
                   </InputLabel>
                   <Controller
                     name="leaveType" // Make sure the name matches the field name in your form
                     control={control}
-                    rules={{ required: "Leave Type is Required" }}
+                    rules={{ required: "Comp Off is Required" }}
                     defaultValue="CompOff" // Set the default value here if needed
                     render={({ field }) => (
                       <Select
                         labelId="demo-simple-select-label"
                         id="demo-simple-select"
-                        label="Leave Type is Required"
+                        label="Comp Off is Required"
                         {...field}
                         error={Boolean(errors.leaveType)}
                       >
@@ -300,9 +301,9 @@ function CompOff() {
           </button>
         </form>
       </div>
-      <div style={{ width: "100%", height: "100%" }}>
+      <div style={{ width: "100%", height: "500px", marginBottom : "10%" }}>
         <div className="text-center pb-1 my-3">
-          <h4>Leave Details</h4>
+          <h4>Comp-off Details</h4>
         </div>
         <div style={containerStyle}>
           <div style={gridStyle} className="ag-theme-alpine">

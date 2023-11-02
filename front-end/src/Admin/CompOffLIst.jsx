@@ -5,7 +5,7 @@ import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import commonData from "../../common.json";
-function Leaves() {
+function CompOffLIst() {
   const containerStyle = { width: "100%", height: "100%" };
   const gridStyle = { height: "100%", width: "100%" };
   const [rowData, setRowData] = useState([]);
@@ -16,15 +16,21 @@ function Leaves() {
       ...params.data,
       approvedDate: new Date(),
       leaveStatus: status,
+      eligibility: params.data.eligibility,
     };
     console.log(apiTemp, "apiTempapiTempapiTemp", params.data);
-    axios
-      .put(`${commonData?.APIKEY}/updateLeave/` + params.data.id, apiTemp)
-      .then(async (res) => {
-        setRefresh(true);
-        alert("Update Successfully");
-        location.reload();
-      });
+    if (params.data.eligibility !== "") {
+      axios
+        .put(`${commonData?.APIKEY}/updateCompOff/` + params.data.id, apiTemp)
+        .then(async (res) => {
+          setRefresh(true);
+          alert("Update Successfully");
+          location.reload();
+        });
+    } else {
+      alert("Please enter eligibility hours");
+    }
+
     console.log(params.data, "datadatadatadata");
   };
 
@@ -34,12 +40,14 @@ function Leaves() {
         field: "employeeName",
         minWidth: 170,
       },
-      { field: "leaveType" },
-      { field: "leaveFrom" },
-      { field: "leaveTo" },
-      { field: "leaveHours" },
-      { field: "reason" },
-      { field: "leaveStatus" },
+      {
+        field: "employeeId",
+        minWidth: 170,
+      },
+      { field: "workHours" },
+      { field: "eligibility", editable: true },
+      { field: "leaveFrom", headerName: "Worked on" },
+      { field: "leaveStatus", headerName: "Approval Status" },
       {
         headerName: "Action",
         pinned: "right",
@@ -111,7 +119,7 @@ function Leaves() {
 
   const onGridReady = useCallback((params) => {
     axios
-      .get(`${commonData?.APIKEY}/getLeaveDetails`)
+      .get(`${commonData?.APIKEY}/getcompOffDetails`)
       .then((res) => {
         if (res.data.Status === "Success") {
           let filterDat = res.data.Result?.filter(
@@ -129,7 +137,7 @@ function Leaves() {
   return (
     <>
       <div className="text-center pb-1 my-3">
-        <h4>Leave Details</h4>
+        <h4>Comp-Off Details</h4>
       </div>
       <div style={containerStyle}>
         <div style={gridStyle} className="ag-theme-alpine leavetable">
@@ -153,4 +161,4 @@ function Leaves() {
   );
 }
 
-export default Leaves;
+export default CompOffLIst;
