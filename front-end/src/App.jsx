@@ -46,6 +46,7 @@ import { Designation } from "./Admin/Designation";
 import { Areaofwork } from "./Admin/Areaofwork";
 import { Variations } from "./Admin/Variations";
 import CompOff from "./Employee/CompOff";
+import CompOffLIst from "./Admin/compOffLIst";
 
 function App() {
   return (
@@ -65,6 +66,7 @@ function App() {
           <Route path="/Dashboard/hr" element={<Hr />}></Route>
           <Route path="/Dashboard/projects" element={<Projects />}></Route>
           <Route path="/Dashboard/leaves" element={<Leaves />}></Route>
+          <Route path="/Dashboard/CompOffList" element={<CompOffLIst />}></Route>
           <Route path="/Dashboard/profile" element={<Profile />}></Route>
           <Route path="/Dashboard/create/:id?" element={<AddEmployee />}></Route>
           <Route path="/Dashboard/addLead" element={<AddLead />}></Route>

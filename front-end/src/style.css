@@ -118,7 +118,7 @@ h6 {
 
 .mainBody {
   padding: 20px 40px 11px;
-  height: 100vh;
+  /* height: 100vh; */
   overflow: auto;
   /* background-color: red; */
 }
@@ -388,7 +388,7 @@ tbody td {
 }
 
 body {
-  height: 100vh;
+  /* height: 100vh; */
   width: 100%;
   background-image: url("images/hero-bg.jpg");
   background-position: center;
@@ -407,9 +407,9 @@ body {
   border-right: 1px solid rgba(255, 255, 255, 0.7);
   transition: all 0.3s;
   z-index: 99;
-  height: 100vh;
-  overflow-y: auto;
-  overflow-x: hidden;
+  /* height: 100vh; */
+  /* overflow-y: auto;
+  overflow-x: hidden; */
 }
 .leavetable tr td {
   transition: all 0.3s;
@@ -524,7 +524,7 @@ body {
   height: 100%;
 }
 .submenu {
-  /* position: absolute; */
+  position: absolute;
   background: white;
   padding: 10px;
   z-index: 99999;
@@ -535,6 +535,8 @@ body {
   border: 1px solid #cbcbcb;
   display: none;
   margin-bottom: 10px;
+  bottom: 0;
+  z-index: 9999999;
 }
 li.multimenu:hover {
   display: block;

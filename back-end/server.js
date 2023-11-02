@@ -219,6 +219,97 @@ app.put("/compOff/:id", (req, res) => {
   });
 });
 
+app.put("/updateLeave/:id", (req, res) => {
+  const leaveId = req.params.id;
+  const {
+    leaveType,
+    leaveFrom,
+    leaveTo,
+    leaveHours,
+    reason,
+    employeeName,
+    employeeId,
+    leaveStatus,
+    totalLeaves,
+  } = req.body;
+
+  const sql = `
+    UPDATE leavedetails
+    SET
+      leaveType = ?,
+      leaveFrom = ?,
+      leaveTo = ?,
+      leaveHours = ?,
+      reason = ?,
+      employeeName = ?,
+      employeeId = ?,
+      leaveStatus = ?,
+      totalLeaves = ?
+    WHERE id = ?
+  `;
+
+  const values = [
+    leaveType,
+    leaveFrom,
+    leaveTo,
+    leaveHours,
+    reason,
+    employeeName,
+    employeeId,
+    leaveStatus,
+    totalLeaves,
+    leaveId, // id parameter for the WHERE clause
+  ];
+
+  con.query(sql, values, (err, result) => {
+    if (err) {
+      // Handle error
+      return res.json({ Error: err });
+    } else {
+      // Handle success
+      return res.json({ Status: "Success", Result: result });
+    }
+  });
+});
+
+app.put("/updateCompOff/:compOffId", (req, res) => {
+  const compOffId = req.params.compOffId;
+  const sql = `
+    UPDATE compoff 
+    SET 
+      leaveType = ?,
+      leaveFrom = ?,
+      reason = ?,
+      employeeName = ?,
+      employeeId = ?,
+      workHours = ?,
+      eligibility = ?,
+      leaveStatus = ?
+    WHERE id = ?
+  `;
+  const values = [
+    req.body.leaveType,
+    req.body.leaveFrom,
+    req.body.reason,
+    req.body.employeeName,
+    req.body.employeeId,
+    req.body.workHours,
+    req.body.eligibility,
+    req.body.leaveStatus,
+    compOffId, // Use the compOff ID to specify which record to update
+  ];
+
+  con.query(sql, values, (err, result) => {
+    if (err) {
+      // Handle error
+      return res.json({ Error: err });
+    } else {
+      // Handle success
+      return res.json({ Status: "Success", Result: result });
+    }
+  });
+});
+
 app.get("/getcompOffDetails", (req, res) => {
   const sql = "SELECT * FROM compOff";
   con.query(sql, (err, result) => {
@@ -706,7 +797,7 @@ app.put("/project/update/:projectId", (req, res) => {
     req.body.subDivision,
     req.body.startDate,
     req.body.targetDate,
-    req.body.allotatedHours,  // Corrected the field name here
+    req.body.allotatedHours, // Corrected the field name here
     projectId, // Use the project ID to specify which project to update
   ];
   con.query(sql, values, (err, result) => {
@@ -717,7 +808,6 @@ app.put("/project/update/:projectId", (req, res) => {
     return res.json({ Status: "Success" });
   });
 });
-
 
 app.post("/project/addWorkDetails", (req, res) => {
   const baseSql =
@@ -887,10 +977,9 @@ app.get("/getProject/:id", (req, res) => {
       return res.json({ Error: "Project not found" });
     }
 
-    return res.json({ Status: "Success", Result: result[0]});
+    return res.json({ Status: "Success", Result: result[0] });
   });
 });
-
 
 app.put("/project/update/completion/:projectId", (req, res) => {
   const projectId = req.params.projectId; // Extract the project ID from the URL
@@ -912,7 +1001,6 @@ app.put("/project/update/completion/:projectId", (req, res) => {
     return res.json({ Status: "Success" });
   });
 });
-
 
 app.get("/getWrokDetails", (req, res) => {
   const sql = "SELECT * FROM workdetails";
@@ -970,60 +1058,6 @@ app.delete("/project/delete/:id", (req, res) => {
     return res.json({ Status: "Success" });
   });
 });
-
-app.put("/updateLeave/:id", (req, res) => {
-  const leaveId = req.params.id;
-  const {
-    leaveType,
-    leaveFrom,
-    leaveTo,
-    leaveHours,
-    reason,
-    employeeName,
-    employeeId,
-    leaveStatus,
-    totalLeaves,
-  } = req.body;
-
-  const sql = `
-    UPDATE leavedetails
-    SET
-      leaveType = ?,
-      leaveFrom = ?,
-      leaveTo = ?,
-      leaveHours = ?,
-      reason = ?,
-      employeeName = ?,
-      employeeId = ?,
-      leaveStatus = ?,
-      totalLeaves = ?
-    WHERE id = ?
-  `;
-
-  const values = [
-    leaveType,
-    leaveFrom,
-    leaveTo,
-    leaveHours,
-    reason,
-    employeeName,
-    employeeId,
-    leaveStatus,
-    totalLeaves,
-    leaveId, // id parameter for the WHERE clause
-  ];
-
-  con.query(sql, values, (err, result) => {
-    if (err) {
-      // Handle error
-      return res.json({ Error: err });
-    } else {
-      // Handle success
-      return res.json({ Status: "Success", Result: result });
-    }
-  });
-});
-
 
 app.post("/create/updates", upload.single("Announcements"), (req, res) => {
   console.log("req.body", req.file);
