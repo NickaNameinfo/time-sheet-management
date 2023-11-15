@@ -13,6 +13,8 @@ const MonthlyReport = () => {
   const [projectDetails, setProjectDetails] = useState([]);
   const [workDetails, setWorkDetails] = useState([]);
   const [projectWorkHours, setProjectWorkHours] = React.useState(null);
+  const [exportApi, setExportApi] = React.useState(null);
+
   console.log(workDetails, "workDetailsworkDetails");
   React.useEffect(() => {
     onGetWorkDetails();
@@ -45,6 +47,7 @@ const MonthlyReport = () => {
   }, [workDetails]);
 
   const onGridReady = (params) => {
+    setExportApi(params?.api);
     axios
       .get(`${commonData?.APIKEY}/getProject`)
       .then((res) => {
@@ -166,12 +169,26 @@ const MonthlyReport = () => {
     []
   );
 
+  
+  const onClickExport = () => {
+    console.log(exportApi, "grdiApigrdiApi");
+    exportApi.exportDataAsCsv();
+  };
+
+
   return (
     <>
       <div className="text-center pb-1 my-3">
         <h4>Project Monthly Report</h4>
       </div>
       <div style={containerStyle}>
+      <Button
+          onClick={() => onClickExport()}
+          variant="contained"
+          className="mb-3 mx-3"
+        >
+          Export{" "}
+        </Button>
         <div style={gridStyle} className="ag-theme-alpine leavetable">
           <AgGridReact
             rowData={projectDetails}

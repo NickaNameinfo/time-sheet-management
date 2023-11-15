@@ -52,7 +52,7 @@ const TimeManagement = () => {
       40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
     ];
     setWeekNumberList(tempList);
-    setSelectedWeek(String(getCurrentWeekNumber()));
+    // setSelectedWeek(String(getCurrentWeekNumber()));
     getAreaofWorkDeails();
     getVariation();
   }, [selectedWeek, refresh]);
@@ -348,6 +348,9 @@ const TimeManagement = () => {
   }
 
   const handleOnChange = (name, value, index) => {
+    if (value.match(/[^0-9]/)) {
+      preventDefault();
+    }
     console.log(value, name, "tesfadhandle");
     setCurrentIndex(index);
     if (name === "referenceNo") {

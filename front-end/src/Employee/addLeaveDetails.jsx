@@ -231,7 +231,6 @@ function addLeaveDetails() {
                       fullWidth
                       name="leaveFrom" // Make sure the name matches the field name in your form
                       control={control}
-                      defaultValue="" // Set the default value here if needed
                       rules={{ required: "Work Date From is Required." }}
                       render={({ field }) => (
                         <DatePicker
@@ -267,10 +266,10 @@ function addLeaveDetails() {
                       fullWidth:fullWidth
                       name="leaveTo" // Make sure the name matches the field name in your form
                       control={control}
-                      defaultValue="" // Set the default value here if needed
                       rules={{ required: "Leave To is Required." }}
                       render={({ field }) => (
                         <DatePicker
+                          minDate={dayjs(formData?.leaveFrom)}
                           label="Leave To"
                           {...field}
                           error={Boolean(errors.leaveTo)}
@@ -278,6 +277,7 @@ function addLeaveDetails() {
                           renderInput={(props) => (
                             <TextField {...props} fullWidth />
                           )}
+                          disabled={formData?.leaveFrom ? false : true}
                           onChange={(newValue) =>
                             setValue(
                               "leaveTo",
@@ -342,7 +342,7 @@ function addLeaveDetails() {
           </button>
         </form>
       </div>
-      <div style={{ width: "100%", height: "500px",  marginBottom : "10%" }}>
+      <div style={{ width: "100%", height: "500px", marginBottom: "10%" }}>
         <div className="text-center pb-1 my-3">
           <h4>Leave Details</h4>
         </div>

@@ -10,6 +10,8 @@ const LeaveReport = () => {
   const containerStyle = { width: "100%", height: "100%" };
   const gridStyle = { height: "100%", width: "100%" };
   const [projectDetails, setProjectDetails] = useState([]);
+  const [exportApi, setExportApi] = React.useState(null);
+
   console.log(projectDetails, "projectDetails");
   React.useEffect(() => {
     onGridReady();
@@ -45,6 +47,7 @@ const LeaveReport = () => {
   };
 
   const onGridReady = (params) => {
+    setExportApi(params?.api);
     axios
       .get(`${commonData?.APIKEY}/getLeaveDetails`)
       .then((res) => {
@@ -91,12 +94,24 @@ const LeaveReport = () => {
     []
   );
 
+  const onClickExport = () => {
+    console.log(exportApi, "grdiApigrdiApi");
+    exportApi.exportDataAsCsv();
+  };
+
   return (
     <>
       <div className="text-center pb-1 my-3">
         <h4>Leave Report</h4>
       </div>
       <div style={containerStyle}>
+        <Button
+          onClick={() => onClickExport()}
+          variant="contained"
+          className="mb-3 mx-3"
+        >
+          Export{" "}
+        </Button>
         <div style={gridStyle} className="ag-theme-alpine leavetable">
           <AgGridReact
             rowData={projectDetails}

@@ -122,6 +122,9 @@ function AddEmployee() {
     if (name === "Employee") {
       updatedRoles = "Employee";
     }
+    if(name === "HR"){
+      updatedRoles = "HR";
+    }
     setTempRole(updatedRoles); // Update the state with the new roles array
     console.log(updatedRoles, "updatedRoles");
   };
@@ -210,7 +213,6 @@ function AddEmployee() {
               <Controller
                 control={control}
                 name="employeeEmail"
-                rules={{ required: "Email is required." }}
                 render={({ field }) => (
                   <Box sx={{}}>
                     <TextField
@@ -417,12 +419,17 @@ function AddEmployee() {
                     <FormControlLabel
                       value="Tl"
                       control={<Radio />}
-                      label="Tl"
+                      label="TL"
                     />
                     <FormControlLabel
                       value="Admin"
                       control={<Radio />}
                       label="Admin"
+                    />
+                    <FormControlLabel
+                      value="HR"
+                      control={<Radio />}
+                      label="HR"
                     />
                     <FormControlLabel
                       value="Employee"

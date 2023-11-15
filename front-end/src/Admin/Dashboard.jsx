@@ -72,12 +72,12 @@ function Dashboard() {
                     <span className="txt_col">Manage Projects</span>
                   </Link>
                 </li>
-                <li>
+                {/* <li>
                   <span className="material-symbols-outlined fs-5 bi-people-fill"></span>
                   <Link to="/Dashboard/hr">
                     <span className="txt_col">Manage Hr</span>
                   </Link>
-                </li>
+                </li> */}
                 <li className="multimenu">
                   <div className="d-flex justify-content-center">
                     <span className="material-symbols-outlined fa-solid fa-gear"></span>

@@ -17,11 +17,10 @@ function EmployeeHome() {
   const [reamaining, setRemaining] = useState(null);
   const [earned, setEarned] = useState(null);
   const [compOffLeave, setCompOffLeave] = useState(null);
-  const containerStyle = { width: "100%", height: "100%" };
-  const gridStyle = { height: "100%", width: "100%" };
+  const containerStyle = { width: "100%", height: "500px" };
+  const gridStyle = { height: "500px", width: "100%" };
   const [rowData, setRowData] = useState(null);
   const [weekData, setWeekDate] = React.useState(null);
-  const [inOutTIme, setInOutTime] = React.useState(null);
   const [userDetails, setUserDetails] = React.useState(null);
   const [appliedLeaves, setAppliedLeaves] = React.useState(null);
   console.log(totalLeaves, "rowDatarowData", rowData, weekData);
@@ -40,24 +39,19 @@ function EmployeeHome() {
   }, []);
 
   React.useEffect(() => {
-    if (
-      vacationLeave !== null &&
-      sickLeave !== null &&
-      earned !== null &&
-      compOffLeave !== null
-    ) {
-      setRemaining(
-        (Number(vacationLeave) || 0) -
-          (Number(sickLeave) || 0) -
-          (Number(earned) || 0) -
-          (Number(compOffLeave) || 0)
-      );
-    } else {
-      // Handle the case where one or more values are null or undefined
-      // You might set an error message or handle it in some other way
-      setRemaining(0); // or another suitable default value
-    }
-  }, [vacationLeave, sickLeave, earned, earned]);
+    let tempLeave =
+      Number(vacationLeave) -
+      Number(sickLeave) -
+      Number(earned) -
+      Number(compOffLeave);
+    console.log(
+      Number(vacationLeave),
+      Number(sickLeave),
+      Number(earned),
+      Number(compOffLeave),
+      "Number(compOffLeave)"
+    );
+  }, [vacationLeave, sickLeave, earned, compOffLeave]);
 
   React,
     useEffect(() => {
@@ -124,20 +118,23 @@ function EmployeeHome() {
       .then((res) => {
         if (res.data.Status === "Success") {
           axios.get(`${commonData?.APIKEY}/dashboard`).then((result) => {
-            let tempFinalResult = res?.data?.Result?.filter(
-              (item) =>
-                item.employeeName === result?.data?.userName &&
-                item?.leaveStatus === "approved"
+            // let tempFinalResult = res?.data?.Result?.filter(
+            //   (item) =>
+            //     item.employeeName === result?.data?.userName &&
+            //     item?.leaveStatus === "approved"
+            // );
+            const totalEligibility = res?.data?.Result?.reduce(
+              (total, item) => {
+                // Use parseInt to convert eligibility values to numbers and handle potential non-numeric values
+                const eligibility = parseInt(item.eligibility) || 0;
+                return total + eligibility;
+              },
+              0
             );
-            const hoursInADay = 9; // Assuming a 9-hour workday
 
-            const daysWorked = tempFinalResult
-              .filter((entry) => entry.workHours !== "")
-              .map((entry) => Math.ceil(entry.workHours / hoursInADay))
-              .reduce((total, days) => total + days, 0);
+            setCompOffLeave(Math.round(totalEligibility / 8)); // Corrected to Math.round
 
-            setCompOffLeave(daysWorked);
-            console.log(daysWorked, "tempFinalResult");
+            console.log(totalEligibility, "tempFinalResult");
           });
         }
       })
@@ -163,8 +160,10 @@ function EmployeeHome() {
             );
             setAppliedLeaves(tempFinalResult);
 
+            console.log("tempFinalResult4534", tempFinalResult);
+
             const vacationLeaveCount = tempFinalResult.filter(
-              (item) => item.leaveType === "Vecation"
+              (item) => item.leaveType === "Casual Leave"
             ).length;
             const scikLeaveCount = tempFinalResult.filter(
               (item) => item.leaveType === "Sick Leave"
@@ -569,7 +568,7 @@ function EmployeeHome() {
                 </div>
               </div>
             </div>
-            <div className="col">
+            {/* <div className="col">
               <div className="counterCard">
                 <div className="counterCardmain">
                   <div className="smallboxP">
@@ -584,7 +583,7 @@ function EmployeeHome() {
                   <p className="counterCardTitle">Remaining Leave</p>
                 </div>
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
         <div className="text-center pb-1 my-3">
