@@ -101,7 +101,7 @@ const ProjectReport = () => {
       },
       { field: "projectNo" },
       { field: "projectName" },
-      { field: "desciplineCode" },
+      { field: "desciplineCode", headerName: "Discipline Code" },
       {
         field: "completion",
         // valueGetter: (params) =>
@@ -112,7 +112,7 @@ const ProjectReport = () => {
         valueGetter: (params) =>
           calculateProjectValues(params, projectWorkHours).completionPercentage,
       },
-      { field: "allotatedHours" },
+      { field: "allotatedHours", headerName : "Allotted Hours" },
       {
         field: "Consumed Hours",
         valueGetter: (params) =>

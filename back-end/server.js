@@ -1119,6 +1119,14 @@ app.delete("/updates/delete/:id", (req, res) => {
   });
 });
 
+app.delete("/areaofwork/delete/:id", (req, res) => {
+  const id = req.params.id;
+  const sql = "Delete FROM areaofwork WHERE id = ?";
+  con.query(sql, [id], (err, result) => {
+    if (err) return res.json({ Error: "delete areaofwork error in sql" });
+    return res.json({ Status: "Success" });
+  });
+});
 app.delete("/designation/delete/:id", (req, res) => {
   const id = req.params.id;
   const sql = "Delete FROM designation WHERE id = ?";

@@ -1,7 +1,13 @@
 import axios from "axios";
 import React, { useEffect, useState } from "react";
-import {  BsBadgeTmFill, BsBarChartLineFill, BsFillHCircleFill, BsFillPersonBadgeFill, BsPersonCircle } from "react-icons/bs";
-import commonData from "../../common.json"
+import {
+  BsBadgeTmFill,
+  BsBarChartLineFill,
+  BsFillHCircleFill,
+  BsFillPersonBadgeFill,
+  BsPersonCircle,
+} from "react-icons/bs";
+import commonData from "../../common.json";
 // import "./style.css";
 
 function Home() {
@@ -11,7 +17,7 @@ function Home() {
   const [project, setProject] = useState(null);
 
   useEffect(() => {
-    getHr();
+    // getHr();
     getProject();
     getTl();
     getEmployee();
@@ -49,24 +55,28 @@ function Home() {
       .then((res) => {
         if (res.data.Status === "Success") {
           setEmployee(res.data.Result.length);
+          let htCount = res?.data?.Result?.filter(
+            (item) => item?.role === "HR"
+          );
+          setHr(htCount?.length);
         } else {
           alert("Error");
         }
       })
       .catch((err) => console.log(err));
   };
-  const getHr = () => {
-    axios
-      .get(`${commonData?.APIKEY}/getHr`)
-      .then((res) => {
-        if (res.data.Status === "Success") {
-          setHr(res.data.Result.length);
-        } else {
-          alert("Error");
-        }
-      })
-      .catch((err) => console.log(err));
-  };
+  // const getHr = () => {
+  //   axios
+  //     .get(`${commonData?.APIKEY}/getHr`)
+  //     .then((res) => {
+  //       if (res.data.Status === "Success") {
+  //         setHr(res.data.Result.length);
+  //       } else {
+  //         alert("Error");
+  //       }
+  //     })
+  //     .catch((err) => console.log(err));
+  // };
   return (
     <div className="mainBody">
       <div className="mt-5">
@@ -83,7 +93,7 @@ function Home() {
                 </div>
               </div>
               <div className="counterCardname">
-                <p  className="counterCardTitle">Team Lead</p>
+                <p className="counterCardTitle">Team Lead</p>
               </div>
             </div>
           </div>
@@ -121,7 +131,7 @@ function Home() {
           </div>
           <div className="col-sm-3">
             <div className="counterCard">
-            <div className="counterCardmain">
+              <div className="counterCardmain">
                 <div className="smallboxP">
                   <BsBarChartLineFill className="icon_admin" />
                 </div>
@@ -131,7 +141,7 @@ function Home() {
                 </div>
               </div>
               <div className="counterCardname">
-                <p className="counterCardTitle" >Project Detail</p>
+                <p className="counterCardTitle">Project Detail</p>
               </div>
             </div>
           </div>

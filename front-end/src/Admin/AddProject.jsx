@@ -24,6 +24,7 @@ function AddProject() {
     watch,
   } = useForm();
   const [empList, setEmpList] = useState(null);
+  const [rowData, setRowData] = useState([]);
 
   let formDatas = watch();
   const navigate = useNavigate();
@@ -45,6 +46,7 @@ function AddProject() {
         }
       })
       .catch((err) => console.log(err));
+    getProjectDetails();
   }, []);
 
   React.useEffect(() => {
@@ -54,16 +56,24 @@ function AddProject() {
   }, [id]);
 
   const onSubmit = (data) => {
-    axios
-      .post(`${commonData?.APIKEY}/project/create`, data)
-      .then((res) => {
-        if (res.data.Error) {
-          alert(res.data.Error);
-        } else {
-          navigate("/Dashboard/Projects");
-        }
-      })
-      .catch((err) => console.log(err));
+    const isNumberIncluded = rowData.some(
+      (item) => Number(item.referenceNo) === Number(formDatas?.referenceNo)
+    );
+    console.log(rowData, "rowData321423", isNumberIncluded);
+    if (isNumberIncluded) {
+      alert(`${formDatas?.referenceNo} is already is exist.`);
+    } else {
+      axios
+        .post(`${commonData?.APIKEY}/project/create`, data)
+        .then((res) => {
+          if (res.data.Error) {
+            alert(res.data.Error);
+          } else {
+            navigate("/Dashboard/Projects");
+          }
+        })
+        .catch((err) => console.log(err));
+    }
   };
 
   const getEmployeeDetails = async (id) => {
@@ -99,6 +109,20 @@ function AddProject() {
           alert(res.data.Error);
         } else {
           navigate("/Dashboard/Projects");
+        }
+      })
+      .catch((err) => console.log(err));
+  };
+
+  const getProjectDetails = () => {
+    axios
+      .get(`${commonData?.APIKEY}/getProject`)
+      .then((res) => {
+        if (res.data.Status === "Success") {
+          console.log(res.data.Result, "rowData321423");
+          setRowData(res.data.Result);
+        } else {
+          alert("Error");
         }
       })
       .catch((err) => console.log(err));
@@ -380,6 +404,7 @@ function AddProject() {
                     rules={{ required: "Target Date is Required." }}
                     render={({ field }) => (
                       <DatePicker
+                        minDate={dayjs(formDatas?.startDate)}
                         label="Target Date"
                         value={dayjs(formDatas?.targetDate)}
                         error={Boolean(errors.targetDate)}

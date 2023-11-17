@@ -4,8 +4,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
-import commonData from "../../../common.json"
-
+import commonData from "../../../common.json";
 
 const YearlyReport = () => {
   const containerStyle = { width: "100%", height: "100%" };
@@ -14,6 +13,8 @@ const YearlyReport = () => {
   const [workDetails, setWorkDetails] = useState([]);
   const [projectWorkHours, setProjectWorkHours] = React.useState(null);
   const [yearBasedDetails, setYearBasedDetails] = React.useState([]);
+  const [exportApi, setExportApi] = React.useState(null);
+
   console.log(workDetails, "workDetailsworkDetails");
   React.useEffect(() => {
     onGetWorkDetails();
@@ -95,6 +96,7 @@ const YearlyReport = () => {
   }, [workDetails]);
 
   const onGridReady = (params) => {
+    setExportApi(params?.api);
     axios
       .get(`${commonData?.APIKEY}/getProject`)
       .then((res) => {
@@ -243,12 +245,24 @@ const YearlyReport = () => {
     []
   );
 
+  const onClickExport = () => {
+    console.log(exportApi, "grdiApigrdiApi");
+    exportApi.exportDataAsCsv();
+  };
+
   return (
     <>
       <div className="text-center pb-1 my-3">
         <h4>Project Yearly Report</h4>
       </div>
       <div style={containerStyle}>
+        <Button
+          onClick={() => onClickExport()}
+          variant="contained"
+          className="mb-3 mx-3"
+        >
+          Export{" "}
+        </Button>
         <div style={gridStyle} className="ag-theme-alpine leavetable">
           <AgGridReact
             rowData={projectDetails}

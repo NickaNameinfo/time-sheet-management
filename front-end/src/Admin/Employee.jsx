@@ -28,7 +28,7 @@ function Employee() {
         minWidth: 170,
         checkboxSelection: true,
       },
-      { field: "EMPID" },
+      { field: "EMPID", headerName : "Employee ID" },
       { field: "employeeEmail" },
       { field: "userName" },
       { field: "role" },
