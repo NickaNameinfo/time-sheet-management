@@ -40,7 +40,7 @@ const TimeManagement = () => {
   console.log("projectDetails", projectWorkList);
 
   useEffect(() => {
-    initData();
+    initData(selectedWeek ? selectedWeek : getCurrentWeekNumber());
     getCurrentWeekNumber();
     getProjectList();
     const currentYear = new Date().getFullYear();
@@ -184,7 +184,7 @@ const TimeManagement = () => {
     []
   );
 
-  const initData = () => {
+  const initData = (weekNumber) => {
     axios
       .get(`${commonData?.APIKEY}/getWrokDetails`)
       .then(async (res) => {
@@ -207,7 +207,7 @@ const TimeManagement = () => {
           let filterProjectData = res.data.Result.filter(
             (items) =>
               items.userName === userDetails.data.userName &&
-              items.weekNumber === String(selectedWeek) &&
+              items.weekNumber === String(weekNumber) &&
               new Date(items.sentDate).getFullYear() ===
                 new Date().getFullYear()
           );
@@ -348,7 +348,7 @@ const TimeManagement = () => {
   }
 
   const handleOnChange = (name, value, index) => {
-    if (value.match(/[^0-9]/)) {
+    if (value?.match(/[^0-9]/) && !isNaN(value)) {
       preventDefault();
     }
     console.log(value, name, "tesfadhandle");
@@ -953,7 +953,7 @@ const TimeManagement = () => {
                               color: "color",
                               backgroundColor: "green",
                             }}
-                            class="fa-solid fa-share"
+                            class="fa-solid fa-share-alt"
                             onClick={() => onSubmit(formData[index], index)}
                           ></i>
                           <i
