@@ -58,6 +58,10 @@ function Home() {
           let htCount = res?.data?.Result?.filter(
             (item) => item?.role === "HR"
           );
+          let tlCount = res?.data?.Result?.filter(
+            (item) => item?.role === "TL"
+          );
+          setLead(tlCount.length)
           setHr(htCount?.length);
         } else {
           alert("Error");

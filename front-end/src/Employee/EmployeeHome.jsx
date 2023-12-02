@@ -586,6 +586,7 @@ function EmployeeHome() {
             </div> */}
           </div>
         </div>
+        <div style={{ width: "100%", height: "500px",  marginBottom : "10%" }}>
         <div className="text-center pb-1 my-3">
           <h4>Time Sheet</h4>
         </div>
@@ -604,6 +605,7 @@ function EmployeeHome() {
               onSelectionChanged={(event) => onSelectionChanged(event)}
             />
           </div>
+        </div>
         </div>
       </div>
     </>
