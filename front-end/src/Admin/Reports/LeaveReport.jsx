@@ -70,6 +70,10 @@ const LeaveReport = () => {
         minWidth: 170,
       },
       {
+        field: "employeeId",
+        minWidth: 170,
+      },
+      {
         field: "count",
         headerName: "Total Leaves",
         minWidth: 170,
