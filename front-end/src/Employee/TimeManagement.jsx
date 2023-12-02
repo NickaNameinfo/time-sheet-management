@@ -37,14 +37,17 @@ const TimeManagement = () => {
   const [variation, setVariation] = React.useState(null);
   console.log(weekNumberList, "formStateformState", weekData);
 
-  console.log("projectDetails", projectWorkList);
+  console.log(selectedWeek, "projectDetails", projectWorkList);
 
   useEffect(() => {
     initData(selectedWeek ? selectedWeek : getCurrentWeekNumber());
     getCurrentWeekNumber();
     getProjectList();
     const currentYear = new Date().getFullYear();
-    let datesss = getWeekDates(getCurrentWeekNumber(), currentYear);
+    let datesss = getWeekDates(
+      selectedWeek ? selectedWeek : getCurrentWeekNumber(),
+      currentYear
+    );
     setWeekDate(datesss);
     let tempList = [
       1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,

@@ -63,7 +63,7 @@ function Dashboard() {
                 <li>
                   <span className="material-symbols-outlined fs-5 bi-person-bounding-box"></span>
                   <Link to="/Dashboard/lead">
-                    <span className="txt_col">Manage Tl</span>
+                    <span className="txt_col">Manage TL</span>
                   </Link>
                 </li>
                 <li>
@@ -82,7 +82,7 @@ function Dashboard() {
                   <div className="d-flex justify-content-center">
                     <span className="material-symbols-outlined fa-solid fa-gear"></span>
                     <Link>
-                      <span className="txt_col">Approvels</span>
+                      <span className="txt_col">Approvals</span>
                     </Link>
                   </div>
                   <ul className="submenu">
@@ -117,7 +117,7 @@ function Dashboard() {
                       Yearly Report
                     </Link>
                     <Link to="/Dashboard/Reports/CodeReport">
-                      Descipline Report
+                      Discipline Report
                     </Link>
                     <Link to="/Dashboard/Reports/LeaveReport">
                       Leave Report

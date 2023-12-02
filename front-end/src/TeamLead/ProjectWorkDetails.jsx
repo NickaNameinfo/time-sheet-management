@@ -1,15 +1,18 @@
 import axios from "axios";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useForm, Controller } from "react-hook-form";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 import {
+  Box,
   Dialog,
   DialogTitle,
   TextField,
   TextareaAutosize,
 } from "@mui/material";
-import commonData from "../../common.json"
+import commonData from "../../common.json";
 function ProjectWorkDetails() {
   const containerStyle = { width: "100%", height: "100%" };
   const gridStyle = { height: "100%", width: "100%" };
@@ -17,10 +20,14 @@ function ProjectWorkDetails() {
   const [refresh, setRefresh] = React.useState(false);
   const [isUpdate, setIsUpdate] = React.useState(false);
   const [open, setOpen] = React.useState(false);
+  const [message, setMessage] = React.useState(null);
+  const [formData, setFormData] = React.useState(null);
+  const [onSelectedData, setSelectedData] = React.useState(null);
   axios.defaults.withCredentials = true;
   const gridRef = React.createRef();
-  console.log(rowData, "rowDatarowData");
-  axios.defaults.withCredentials = true;
+  console.log(rowData, "rowDatarowData", onSelectedData, message);
+
+  const navigate = useNavigate();
 
   const gridOptions = useMemo(
     () => ({
@@ -31,6 +38,21 @@ function ProjectWorkDetails() {
     }),
     []
   );
+
+  React.useEffect(() => {
+    console.log(message, onSelectedData, "onSelectedData123");
+    if (onSelectedData) {
+      let data = {
+        from: onSelectedData?.tlName,
+        to: onSelectedData?.employeeName,
+        sendDate: new Date(),
+        message: message,
+        empId: "",
+        tlId: "",
+      };
+      setFormData(data);
+    }
+  }, [onSelectedData]);
 
   const updateProjectDetails = (status, params) => {
     let apiTemp = { ...params.data, approvedDate: new Date(), status: status };
@@ -53,6 +75,11 @@ function ProjectWorkDetails() {
     () => [
       {
         field: "employeeName",
+        minWidth: 170,
+        filter: true,
+      },
+      {
+        field: "employeeId",
         minWidth: 170,
         filter: true,
       },
@@ -97,7 +124,10 @@ function ProjectWorkDetails() {
                     color: "green",
                     marginLeft: "20px",
                   }}
-                  onClick={() => setOpen(true)}
+                  onClick={() => {
+                    setSelectedData(params?.data);
+                    setOpen(true);
+                  }}
                 ></i>
               </>
             ) : (
@@ -198,6 +228,21 @@ function ProjectWorkDetails() {
     setOpen(false);
   };
 
+  const handleSubmit = () => {
+    console.log(formData, "tests213");
+    axios
+      .post(`${commonData?.APIKEY}/sendNotification`, formData)
+      .then((res) => {
+        if (res.data.Error) {
+          alert(res.data.Error);
+        } else {
+          // navigate("/Dashboard/hr");
+          setOpen(false);
+        }
+      })
+      .catch((err) => console.log(err));
+  };
+
   return (
     <>
       <div className="text-center pb-1 my-3">
@@ -250,12 +295,15 @@ function ProjectWorkDetails() {
           <TextareaAutosize
             fullWidth
             variant="outlined"
-            // value={formData?.[index]?.sunday}
+            onChange={(e) => setMessage(e.target.value)}
             placeholder="Leave message"
             className="textarea"
           />
           <div>
-            <button type="submit" className="btn btn-primary button mt-2">
+            <button
+              onClick={() => handleSubmit()}
+              className="btn btn-primary button mt-2"
+            >
               Submit
             </button>
           </div>

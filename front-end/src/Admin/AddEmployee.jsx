@@ -113,8 +113,8 @@ function AddEmployee() {
   const handleOnChange = (name, value) => {
     console.log(name, value, "changesings");
     let updatedRoles; // Create a copy of the tempRole array
-    if (name === "Tl") {
-      updatedRoles = "Tl"; // Add "Tl" role
+    if (toLowerCase(name) === toLowerCase("TL")) {
+      updatedRoles = "TL"; // Add "Tl" role
     }
     if (name === "Admin") {
       updatedRoles = "Admin"; // Add "Admin" role
@@ -365,6 +365,7 @@ function AddEmployee() {
                         error={Boolean(errors.designation)}
                       >
                         <MenuItem value={"Probation"}>Probation</MenuItem>
+                        <MenuItem value={"Contract"}>Contract</MenuItem>
                         <MenuItem value={"Traning"}>Traning</MenuItem>
                         <MenuItem value={"Permanent"}>Permanent</MenuItem>
                         <MenuItem value={"Ex-Employee"}>Ex-Employee</MenuItem>
@@ -417,7 +418,7 @@ function AddEmployee() {
                     }
                   >
                     <FormControlLabel
-                      value="Tl"
+                      value="TL"
                       control={<Radio />}
                       label="TL"
                     />

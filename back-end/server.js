@@ -1154,6 +1154,26 @@ app.delete("/variation/delete/:id", (req, res) => {
   });
 });
 
+//Notification
+
+app.post("/sendNotification", (req, res) => {
+  const sql =
+    "INSERT INTO notification (`from`,`to`,`message`, `sendDate`, `empId`, `tlId`) VALUES (?)";
+  const values = [
+    req.body.from,
+    req.body.to,
+    req.body.message,
+    req.body.sendDate,
+    req.body.empId,
+    req.body.tlId,
+  ];
+  console.log(values, "values234")
+  con.query(sql, [values], (err, result) => {
+    if (err) return res.json({ Error: "Inside singup query" });
+    return res.json({ Status: "Success" });
+  });
+});
+
 app.get("/logout", (req, res) => {
   res.clearCookie("token");
   return res.json({ Status: "Success" });
