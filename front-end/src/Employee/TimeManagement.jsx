@@ -249,9 +249,9 @@ const TimeManagement = () => {
     if (formData[index]?.areaofWork === "") {
       errorMessages["areaofWork"] = "This fiedl is required";
     }
-    if (formData[index]?.subDivision === "") {
-      errorMessages["subDivision"] = "This fiedl is required";
-    }
+    // if (formData[index]?.subDivision === "") {
+    //   errorMessages["subDivision"] = "This fiedl is required";
+    // }
     if (formData[index]?.monday === "") {
       errorMessages["monday"] = "This fiedl is required";
     }
@@ -718,8 +718,8 @@ const TimeManagement = () => {
                           className={"inputTextStyle"}
                           value={formData?.[index]?.subDivision}
                           defaultValue={formData?.[index]?.subDivision}
-                          helperText={errorMessage?.[index]?.subDivision}
-                          error={errorMessage?.[index]?.subDivision}
+                          // helperText={errorMessage?.[index]?.subDivision}
+                          // error={errorMessage?.[index]?.subDivision}
                           disabled={
                             isDisable?.[index]?.disable === false
                               ? false
@@ -741,9 +741,9 @@ const TimeManagement = () => {
                               <MenuItem value={res}>{res}</MenuItem>
                             ))}
                         </Select>
-                        <FormHelperText>
+                        {/* <FormHelperText>
                           {errorMessage?.[index]?.subDivision}
-                        </FormHelperText>
+                        </FormHelperText> */}
                       </FormControl>
                     </td>
                     <td>

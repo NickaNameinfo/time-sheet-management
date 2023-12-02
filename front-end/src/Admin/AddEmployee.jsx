@@ -113,7 +113,7 @@ function AddEmployee() {
   const handleOnChange = (name, value) => {
     console.log(name, value, "changesings");
     let updatedRoles; // Create a copy of the tempRole array
-    if (toLowerCase(name) === toLowerCase("TL")) {
+    if (name === "TL") {
       updatedRoles = "TL"; // Add "Tl" role
     }
     if (name === "Admin") {
