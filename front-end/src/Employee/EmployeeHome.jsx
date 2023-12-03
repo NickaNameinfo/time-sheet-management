@@ -73,7 +73,7 @@ function EmployeeHome() {
       currentDateIterator.setMonth(currentDateIterator.getMonth() + 1);
       currentDateIterator.setDate(21);
     }
-    console.log(totalMonths, "totalMonthstotalMonths");
+    console.log(totalMonths, "totalMonthstotalMonths", startDateString);
     return totalMonths; // Moved the return statement outside of the while loop
   };
 
@@ -94,13 +94,15 @@ function EmployeeHome() {
     let months = status === "Probation" ? 6 : 12;
     const leavesPerMonth = annualLeaveAllocation / months; // Divide by 12 months in a year
     const availableLeaves = Math.round(leavesPerMonth * workingMonthsPerYear);
+    console.log(availableLeaves, "availableLeaves231");
     return availableLeaves;
   };
 
   const getUserInfo = async () => {
     let useResult = await axios.get(
-      `${commonData?.APIKEY}/get/${userDetails?.data?.id}`
+      `${commonData?.APIKEY}/get/${userDetails?.id}`
     );
+    console.log(useResult?.data, "useResult123", userDetails);
     let monthData = getWorkMonth(
       useResult?.data?.Result[0]?.date,
       getCurrentDateInFormat()
@@ -112,6 +114,12 @@ function EmployeeHome() {
       monthData,
       annualLeaves,
       useResult?.data?.Result[0]?.employeeStatus
+    );
+    console.log(
+      monthData,
+      availableLeaves,
+      "availableLeaves213421",
+      annualLeaves
     );
     axios
       .get(`${commonData?.APIKEY}/getcompOffDetails`)
@@ -154,32 +162,74 @@ function EmployeeHome() {
         if (res.data.Status === "Success") {
           axios.get(`${commonData?.APIKEY}/dashboard`).then((result) => {
             let tempFinalResult = res?.data?.Result?.filter(
-              (item) =>
-                item.employeeName === result?.data?.userName &&
-                item?.leaveStatus === "approved"
+              (res) => res?.leaveStatus !== "Canceled"
             );
             setAppliedLeaves(tempFinalResult);
 
             console.log("tempFinalResult4534", tempFinalResult);
 
-            const vacationLeaveCount = tempFinalResult.filter(
-              (item) => item.leaveType === "Casual Leave"
-            ).length;
-            const scikLeaveCount = tempFinalResult.filter(
-              (item) => item.leaveType === "Sick Leave"
-            ).length;
-            const earnedLeaveCount = tempFinalResult.filter(
-              (item) => item.leaveType === "Earned Leave"
-            ).length;
+            const totalLeaveHoursByType = {};
 
+            tempFinalResult?.forEach((leave) => {
+              const leaveType = leave.leaveType;
+              const leaveHours = parseInt(leave.leaveHours, 10);
+
+              if (totalLeaveHoursByType[leaveType]) {
+                totalLeaveHoursByType[leaveType] += leaveHours;
+              } else {
+                totalLeaveHoursByType[leaveType] = leaveHours;
+              }
+            });
+
+            console.log(totalLeaveHoursByType, "totalLeaveHoursByType1234");
+
+            const vacationLeaveCount = totalLeaveHoursByType["Casual Leave"];
+            const scikLeaveCount = totalLeaveHoursByType["Sick Leave"];
+            const earnedLeaveCount = totalLeaveHoursByType["Earned Leave"];
+            let dividedLeave = totalLeaves / 3;
             console.log(
               earnedLeaveCount,
               "tempFinalResult",
               vacationLeaveCount
             );
-            setEarned(earnedLeaveCount);
-            setSickLeave(scikLeaveCount);
-            setVacationLeave(vacationLeaveCount);
+            setEarned(
+              String(Math.abs(earnedLeaveCount - dividedLeave)).split(".")[0] +
+                (String(Math.abs(earnedLeaveCount - dividedLeave)).split(".")[1]
+                  ? `.${
+                      String(Math.abs(earnedLeaveCount - dividedLeave)).split(
+                        "."
+                      )[1][0]
+                    }`
+                  : "")
+            );
+            setSickLeave(
+              String(Math.abs(Math.abs(scikLeaveCount - dividedLeave))).split(
+                "."
+              )[0] +
+                (String(
+                  Math.abs(Math.abs(scikLeaveCount - dividedLeave))
+                ).split(".")[1]
+                  ? `.${
+                      String(
+                        Math.abs(Math.abs(scikLeaveCount - dividedLeave))
+                      ).split(".")[1][0]
+                    }`
+                  : "")
+            );
+            setVacationLeave(
+              String(
+                Math.abs(Math.abs(vacationLeaveCount - dividedLeave))
+              ).split(".")[0] +
+                (String(
+                  Math.abs(Math.abs(vacationLeaveCount - dividedLeave))
+                ).split(".")[1]
+                  ? `.${
+                      String(
+                        Math.abs(Math.abs(vacationLeaveCount - dividedLeave))
+                      ).split(".")[1][0]
+                    }`
+                  : "")
+            );
           });
         }
       })
@@ -403,7 +453,7 @@ function EmployeeHome() {
         `${commonData?.APIKEY}/dashboard`
       );
       const userDetails = userDetailsResponse.data;
-      console.log(userDetails, "userDetails1123");
+      console.log(userDetails, "userDetails1123", userDetailsResponse);
 
       // Convert dates to the "YYYY-MM-DD" format
       const convertedDates = dates?.map((date) => {
@@ -586,26 +636,26 @@ function EmployeeHome() {
             </div> */}
           </div>
         </div>
-        <div style={{ width: "100%", height: "500px",  marginBottom : "10%" }}>
-        <div className="text-center pb-1 my-3">
-          <h4>Time Sheet</h4>
-        </div>
-        <div style={containerStyle}>
-          <div style={gridStyle} className="ag-theme-alpine">
-            <AgGridReact
-              rowData={rowData}
-              columnDefs={columnDefs}
-              defaultColDef={defaultColDef}
-              suppressRowClickSelection={true}
-              groupSelectsChildren={true}
-              rowSelection={"single"}
-              rowGroupPanelShow={"always"}
-              pivotPanelShow={"always"}
-              pagination={true}
-              onSelectionChanged={(event) => onSelectionChanged(event)}
-            />
+        <div style={{ width: "100%", height: "500px", marginBottom: "10%" }}>
+          <div className="text-center pb-1 my-3">
+            <h4>Time Sheet</h4>
           </div>
-        </div>
+          <div style={containerStyle}>
+            <div style={gridStyle} className="ag-theme-alpine">
+              <AgGridReact
+                rowData={rowData}
+                columnDefs={columnDefs}
+                defaultColDef={defaultColDef}
+                suppressRowClickSelection={true}
+                groupSelectsChildren={true}
+                rowSelection={"single"}
+                rowGroupPanelShow={"always"}
+                pivotPanelShow={"always"}
+                pagination={true}
+                onSelectionChanged={(event) => onSelectionChanged(event)}
+              />
+            </div>
+          </div>
         </div>
       </div>
     </>

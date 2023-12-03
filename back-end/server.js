@@ -31,15 +31,15 @@ const con = mysql.createConnection({
   host: "localhost",
   user: "root",
   password: "",
-  database: "signup",
+  database: "singup",
 });
 
-const con1 = mysql.createConnection({
-  host: "localhost",
-  user: "root",
-  password: "",
-  database: "epushserver",
-});
+// const con1 = mysql.createConnection({
+//   host: "localhost",
+//   user: "root",
+//   password: "",
+//   database: "epushserver",
+// });
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -954,7 +954,7 @@ app.post("/filterTimeSheet", (req, res) => {
   const sql = `SELECT *, DATE_FORMAT(LogDate, '%Y-%m-%d %H:%i:%s') AS FormattedLogDate FROM devicelogsinfo  WHERE DATE(LogDate) IN (${dateList})  AND UserId = ?`;
 
   // Execute the SQL query with parameters
-  con1.query(sql, [req.body.userId], (err, results) => {
+  con.query(sql, [req.body.userId], (err, results) => {
     if (err) {
       console.error("Error executing SQL query:", err);
       return res.status(500).json({ error: "Internal Server Error" });
@@ -1174,7 +1174,7 @@ app.post("/sendNotification", (req, res) => {
     req.body.empId,
     req.body.tlId,
   ];
-  console.log(values, "values234")
+  console.log(values, "values234");
   con.query(sql, [values], (err, result) => {
     if (err) return res.json({ Error: "Inside singup query" });
     return res.json({ Status: "Success" });

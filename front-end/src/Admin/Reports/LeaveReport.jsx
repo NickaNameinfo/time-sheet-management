@@ -11,6 +11,7 @@ const LeaveReport = () => {
   const gridStyle = { height: "100%", width: "100%" };
   const [projectDetails, setProjectDetails] = useState([]);
   const [exportApi, setExportApi] = React.useState(null);
+  const [totalLeave, setTotalLeave] = React.useState(0);
 
   console.log(projectDetails, "projectDetails");
   React.useEffect(() => {
@@ -18,32 +19,44 @@ const LeaveReport = () => {
   }, []);
 
   const getTotalLeaves = (data) => {
-    const countsByEmployee = {};
+    console.log(data, "data123213412370429");
+    const employeeLeaveData = {};
 
-    // Iterate through the data array and count entries for each employee
+    // Iterate through the data array and sum leaveHours for each leaveType and employee
     for (const entry of data) {
-      const { employeeId, employeeName } = entry;
-      const employeeKey = `${employeeId}-${employeeName}`;
+      const { leaveType, leaveHours, employeeName, employeeId } = entry;
+      const key = `${employeeName}-${employeeId}`;
 
-      if (!countsByEmployee[employeeKey]) {
-        countsByEmployee[employeeKey] = 1; // Initialize the count to 1 for a new employee
+      if (!employeeLeaveData[key]) {
+        employeeLeaveData[key] = {};
+      }
+
+      if (!employeeLeaveData[key][leaveType]) {
+        employeeLeaveData[key][leaveType] = parseInt(leaveHours, 10) || 0; // Initialize to leaveHours for a new combination
       } else {
-        countsByEmployee[employeeKey]++; // Increment the count for an existing employee
+        employeeLeaveData[key][leaveType] += parseInt(leaveHours, 10) || 0; // Increment by leaveHours for an existing combination
       }
     }
 
-    // Convert the counts into an array of objects
-    const countsArray = Object.keys(countsByEmployee).map((employeeKey) => {
-      const [employeeId, employeeName] = employeeKey.split("-");
-      const count = countsByEmployee[employeeKey];
+    // Convert the data into an array of objects
+    const resultArray = Object.keys(employeeLeaveData).map((key) => {
+      const [employeeName, employeeId] = key.split("-");
+      const leaveTypeData = employeeLeaveData[key];
+      const totalCount = Object.values(leaveTypeData).reduce(
+        (total, count) => total + count,
+        0
+      );
+
+      setTotalLeave(totalCount);
       return {
-        employeeId,
         employeeName,
-        count,
+        employeeId,
+        ...leaveTypeData,
       };
     });
 
-    return countsArray;
+    console.log(resultArray, "resultArray");
+    return resultArray;
   };
 
   const onGridReady = (params) => {
@@ -67,16 +80,38 @@ const LeaveReport = () => {
     () => [
       {
         field: "employeeName",
-        minWidth: 170,
+        minWidth: 100,
       },
       {
         field: "employeeId",
-        minWidth: 170,
+        minWidth: 100,
       },
       {
-        field: "count",
+        field: "Casual Leave",
+        minWidth: 100,
+      },
+      {
+        field: "Sick Leave",
+        minWidth: 100,
+      },
+      {
+        field: "Earned Leave",
+        minWidth: 100,
+      },
+      {
+        field: "Comp-off",
+        minWidth: 100,
+      },
+      {
+        field: "LOP",
+        minWidth: 100,
+      },
+      {
         headerName: "Total Leaves",
-        minWidth: 170,
+        minWidth: 100,
+        valueGetter: (params, index) => {
+          return totalLeave;
+        },
       },
     ],
     [projectDetails]

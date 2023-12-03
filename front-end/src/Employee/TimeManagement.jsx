@@ -48,6 +48,7 @@ const TimeManagement = () => {
       selectedWeek ? selectedWeek : getCurrentWeekNumber(),
       currentYear
     );
+    console.log(datesss, "datesss123421")
     setWeekDate(datesss);
     let tempList = [
       1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
@@ -401,7 +402,8 @@ const TimeManagement = () => {
       console.log(
         getDateYear(item?.leaveFrom),
         "8080e23423",
-        getDateYear(date)
+        getDateYear(date),
+        date
       );
       return getDateYear(item.leaveFrom) === getDateYear(date);
     });

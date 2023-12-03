@@ -50,21 +50,25 @@ function Leaves() {
         editable: false,
         cellRenderer: (params, index) => (
           <div className="actions">
-            <i
-              style={{ color: "color", backgroundColor: "green" }}
-              class="fa-solid fa-check"
-              onClick={() => {
-                setRefresh(true);
-                updateLeaveDetails("approved", params);
-              }}
-            ></i>
-            <i
-              class="fa-regular fa-circle-xmark"
-              onClick={() => {
-                setRefresh(true);
-                updateLeaveDetails("rejected", params);
-              }}
-            ></i>
+            {params?.data?.leaveStatus !== "Canceled" && (
+              <>
+                <i
+                  style={{ color: "color", backgroundColor: "green" }}
+                  class="fa-solid fa-check"
+                  onClick={() => {
+                    setRefresh(true);
+                    updateLeaveDetails("approved", params);
+                  }}
+                ></i>
+                <i
+                  class="fa-regular fa-circle-xmark"
+                  onClick={() => {
+                    setRefresh(true);
+                    updateLeaveDetails("rejected", params);
+                  }}
+                ></i>
+              </>
+            )}
           </div>
         ),
       },
