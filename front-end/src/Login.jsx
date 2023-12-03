@@ -46,7 +46,7 @@ function Login() {
     if (roles?.includes("Admin")) {
       console.log(roles, "rolesrolesroles");
       navigate("/Dashboard");
-    } else if (roles?.includes("Tl")) {
+    } else if (roles?.includes("TL")) {
       navigate("/Dashboard/TeamLeadHome");
     } else if (roles?.includes("Employee")) {
       navigate("/Dashboard/EmployeeHome");

@@ -33,7 +33,7 @@ function EditProject() {
           console.log(res.data.Result, "setEmpListsetEmpList");
           setEmpList(
             res.data.Result.map(
-              (employee) => employee.role === "Tl" && employee.employeeName
+              (employee) => employee.role === "TL" && employee.employeeName
             )
           );
         } else {

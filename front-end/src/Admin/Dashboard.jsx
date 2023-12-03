@@ -128,7 +128,7 @@ function Dashboard() {
             )}
 
             {/* Team Lead List */}
-            {roles?.[0] === "Tl" && (
+            {roles?.[0] === "TL" && (
               <>
                 <li>
                   <span className="material-symbols-outlined fs-5 bi-collection"></span>
@@ -146,7 +146,7 @@ function Dashboard() {
             )}
 
             {/* Employee List */}
-            {(roles?.[0] === "Tl" ||
+            {(roles?.[0] === "TL" ||
               roles?.[0] === "Admin" ||
               roles?.[0] === "Employee") && (
               <>

@@ -32,6 +32,23 @@ function addLeaveDetails() {
   const [rowData, setRowData] = useState([]);
   const [refresh, setRefresh] = useState(false);
 
+  const updateLeaveDetails = (status, params) => {
+    let apiTemp = {
+      ...params.data,
+      approvedDate: new Date(),
+      leaveStatus: status,
+    };
+    console.log(apiTemp, "apiTempapiTempapiTemp", params.data);
+    axios
+      .put(`${commonData?.APIKEY}/updateLeave/` + params.data.id, apiTemp)
+      .then(async (res) => {
+        setRefresh(true);
+        alert("Update Successfully");
+        location.reload();
+      });
+    console.log(params.data, "datadatadatadata");
+  };
+
   const columnDefs = useMemo(
     () => [
       {
@@ -58,10 +75,15 @@ function addLeaveDetails() {
         editable: false,
         cellRenderer: (params, index) => (
           <div className="actions">
-            {params?.data?.leaveStatus !== "approved" && (
+            {params?.data?.leaveStatus !== "approved" ? (
               <i
                 class="fa-solid fa-trash"
                 onClick={() => handleDelete(params?.data?.id)}
+              ></i>
+            ) : (
+              <i
+                class="fa-regular fa-circle-xmark"
+                onClick={() => updateLeaveDetails("Canceled", params)}
               ></i>
             )}
           </div>
@@ -90,7 +112,9 @@ function addLeaveDetails() {
       const to = new Date(formData.leaveTo);
 
       const timeDifference = Math.abs(to - from);
-      const differenceInDays = Math.ceil(timeDifference / (1000 * 3600 * 12));
+      const differenceInDays = Math.floor(
+        timeDifference / (24 * 60 * 60 * 1000)
+      );
       setValue("leaveHours", Math.max(1, differenceInDays));
     }
   }, [formData.leaveFrom, formData.leaveTo]);
