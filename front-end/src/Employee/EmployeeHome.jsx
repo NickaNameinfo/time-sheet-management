@@ -193,42 +193,54 @@ function EmployeeHome() {
               vacationLeaveCount
             );
             setEarned(
-              String(Math.abs(earnedLeaveCount - dividedLeave)).split(".")[0] +
-                (String(Math.abs(earnedLeaveCount - dividedLeave)).split(".")[1]
-                  ? `.${
-                      String(Math.abs(earnedLeaveCount - dividedLeave)).split(
-                        "."
-                      )[1][0]
-                    }`
-                  : "")
+              earnedLeaveCount
+                ? String(Math.abs(earnedLeaveCount - dividedLeave)).split(
+                    "."
+                  )[0] +
+                    (String(Math.abs(earnedLeaveCount - dividedLeave)).split(
+                      "."
+                    )[1]
+                      ? `.${
+                          String(
+                            Math.abs(earnedLeaveCount - dividedLeave)
+                          ).split(".")[1][0]
+                        }`
+                      : "")
+                : 0
             );
             setSickLeave(
-              String(Math.abs(Math.abs(scikLeaveCount - dividedLeave))).split(
-                "."
-              )[0] +
-                (String(
-                  Math.abs(Math.abs(scikLeaveCount - dividedLeave))
-                ).split(".")[1]
-                  ? `.${
-                      String(
-                        Math.abs(Math.abs(scikLeaveCount - dividedLeave))
-                      ).split(".")[1][0]
-                    }`
-                  : "")
+              scikLeaveCount
+                ? String(
+                    Math.abs(Math.abs(scikLeaveCount - dividedLeave))
+                  ).split(".")[0] +
+                    (String(
+                      Math.abs(Math.abs(scikLeaveCount - dividedLeave))
+                    ).split(".")[1]
+                      ? `.${
+                          String(
+                            Math.abs(Math.abs(scikLeaveCount - dividedLeave))
+                          ).split(".")[1][0]
+                        }`
+                      : "")
+                : 0
             );
             setVacationLeave(
-              String(
-                Math.abs(Math.abs(vacationLeaveCount - dividedLeave))
-              ).split(".")[0] +
-                (String(
-                  Math.abs(Math.abs(vacationLeaveCount - dividedLeave))
-                ).split(".")[1]
-                  ? `.${
-                      String(
-                        Math.abs(Math.abs(vacationLeaveCount - dividedLeave))
-                      ).split(".")[1][0]
-                    }`
-                  : "")
+              vacationLeaveCount
+                ? String(
+                    Math.abs(Math.abs(vacationLeaveCount - dividedLeave))
+                  ).split(".")[0] +
+                    (String(
+                      Math.abs(Math.abs(vacationLeaveCount - dividedLeave))
+                    ).split(".")[1]
+                      ? `.${
+                          String(
+                            Math.abs(
+                              Math.abs(vacationLeaveCount - dividedLeave)
+                            )
+                          ).split(".")[1][0]
+                        }`
+                      : "")
+                : 0
             );
           });
         }
