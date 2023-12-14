@@ -27,7 +27,7 @@ const WeeklyReport = () => {
       if (!acc[projectName]) {
         acc[projectName] = [];
       }
-      acc[projectName].push(entry.totalHours);
+      acc[projectName].push(Number(entry.totalHours));
       return acc;
     }, {});
 
@@ -71,7 +71,7 @@ const WeeklyReport = () => {
   };
 
   const getTotalHoursForWeek = (data) => {
-    const totalHours = data.reduce((acc, item) => acc + item.totalHours, 0);
+    const totalHours = data.reduce((acc, item) => acc + Number(item.totalHours), 0);
     console.log(totalHours, "totalHours");
     return totalHours;
   };
@@ -116,7 +116,7 @@ const WeeklyReport = () => {
             (items) => items.projectName === params.data.projectName
           );
 
-          return project?.totalHours || 0;
+          return (project?.totalHours) || 0;
         },
       },
       // { field: "discipline" },

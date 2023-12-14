@@ -4,8 +4,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
-import commonData from "../../../common.json"
-
+import commonData from "../../../common.json";
 
 const ProjectReport = () => {
   const containerStyle = { width: "100%", height: "100%" };
@@ -22,20 +21,20 @@ const ProjectReport = () => {
 
   React.useEffect(() => {
     const projectData = workDetails.reduce((acc, entry) => {
-      const projectName = entry.projectName;
-      if (!acc[projectName]) {
-        acc[projectName] = [];
+      const referenceNo = entry.referenceNo;
+      if (!acc[referenceNo]) {
+        acc[referenceNo] = [];
       }
-      acc[projectName].push(entry.totalHours);
+      acc[referenceNo].push(Number(entry.totalHours));
       return acc;
     }, {});
 
-    const projectTotalHours = Object.keys(projectData).map((projectName) => {
-      const totalHours = projectData[projectName].reduce(
+    const projectTotalHours = Object.keys(projectData).map((referenceNo) => {
+      const totalHours = projectData[referenceNo].reduce(
         (sum, hours) => sum + hours,
         0
       );
-      return { projectName, totalHours };
+      return { referenceNo, totalHours };
     });
     setProjectWorkHours(projectTotalHours);
     console.log(projectTotalHours, "projectTotalHours");
@@ -68,21 +67,21 @@ const ProjectReport = () => {
       })
       .catch((err) => console.log(err));
   };
-  
+
   const calculateProjectValues = (params, projectWorkHours) => {
     const project = projectWorkHours?.find(
-      (items) => items.projectName === params.data.projectName
+      (items) => items.referenceNo === params.data.referenceNo
     );
-
+    console.log(projectWorkHours, "items234123");
     if (project) {
       const completionPercentage =
-        (project.totalHours / params.data.allotatedHours) * 100;
+        (Number(project.totalHours) / params.data.allotatedHours) * 100;
       const remainingPercentage = 100 - completionPercentage;
 
       return {
         completionPercentage: completionPercentage.toFixed(2) + "%",
         utilizationPercentage: remainingPercentage.toFixed(2) + "%",
-        consumedHours: project.totalHours,
+        consumedHours: Number(project.totalHours),
       };
     }
 
@@ -95,12 +94,13 @@ const ProjectReport = () => {
 
   const columnDefs = useMemo(
     () => [
-      { 
+      {
         field: "orderId",
         minWidth: 170,
       },
       { field: "projectNo" },
       { field: "projectName" },
+      { field: "referenceNo" },
       { field: "desciplineCode", headerName: "Discipline Code" },
       {
         field: "completion",
@@ -112,7 +112,7 @@ const ProjectReport = () => {
         valueGetter: (params) =>
           calculateProjectValues(params, projectWorkHours).completionPercentage,
       },
-      { field: "allotatedHours", headerName : "Allotted Hours" },
+      { field: "allotatedHours", headerName: "Allotted Hours" },
       {
         field: "Consumed Hours",
         valueGetter: (params) =>

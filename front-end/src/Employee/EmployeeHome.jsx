@@ -178,12 +178,20 @@ function EmployeeHome() {
 
               tempFinalResult?.forEach((leave) => {
                 const leaveType = leave.leaveType;
-                const leaveHours = parseInt(leave.leaveHours, 10);
-
+                const leaveHours = parseInt(Number(leave.leaveHours), 10);
+                totalLeaveHoursByType["hours"] = + Number(
+                  leave.leaveHours?.match(/\d+/)?.[0] || 0
+                );
                 if (totalLeaveHoursByType[leaveType]) {
                   totalLeaveHoursByType[leaveType] += leaveHours;
+                  console.log(leave.leaveHours, "leave.leaveHours123");
+                  totalLeaveHoursByType["hours"] = +Number(leave.leaveHours);
                 } else {
                   totalLeaveHoursByType[leaveType] = leaveHours;
+                  console.log(
+                    Number(leave.leaveHours?.match(/\d+/)?.[0] || 0),
+                    "leave.leaveHours123"
+                  );
                 }
               });
 
@@ -194,7 +202,7 @@ function EmployeeHome() {
               const earnedLeaveCount = totalLeaveHoursByType["Earned Leave"];
               let dividedLeave = totalLeaves / 3;
               console.log(
-                dividedLeave,
+                vacationLeaveCount,
                 "tempFinalResult",
                 earnedLeaveCount,
                 String(Math.abs(Math.abs(dividedLeave))).split(".")[1]

@@ -61,7 +61,12 @@ function Leaves() {
                   class="fa-solid fa-check"
                   onClick={() => {
                     setRefresh(true);
-                    updateLeaveDetails("approved", params);
+                    updateLeaveDetails(
+                      params?.data?.leaveStatus === "Cancel Reqest"
+                        ? "Canceled"
+                        : "approved",
+                      params
+                    );
                   }}
                 ></i>
                 <i

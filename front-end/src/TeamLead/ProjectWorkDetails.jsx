@@ -79,11 +79,6 @@ function ProjectWorkDetails() {
         minWidth: 170,
         filter: true,
       },
-      {
-        field: "employeeId",
-        minWidth: 170,
-        filter: true,
-      },
       { field: "areaofWork", minWidth: 170 },
       { field: "projectName", minWidth: 170 },
       { field: "referenceNo", minWidth: 170 },

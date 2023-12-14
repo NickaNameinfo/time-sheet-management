@@ -84,7 +84,7 @@ function addLeaveDetails() {
             ) : (
               <i
                 class="fa-regular fa-circle-xmark"
-                onClick={() => updateLeaveDetails("Canceled", params)}
+                onClick={() => updateLeaveDetails("Cancel Reqest", params)}
               ></i>
             )}
           </div>

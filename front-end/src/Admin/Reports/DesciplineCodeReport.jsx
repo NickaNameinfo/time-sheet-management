@@ -39,7 +39,7 @@ const DesciplineCodeReport = () => {
       }
 
       // Add the totalHours to the disciplineCode's total for the year and disciplineCode
-      disciplineCodeTotals[year][disciplineCode] += item.totalHours;
+      disciplineCodeTotals[year][disciplineCode] += Number(item.totalHours);
     });
 
     // Convert the disciplineCodeTotals object into an array of objects
