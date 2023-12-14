@@ -26,11 +26,12 @@ function AddProjectDetails(props) {
   const navigate = useNavigate();
   const [projectList, setProjectList] = useState(null);
   const [projectNameList, setProjectNameList] = useState(null);
+  const token = localStorage.getItem("token");
   const formDatas = watch();
   console.log(projectList, "projectList", formDatas);
 
   useEffect(() => {
-    axios.get(`${commonData?.APIKEY}/dashboard`).then((res) => {
+    axios.post(`${commonData?.APIKEY}/dashboard`, { tokensss: token }).then((res) => {
       setValue("employeeName", res?.data?.employeeName);
     });
     getProjectList();

@@ -113,6 +113,7 @@ const MonthlyReport = () => {
       },
       {
         field: "Consumed",
+        headerName : "Consumed Hours",
         minWidth: 170,
         valueGetter: (params) => {
           const totalWorkHours = workDetails.reduce((total, entry) => {

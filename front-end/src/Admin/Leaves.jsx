@@ -34,6 +34,10 @@ function Leaves() {
         field: "employeeName",
         minWidth: 170,
       },
+      {
+        field: "employeeId",
+        minWidth: 170,
+      },
       { field: "leaveType" },
       { field: "leaveFrom" },
       { field: "leaveTo" },

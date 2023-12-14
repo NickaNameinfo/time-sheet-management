@@ -5,9 +5,10 @@ import axios from "axios";
 import commonData from "../../common.json"
 function HrDashboard() {
   const navigate = useNavigate();
+  const token = localStorage.getItem("token");
   axios.defaults.withCredentials = true;
   useEffect(() => {
-    axios.get(`${commonData?.APIKEY}/dashboard`).then((res) => {
+    axios.post(`${commonData?.APIKEY}/dashboard`, { tokensss: token }).then((res) => {
       console.log(res, "resresresres");
     });
   }, []);

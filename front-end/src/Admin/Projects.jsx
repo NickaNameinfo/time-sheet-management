@@ -7,6 +7,7 @@ import "ag-grid-community/styles/ag-grid.css";
 import commonData from "../../common.json";
 
 function Projects(props) {
+  const token = localStorage.getItem("token");
   const containerStyle = { width: "100%", height: "100%" };
   const gridStyle = { height: "100%", width: "100%" };
   const [rowData, setRowData] = useState([]);
@@ -16,12 +17,14 @@ function Projects(props) {
   console.log(roles, "roles1234");
 
   React.useEffect(() => {
-    axios.get(`${commonData?.APIKEY}/dashboard`).then((res) => {
-      console.log(res, "resresresres12345");
-      if (res.data.Status === "Success") {
-        setRoles(res.data.role?.split(","));
-      }
-    });
+    axios
+      .post(`${commonData?.APIKEY}/dashboard`, { tokensss: token })
+      .then((res) => {
+        console.log(res, "resresresres12345");
+        if (res.data.Status === "Success") {
+          setRoles(res.data.role?.split(","));
+        }
+      });
   }, []);
 
   const onClickEdit = (id) => {
@@ -47,7 +50,7 @@ function Projects(props) {
       { field: "subDivision", minWidth: 170 },
       { field: "startDate", minWidth: 170 },
       { field: "targetDate", minWidth: 170 },
-      { field: "allotatedHours", minWidth: 170, headerName : "Allotted Hours" },
+      { field: "allotatedHours", minWidth: 170, headerName: "Allotted Hours" },
       // { field: "summary", minWidth: 170 },
       {
         field: "Action",

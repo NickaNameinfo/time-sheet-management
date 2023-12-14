@@ -25,12 +25,14 @@ function Login() {
         withCredentials: true,
       })
       .then((res) => {
-        console.log(res, "123123123123");
+        localStorage.setItem("token", res?.data.tokensss);
         if (res.status === 200) {
-          axios.get(`${commonData?.APIKEY}/dashboard`).then((ress) => {
-            console.log(ress, "ressressress");
-            setRoles(ress.data.role?.split(","));
-          });
+          axios
+            .post(`${commonData?.APIKEY}/dashboard`, res?.data)
+            .then((ress) => {
+              console.log(ress, "ressressress");
+              setRoles(ress.data.role?.split(","));
+            });
         } else {
           setError(res.data.Error);
         }
@@ -50,6 +52,8 @@ function Login() {
       navigate("/Dashboard/TeamLeadHome");
     } else if (roles?.includes("Employee")) {
       navigate("/Dashboard/EmployeeHome");
+    } else if (roles?.includes("HR")) {
+      navigate("/Dashboard/hr");
     }
   }, [roles]);
 

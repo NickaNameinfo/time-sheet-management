@@ -109,6 +109,7 @@ const WeeklyReport = () => {
       },
       {
         field: "Consumed",
+        headerName : "Consumed Hours",
         minWidth: 170,
         valueGetter: (params) => {
           const project = projectWorkHours?.find(

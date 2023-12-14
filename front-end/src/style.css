@@ -617,3 +617,6 @@ ul.updateslist li {
   margin-bottom: 9px;
   border-radius: 4px;
 }
+.MuiAutocomplete-endAdornment {
+  display: none;
+}

@@ -23,6 +23,7 @@ function EmployeeHome() {
   const [weekData, setWeekDate] = React.useState(null);
   const [userDetails, setUserDetails] = React.useState(null);
   const [appliedLeaves, setAppliedLeaves] = React.useState(null);
+  const token = localStorage.getItem("token");
   console.log(totalLeaves, "rowDatarowData", rowData, weekData);
 
   React.useEffect(() => {
@@ -91,7 +92,7 @@ function EmployeeHome() {
     annualLeaveAllocation,
     status
   ) => {
-    let months = status === "Probation" ? 6 : 12;
+    let months = status === "Probation" ? 6 : 11;
     const leavesPerMonth = annualLeaveAllocation / months; // Divide by 12 months in a year
     const availableLeaves = Math.round(leavesPerMonth * workingMonthsPerYear);
     console.log(availableLeaves, "availableLeaves231");
@@ -125,30 +126,30 @@ function EmployeeHome() {
       .get(`${commonData?.APIKEY}/getcompOffDetails`)
       .then((res) => {
         if (res.data.Status === "Success") {
-          axios.get(`${commonData?.APIKEY}/dashboard`).then((result) => {
-            // let tempFinalResult = res?.data?.Result?.filter(
-            //   (item) =>
-            //     item.employeeName === result?.data?.userName &&
-            //     item?.leaveStatus === "approved"
-            // );
-            const totalEligibility = res?.data?.Result?.reduce(
-              (total, item) => {
-                // Use parseInt to convert eligibility values to numbers and handle potential non-numeric values
-                const eligibility = parseInt(item.eligibility) || 0;
-                return total + eligibility;
-              },
-              0
-            );
+          axios
+            .post(`${commonData?.APIKEY}/dashboard`, { tokensss: token })
+            .then((result) => {
+              const totalEligibility = res?.data?.Result?.reduce(
+                (total, item) => {
+                  // Use parseInt to convert eligibility values to numbers and handle potential non-numeric values
+                  const eligibility = parseInt(item.eligibility) || 0;
+                  return total + eligibility;
+                },
+                0
+              );
 
-            setCompOffLeave(Math.round(totalEligibility / 8)); // Corrected to Math.round
+              setCompOffLeave(Math.round(totalEligibility / 8)); // Corrected to Math.round
 
-            console.log(totalEligibility, "tempFinalResult");
-          });
+              console.log(totalEligibility, "tempFinalResult");
+            });
         }
       })
       .catch((err) => console.log(err));
-
-    setTotalLeaves(Number(availableLeaves) + Number(compOffLeave));
+    if (compOffLeave) {
+      setTotalLeaves(Number(availableLeaves) + Number(compOffLeave));
+    } else {
+      setTotalLeaves(Number(availableLeaves));
+    }
 
     // setRemaining(availableLeaves - appliedLeaves?.length);
 
@@ -160,89 +161,116 @@ function EmployeeHome() {
       .get(`${commonData?.APIKEY}/getLeaveDetails`)
       .then((res) => {
         if (res.data.Status === "Success") {
-          axios.get(`${commonData?.APIKEY}/dashboard`).then((result) => {
-            let tempFinalResult = res?.data?.Result?.filter(
-              (res) => res?.leaveStatus !== "Canceled"
-            );
-            setAppliedLeaves(tempFinalResult);
+          axios
+            .post(`${commonData?.APIKEY}/dashboard`, { tokensss: token })
+            .then((result) => {
+              let tempFinalResult = res?.data?.Result?.filter(
+                (res) =>
+                  res?.leaveStatus !== "Canceled" &&
+                  Number(res.employeeId?.replace(/[A-Za-z]/g, "")) ===
+                    Number(result?.data?.employeeId?.replace(/[A-Za-z]/g, ""))
+              );
+              setAppliedLeaves(tempFinalResult);
 
-            console.log("tempFinalResult4534", tempFinalResult);
+              console.log("tempFinalResult4534", tempFinalResult);
 
-            const totalLeaveHoursByType = {};
+              const totalLeaveHoursByType = {};
 
-            tempFinalResult?.forEach((leave) => {
-              const leaveType = leave.leaveType;
-              const leaveHours = parseInt(leave.leaveHours, 10);
+              tempFinalResult?.forEach((leave) => {
+                const leaveType = leave.leaveType;
+                const leaveHours = parseInt(leave.leaveHours, 10);
 
-              if (totalLeaveHoursByType[leaveType]) {
-                totalLeaveHoursByType[leaveType] += leaveHours;
-              } else {
-                totalLeaveHoursByType[leaveType] = leaveHours;
-              }
-            });
+                if (totalLeaveHoursByType[leaveType]) {
+                  totalLeaveHoursByType[leaveType] += leaveHours;
+                } else {
+                  totalLeaveHoursByType[leaveType] = leaveHours;
+                }
+              });
 
-            console.log(totalLeaveHoursByType, "totalLeaveHoursByType1234");
+              console.log(totalLeaveHoursByType, "totalLeaveHoursByType1234");
 
-            const vacationLeaveCount = totalLeaveHoursByType["Casual Leave"];
-            const scikLeaveCount = totalLeaveHoursByType["Sick Leave"];
-            const earnedLeaveCount = totalLeaveHoursByType["Earned Leave"];
-            let dividedLeave = totalLeaves / 3;
-            console.log(
-              earnedLeaveCount,
-              "tempFinalResult",
-              vacationLeaveCount
-            );
-            setEarned(
-              earnedLeaveCount
-                ? String(Math.abs(earnedLeaveCount - dividedLeave)).split(
-                    "."
-                  )[0] +
-                    (String(Math.abs(earnedLeaveCount - dividedLeave)).split(
+              const vacationLeaveCount = totalLeaveHoursByType["Casual Leave"];
+              const scikLeaveCount = totalLeaveHoursByType["Sick Leave"];
+              const earnedLeaveCount = totalLeaveHoursByType["Earned Leave"];
+              let dividedLeave = totalLeaves / 3;
+              console.log(
+                dividedLeave,
+                "tempFinalResult",
+                earnedLeaveCount,
+                String(Math.abs(Math.abs(dividedLeave))).split(".")[1]
+              );
+              setEarned(
+                earnedLeaveCount
+                  ? String(Math.abs(earnedLeaveCount - dividedLeave)).split(
                       "."
-                    )[1]
-                      ? `.${
-                          String(
-                            Math.abs(earnedLeaveCount - dividedLeave)
-                          ).split(".")[1][0]
-                        }`
-                      : "")
-                : 0
-            );
-            setSickLeave(
-              scikLeaveCount
-                ? String(
-                    Math.abs(Math.abs(scikLeaveCount - dividedLeave))
-                  ).split(".")[0] +
-                    (String(
+                    )[0] +
+                      (String(Math.abs(earnedLeaveCount - dividedLeave)).split(
+                        "."
+                      )[1]
+                        ? `.${
+                            String(
+                              Math.abs(earnedLeaveCount - dividedLeave)
+                            ).split(".")[1][0]
+                          }`
+                        : "")
+                  : String(Math.abs(Math.abs(dividedLeave))).split(".")[1] !==
+                    undefined
+                  ? `${
+                      String(Math.abs(Math.abs(dividedLeave))).split(".")[0]
+                    }.${
+                      String(Math.abs(Math.abs(dividedLeave))).split(".")[1][0]
+                    }`
+                  : `${String(Math.abs(Math.abs(dividedLeave))).split(".")[0]}`
+              );
+              setSickLeave(
+                scikLeaveCount
+                  ? String(
                       Math.abs(Math.abs(scikLeaveCount - dividedLeave))
-                    ).split(".")[1]
-                      ? `.${
-                          String(
-                            Math.abs(Math.abs(scikLeaveCount - dividedLeave))
-                          ).split(".")[1][0]
-                        }`
-                      : "")
-                : 0
-            );
-            setVacationLeave(
-              vacationLeaveCount
-                ? String(
-                    Math.abs(Math.abs(vacationLeaveCount - dividedLeave))
-                  ).split(".")[0] +
-                    (String(
+                    ).split(".")[0] +
+                      (String(
+                        Math.abs(Math.abs(scikLeaveCount - dividedLeave))
+                      ).split(".")[1]
+                        ? `.${
+                            String(
+                              Math.abs(Math.abs(scikLeaveCount - dividedLeave))
+                            ).split(".")[1][0]
+                          }`
+                        : "")
+                  : String(Math.abs(Math.abs(dividedLeave))).split(".")[1] !==
+                    undefined
+                  ? `${
+                      String(Math.abs(Math.abs(dividedLeave))).split(".")[0]
+                    }.${
+                      String(Math.abs(Math.abs(dividedLeave))).split(".")[1][0]
+                    }`
+                  : `${String(Math.abs(Math.abs(dividedLeave))).split(".")[0]}`
+              );
+              setVacationLeave(
+                vacationLeaveCount
+                  ? String(
                       Math.abs(Math.abs(vacationLeaveCount - dividedLeave))
-                    ).split(".")[1]
-                      ? `.${
-                          String(
-                            Math.abs(
-                              Math.abs(vacationLeaveCount - dividedLeave)
-                            )
-                          ).split(".")[1][0]
-                        }`
-                      : "")
-                : 0
-            );
-          });
+                    ).split(".")[0] +
+                      (String(
+                        Math.abs(Math.abs(vacationLeaveCount - dividedLeave))
+                      ).split(".")[1]
+                        ? `.${
+                            String(
+                              Math.abs(
+                                Math.abs(vacationLeaveCount - dividedLeave)
+                              )
+                            ).split(".")[1][0]
+                          }`
+                        : "")
+                  : String(Math.abs(Math.abs(dividedLeave))).split(".")[1] !==
+                    undefined
+                  ? `${
+                      String(Math.abs(Math.abs(dividedLeave))).split(".")[0]
+                    }.${
+                      String(Math.abs(Math.abs(dividedLeave))).split(".")[1][0]
+                    }`
+                  : `${String(Math.abs(Math.abs(dividedLeave))).split(".")[0]}`
+              );
+            });
         }
       })
       .catch((err) => console.log(err));
@@ -461,8 +489,9 @@ function EmployeeHome() {
   const getInOutTime = async (dates) => {
     try {
       // Fetch user details
-      const userDetailsResponse = await axios.get(
-        `${commonData?.APIKEY}/dashboard`
+      const userDetailsResponse = await axios.post(
+        `${commonData?.APIKEY}/dashboard`,
+        { tokensss: token }
       );
       const userDetails = userDetailsResponse.data;
       console.log(userDetails, "userDetails1123", userDetailsResponse);

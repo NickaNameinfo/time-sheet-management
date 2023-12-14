@@ -32,7 +32,7 @@ function CompOff() {
   const gridStyle = { height: "100%", width: "100%" };
   const [rowData, setRowData] = useState([]);
   const [refresh, setRefresh] = useState(false);
-
+  const token = localStorage.getItem("token");
   const columnDefs = useMemo(
     () => [
       {
@@ -73,7 +73,7 @@ function CompOff() {
   console.log(formData, "formData");
 
   useEffect(() => {
-    axios.get(`${commonData?.APIKEY}/dashboard`).then((result) => {
+    axios.post(`${commonData?.APIKEY}/dashboard`, { tokensss: token }).then((result) => {
       console.log(result, "result12121");
       setValue("employeeName", result?.data?.userName);
       setValue(
@@ -90,7 +90,7 @@ function CompOff() {
       .then((res) => {
         console.log(res, "resr23234");
         if (res.data.Status === "Success") {
-          axios.get(`${commonData?.APIKEY}/dashboard`).then((result) => {
+          axios.post(`${commonData?.APIKEY}/dashboard`, { tokensss: token }).then((result) => {
             console.log(result, "resultresult");
             let tempFinalResult = res?.data?.Result?.filter(
               (item) =>

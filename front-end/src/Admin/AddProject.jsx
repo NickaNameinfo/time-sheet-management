@@ -61,7 +61,7 @@ function AddProject() {
     );
     console.log(rowData, "rowData321423", isNumberIncluded);
     if (isNumberIncluded) {
-      alert(`${formDatas?.referenceNo} is already is exist.`);
+      alert(`${formDatas?.referenceNo} 1 is already existing in Reference No`);
     } else {
       axios
         .post(`${commonData?.APIKEY}/project/create`, data)
