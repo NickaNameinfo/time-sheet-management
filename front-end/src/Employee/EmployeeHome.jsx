@@ -92,7 +92,7 @@ function EmployeeHome() {
     annualLeaveAllocation,
     status
   ) => {
-    let months = status === "Probation" ? 6 : 11;
+    let months = status === "Probation" ? 5 : 11;
     const leavesPerMonth = annualLeaveAllocation / months; // Divide by 12 months in a year
     const availableLeaves = Math.round(leavesPerMonth * workingMonthsPerYear);
     console.log(availableLeaves, "availableLeaves231");
