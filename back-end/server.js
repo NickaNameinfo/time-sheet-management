@@ -460,10 +460,10 @@ app.delete("/delete/:id", (req, res) => {
 });
 
 const verifyUser = (req, res, next) => {
-  if (!tokensss) {
+  if (!req.body?.tokensss) {
     return res.json({ Error: "You are no Authenticated" });
   } else {
-    jwt.verify(tokensss, "jwt-secret-key", (err, decoded) => {
+    jwt.verify(req.body?.tokensss, "jwt-secret-key", (err, decoded) => {
       if (err) return res.json({ Error: "Token wrong" });
       req.userName = decoded.userName;
       req.id = decoded.id;
@@ -477,7 +477,8 @@ const verifyUser = (req, res, next) => {
   }
 };
 
-app.get("/dashboard", verifyUser, (req, res) => {
+app.post("/dashboard", verifyUser, (req, res) => {
+  console.log(req.body, "req24523");
   return res.json({
     Status: "Success",
     role: req.role,
@@ -521,7 +522,7 @@ app.post("/login", (req, res) => {
         }
       );
       res.cookie("token", token);
-      return res.json({ Status: "Success" });
+      return res.json({ Status: "Success", token: token });
     } else {
       return res.json({ Status: "Error", Error: "Wrong userName or Password" });
     }

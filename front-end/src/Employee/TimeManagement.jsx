@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import { startOfWeek, addDays } from "date-fns";
 import {
+  Autocomplete,
   FormControl,
   FormHelperText,
   InputLabel,
@@ -35,7 +36,9 @@ const TimeManagement = () => {
   const [refresh, setRefresh] = React.useState(false);
   const [areaofWork, setAreaofWork] = React.useState(null);
   const [variation, setVariation] = React.useState(null);
-  console.log(weekNumberList, "formStateformState", weekData);
+  const [totalMinit, setTotalMinit] = React.useState(null);
+  const token = localStorage.getItem("token");
+  console.log(totalMinit, "formStateformState", weekData);
 
   console.log(selectedWeek, "projectDetails", projectWorkList);
 
@@ -48,7 +51,7 @@ const TimeManagement = () => {
       selectedWeek ? selectedWeek : getCurrentWeekNumber(),
       currentYear
     );
-    console.log(datesss, "datesss123421")
+    console.log(datesss, "datesss123421");
     setWeekDate(datesss);
     let tempList = [
       1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
@@ -61,10 +64,6 @@ const TimeManagement = () => {
     getVariation();
   }, [selectedWeek, refresh]);
 
-  // React.useEffect(() => {
-  //   initData();
-  // }, [selectedWeek]);
-
   useEffect(() => {
     if (projectList?.length > 0) {
       setReferenceNoList(projectList?.map((item) => item.referenceNo));
@@ -73,11 +72,16 @@ const TimeManagement = () => {
 
   React.useEffect(() => {
     if (formData) {
+      let hours = Math.floor(totalMinit / 60);
+      let remainingMinutes = totalMinit % 60;
+      console.log(hours, "2304109273", remainingMinutes);
       let tempFormData = [...formData];
       console.log(calculateTotalHours(tempFormData[currentIndex]), "98098");
       tempFormData[currentIndex] = {
         ...formData[currentIndex],
-        totalHours: calculateTotalHours(tempFormData[currentIndex]),
+        totalHours: `${
+          calculateTotalHours(tempFormData[currentIndex]) + hours
+        }.${remainingMinutes}`,
       };
       setFormData(tempFormData);
     }
@@ -90,6 +94,7 @@ const TimeManagement = () => {
     formData?.[currentIndex]?.saturday,
     formData?.[currentIndex]?.sunday,
     currentIndex,
+    totalMinit,
   ]);
 
   React.useEffect(() => {
@@ -173,14 +178,14 @@ const TimeManagement = () => {
       areaofWork: "",
       variation: "",
       subDivision: "",
-      monday: 0,
-      tuesday: 0,
-      wednesday: 0,
-      thursday: 0,
-      friday: 0,
-      saturday: 0,
-      sunday: 0,
-      totalHours: 0,
+      monday: "",
+      tuesday: "",
+      wednesday: "",
+      thursday: "",
+      friday: "",
+      saturday: "",
+      sunday: "",
+      totalHours: "",
       status: "",
       sentDate: "",
       approvedDate: "",
@@ -192,7 +197,9 @@ const TimeManagement = () => {
     axios
       .get(`${commonData?.APIKEY}/getWrokDetails`)
       .then(async (res) => {
-        let userDetails = await axios.get(`${commonData?.APIKEY}/dashboard`);
+        let userDetails = await axios.post(`${commonData?.APIKEY}/dashboard`, {
+          tokensss: token,
+        });
         axios.get(`${commonData?.APIKEY}/getLeaveDetails`).then((leaveRes) => {
           console.log(leaveRes, "resres324234");
           if (leaveRes.data.Status === "Success") {
@@ -274,7 +281,9 @@ const TimeManagement = () => {
         employeeName: employeeName,
         userName: userName,
         sentDate: new Date(),
-        weekNumber: getCurrentWeekNumber(),
+        weekNumber: selectedWeek
+          ? selectedWeek
+          : String(getCurrentWeekNumber()),
         discipline: getUserDetails?.[0]?.discipline,
       };
       let submitData = { ...data, ...tempObjec };
@@ -307,7 +316,7 @@ const TimeManagement = () => {
       employeeName: employeeName,
       userName: userName,
       sentDate: new Date(),
-      weekNumber: getCurrentWeekNumber(),
+      weekNumber: selectedWeek ? selectedWeek : String(getCurrentWeekNumber()),
     };
     let submitData = { ...params, ...tempObjec };
     axios
@@ -340,19 +349,43 @@ const TimeManagement = () => {
   };
 
   function calculateTotalHours(formData) {
-    return (
-      (Number(formData?.monday) || 0) +
-      (Number(formData?.tuesday) || 0) +
-      (Number(formData?.wednesday) || 0) +
-      (Number(formData?.thursday) || 0) +
-      (Number(formData?.friday) || 0) +
-      (Number(formData?.saturday) || 0) +
-      (Number(formData?.sunday) || 0)
+    const minit = [
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+      "sunday",
+    ].reduce(
+      (sum, day) =>
+        formData?.[day]?.includes(".")
+          ? sum + Number(formData?.[day]?.match(/\d+/)?.[0] || 0)
+          : sum,
+      0
     );
+
+    setTotalMinit(minit);
+    let tempWorkHours = [
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+      "sunday",
+    ].reduce(
+      (sum, day) =>
+        !formData?.[day]?.includes(".")
+          ? sum + Number(formData?.[day]?.match(/\d+/)?.[0] || 0)
+          : sum,
+      0
+    );
+    return tempWorkHours;
   }
 
   const handleOnChange = (name, value, index) => {
-    if (value?.match(/[^0-9]/) && !isNaN(value)) {
+    if (value?.match(/[^0-9.]/) && !isNaN(value)) {
       preventDefault();
     }
     console.log(value, name, "tesfadhandle");
@@ -587,7 +620,32 @@ const TimeManagement = () => {
                     </td>
                     <td>
                       <FormControl fullWidth>
-                        <Select
+                        <Autocomplete
+                          id="combo-box-demo"
+                          options={referenceNoList}
+                          sx={{ width: 200 }}
+                          className={"inputTextStyle"}
+                          // value={formData?.[index]?.referenceNo}
+                          defaultValue={formData?.[index]?.referenceNo}
+                          error={errorMessage?.[index]?.referenceNo}
+                          disabled={
+                            isDisable?.[index]?.disable === false
+                              ? false
+                              : !formData[index]?.id
+                              ? false
+                              : true
+                          }
+                          onChange={(e, value) =>
+                            handleOnChange("referenceNo", value, index)
+                          }
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              error={errorMessage?.[index]?.referenceNo}
+                            />
+                          )}
+                        />
+                        {/* <Select
                           className={"inputTextStyle"}
                           value={formData?.[index]?.referenceNo}
                           defaultValue={formData?.[index]?.referenceNo}
@@ -610,7 +668,7 @@ const TimeManagement = () => {
                           {referenceNoList?.map((res) => (
                             <MenuItem value={res}>{res}</MenuItem>
                           ))}
-                        </Select>
+                        </Select> */}
                         <FormHelperText>
                           {errorMessage?.[index]?.referenceNo}
                         </FormHelperText>

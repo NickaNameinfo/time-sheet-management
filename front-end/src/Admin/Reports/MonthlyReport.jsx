@@ -38,7 +38,7 @@ const MonthlyReport = () => {
         workingHoursByMonthAndProject[monthKey][projectKey] = 0;
       }
 
-      workingHoursByMonthAndProject[monthKey][projectKey] += item.totalHours;
+      workingHoursByMonthAndProject[monthKey][projectKey] += Number(item.totalHours);
     });
 
     // Set the state with the organized data
@@ -77,7 +77,7 @@ const MonthlyReport = () => {
     return {
       field: month,
       filter: false,
-      minWidth: 60,
+      minWidth: 100,
       valueGetter: (params, index) => {
         const weekField = params.colDef.field.toString();
         const value = projectWorkHours[weekField]?.[params.data.projectName] || 0;
@@ -113,11 +113,12 @@ const MonthlyReport = () => {
       },
       {
         field: "Consumed",
+        headerName : "Consumed Hours",
         minWidth: 170,
         valueGetter: (params) => {
           const totalWorkHours = workDetails.reduce((total, entry) => {
             if (entry.projectName === String(params.data.projectName)) {
-              return total + entry.totalHours;
+              return total + Number(entry.totalHours);
             } else {
               return total;
             }

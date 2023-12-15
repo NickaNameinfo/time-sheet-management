@@ -7,8 +7,9 @@ function EmployeeDashboard() {
   const navigate = useNavigate();
   axios.defaults.withCredentials = true;
   const [isExpand, setIsExpand] = React.useState(false);
+  const token = localStorage.getItem("token");
   useEffect(() => {
-    axios.get(`${commonData?.APIKEY}/dashboard`).then((res) => {
+    axios.post(`${commonData?.APIKEY}/dashboard`, { tokensss: token }).then((res) => {
       console.log(res, "resresresres");
     });
   }, []);

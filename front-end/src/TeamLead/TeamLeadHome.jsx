@@ -10,6 +10,7 @@ function TeamLeadHome() {
   const [rowData, setRowData] = useState([]);
   const [projectWorkHours, setProjectWorkHours] = React.useState(null);
   const [workDetails, setWorkDetails] = useState([]);
+  const token = localStorage.getItem("token");
 
   console.log(rowData, "rowDatarowData", workDetails);
   axios.defaults.withCredentials = true;
@@ -19,7 +20,7 @@ function TeamLeadHome() {
       (items) => items.projectName === params.data.projectName
     );
 
-    console.log(project, "project1231")
+    console.log(project, "project1231");
     if (project) {
       const completionPercentage =
         (project.totalHours / params.data.allotatedHours) * 100;
@@ -156,7 +157,9 @@ function TeamLeadHome() {
     axios
       .get(`${commonData?.APIKEY}/getProject`)
       .then(async (res) => {
-        let userDetails = await axios.get(`${commonData?.APIKEY}/dashboard`);
+        let userDetails = await axios.post(`${commonData?.APIKEY}/dashboard`, {
+          tokensss: token,
+        });
         console.log(res, "resres324", userDetails);
         if (res.data.Status === "Success") {
           let filterData = res.data.Result.filter(

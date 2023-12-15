@@ -27,7 +27,7 @@ const YearlyReport = () => {
       if (!acc[projectName]) {
         acc[projectName] = [];
       }
-      acc[projectName].push(entry.totalHours);
+      acc[projectName].push(Number(entry.totalHours));
       return acc;
     }, {});
 
@@ -65,7 +65,7 @@ const YearlyReport = () => {
           allottedHours: item.allottedHours,
         };
 
-        yearData.totalHours += item.totalHours;
+        yearData.totalHours += Number(item.totalHours);
         newProjectData.yearlyData.push(yearData);
         yearlyDataByProject.push(newProjectData);
       } else {
@@ -83,11 +83,11 @@ const YearlyReport = () => {
             allottedHours: item.allottedHours,
           };
 
-          newYearData.totalHours += item.totalHours;
+          newYearData.totalHours += Number(item.totalHours);
           projectData.yearlyData.push(newYearData);
         } else {
           // If the year's data already exists, update it
-          yearData.totalHours += item.totalHours;
+          yearData.totalHours += Number(item.totalHours);
         }
       }
     });
@@ -163,7 +163,7 @@ const YearlyReport = () => {
         valueGetter: (params) => {
           const totalWorkHours = workDetails.reduce((total, entry) => {
             if (entry.projectName === String(params.data.projectName)) {
-              return total + entry.totalHours;
+              return total + Number(entry.totalHours);
             } else {
               return total;
             }
@@ -176,7 +176,7 @@ const YearlyReport = () => {
         valueGetter: (params, index) => {
           const totalWorkHours = workDetails.reduce((total, entry) => {
             if (entry.projectName === String(params.data.projectName)) {
-              return total + entry.totalHours;
+              return total + Number(entry.totalHours);
             } else {
               return total;
             }
@@ -193,7 +193,7 @@ const YearlyReport = () => {
         valueGetter: (params, index) => {
           const totalWorkHours = workDetails.reduce((total, entry) => {
             if (entry.projectName === String(params.data.projectName)) {
-              return total + entry.totalHours;
+              return total + Number(entry.totalHours);
             } else {
               return total;
             }

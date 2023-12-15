@@ -5,24 +5,28 @@ import axios from "axios";
 import commonData from "../../common.json";
 
 function Dashboard() {
+  const token = localStorage.getItem("token");
   const [roles, setRoles] = React.useState(null);
-  console.log(roles, "rolesroles");
+  console.log(roles, "rolesroles", token);
   const navigate = useNavigate();
   axios.defaults.withCredentials = true;
 
   useEffect(() => {
-    axios.get(`${commonData?.APIKEY}/dashboard`).then((res) => {
-      console.log(res, "resresresres12345");
-      if (res.data.Status === "Success") {
-        setRoles(res.data.role?.split(","));
-      }
-    });
+    axios
+      .post(`${commonData?.APIKEY}/dashboard`, { tokensss: token })
+      .then((res) => {
+        console.log(res, "resresresres12345");
+        if (res.data.Status === "Success") {
+          setRoles(res.data.role?.split(","));
+        }
+      });
   }, []);
 
   const handleLogout = () => {
     axios
       .get(`${commonData?.APIKEY}/logout`)
       .then((res) => {
+        localStorage.removeItem('token');
         navigate("/");
       })
       .catch((err) => console.log(err));
@@ -51,15 +55,14 @@ function Dashboard() {
                     <span className="txt_col">Dashboard</span>
                   </Link>
                 </li>
-                {roles?.[0] === "Hr" ||
-                  (roles?.[0] === "Admin" && (
-                    <li>
-                      <span className="material-symbols-outlined fs-5 bi-explicit-fill"></span>
-                      <Link to="/Dashboard/employee">
-                        <span className="txt_col">Manage Employees</span>
-                      </Link>
-                    </li>
-                  ))}
+                {(roles?.[0] === "HR" || roles?.[0] === "Admin") && (
+                  <li>
+                    <span className="material-symbols-outlined fs-5 bi-explicit-fill"></span>
+                    <Link to="/Dashboard/employee">
+                      <span className="txt_col">Manage Employees</span>
+                    </Link>
+                  </li>
+                )}
                 <li>
                   <span className="material-symbols-outlined fs-5 bi-person-bounding-box"></span>
                   <Link to="/Dashboard/lead">
@@ -148,7 +151,8 @@ function Dashboard() {
             {/* Employee List */}
             {(roles?.[0] === "TL" ||
               roles?.[0] === "Admin" ||
-              roles?.[0] === "Employee") && (
+              roles?.[0] === "Employee" ||
+              roles?.[0] === "HR") && (
               <>
                 <li>
                   <span className="material-symbols-outlined fs-5 bi-collection"></span>
@@ -167,12 +171,12 @@ function Dashboard() {
             </li>
 
             {/* Common List */}
-            <li>
+            {/* <li>
               <span className="material-symbols-outlined fs-5 bi-bell-fill"></span>
               <Link to="#">
                 <span className="txt_col">Notifications</span>
               </Link>
-            </li>
+            </li> */}
             <li>
               <span className="material-symbols-outlined fs-5  bi-journal-check "></span>
               <Link to="/Dashboard/AddLeaves">

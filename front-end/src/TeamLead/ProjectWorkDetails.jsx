@@ -23,6 +23,7 @@ function ProjectWorkDetails() {
   const [message, setMessage] = React.useState(null);
   const [formData, setFormData] = React.useState(null);
   const [onSelectedData, setSelectedData] = React.useState(null);
+  const token = localStorage.getItem("token");
   axios.defaults.withCredentials = true;
   const gridRef = React.createRef();
   console.log(rowData, "rowDatarowData", onSelectedData, message);
@@ -75,11 +76,6 @@ function ProjectWorkDetails() {
     () => [
       {
         field: "employeeName",
-        minWidth: 170,
-        filter: true,
-      },
-      {
-        field: "employeeId",
         minWidth: 170,
         filter: true,
       },
@@ -210,7 +206,7 @@ function ProjectWorkDetails() {
     axios
       .get(`${commonData?.APIKEY}/getWrokDetails`)
       .then(async (res) => {
-        let userDetails = await axios.get(`${commonData?.APIKEY}/dashboard`);
+        let userDetails = await axios.post(`${commonData?.APIKEY}/dashboard`, { tokensss: token });
         console.log(res, "resres324", userDetails);
         if (res.data.Status === "Success") {
           let filterData = res.data.Result.filter(
