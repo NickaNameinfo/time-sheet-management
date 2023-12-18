@@ -357,13 +357,13 @@ const TimeManagement = () => {
       "friday",
       "saturday",
       "sunday",
-    ].reduce(
-      (sum, day) =>
-        formData?.[day]?.includes(".")
-          ? sum + Number(formData?.[day]?.match(/\d+/)?.[0] || 0)
-          : sum,
-      0
-    );
+    ].reduce((sum, day) => {
+      console.log(formData, "minit234123", formData?.[day], day);
+      return formData?.[day]?.includes(".")
+        ? sum + Number(formData?.[day]?.split(".")[1] || 0)
+        : sum;
+    }, 0);
+    console.log(minit, "minitminitminit");
 
     setTotalMinit(minit);
     let tempWorkHours = [
@@ -377,7 +377,7 @@ const TimeManagement = () => {
     ].reduce(
       (sum, day) =>
         !formData?.[day]?.includes(".")
-          ? sum + Number(formData?.[day]?.match(/\d+/)?.[0] || 0)
+          ? sum + Number(formData?.[day]?.split(".")[0] || 0)
           : sum,
       0
     );
