@@ -377,7 +377,8 @@ const TimeManagement = () => {
     ].reduce(
       (sum, day) =>
         formData?.[day]?.includes(".")
-          ? sum + Number(formData?.[day]?.split(".")[0] || 0)
+          ? sum +
+            Number(formData?.[day]?.split(".")[0] || Number(formData?.[day]))
           : sum,
       0
     );
