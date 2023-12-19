@@ -45,15 +45,15 @@ function ProjectWorkDetails() {
     if (onSelectedData) {
       let data = {
         from: onSelectedData?.tlName,
-        to: onSelectedData?.employeeName,
+        to: onSelectedData?.userName,
         sendDate: new Date(),
         message: message,
         empId: "",
         tlId: "",
       };
-      setFormData(data);
+      setFormData(data); 
     }
-  }, [onSelectedData]);
+  }, [onSelectedData, message]);
 
   const updateProjectDetails = (status, params) => {
     let apiTemp = { ...params.data, approvedDate: new Date(), status: status };
@@ -113,7 +113,7 @@ function ProjectWorkDetails() {
                   class="fa-regular fa-circle-xmark"
                   style={{ fontSize: "20px", color: "red" }}
                 ></i>
-                <i
+                {/* <i
                   class="fa-regular fa-comment"
                   style={{
                     fontSize: "20px",
@@ -124,7 +124,7 @@ function ProjectWorkDetails() {
                     setSelectedData(params?.data);
                     setOpen(true);
                   }}
-                ></i>
+                ></i> */}
               </>
             ) : (
               <i

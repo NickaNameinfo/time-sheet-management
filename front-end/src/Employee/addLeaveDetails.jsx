@@ -55,6 +55,7 @@ function addLeaveDetails() {
       {
         field: "employeeName",
         minWidth: 170,
+        headerName : "Employee Email"
       },
       {
         field: "employeeId",
