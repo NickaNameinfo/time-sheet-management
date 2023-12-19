@@ -69,13 +69,15 @@ function Leaves() {
                     );
                   }}
                 ></i>
-                <i
-                  class="fa-regular fa-circle-xmark"
-                  onClick={() => {
-                    setRefresh(true);
-                    updateLeaveDetails("rejected", params);
-                  }}
-                ></i>
+                {params?.data?.leaveStatus !== "Cancel Reqest" && (
+                  <i
+                    class="fa-regular fa-circle-xmark"
+                    onClick={() => {
+                      setRefresh(true);
+                      updateLeaveDetails("rejected", params);
+                    }}
+                  ></i>
+                )}
               </>
             )}
           </div>
