@@ -101,7 +101,7 @@ function addLeaveDetails() {
     axios
       .post(`${commonData?.APIKEY}/dashboard`, { tokensss: token })
       .then((result) => {
-        setValue("employeeName", result?.data?.userName);
+        setValue("employeeName", result?.data?.employeeName);
         setValue(
           "employeeId",
           result?.data?.employeeId?.replace(/[A-Za-z]/g, "")
