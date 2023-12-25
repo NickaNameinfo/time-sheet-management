@@ -9,12 +9,12 @@ import {
   BsFillPersonBadgeFill,
   BsPersonCircle,
 } from "react-icons/bs";
+import { MenuItem, Select } from "@mui/material";
 import commonData from "../../common.json";
 function EmployeeHome() {
   const [totalLeaves, setTotalLeaves] = React.useState(null);
   const [sickLeave, setSickLeave] = useState(null);
   const [vacationLeave, setVacationLeave] = useState(null);
-  const [reamaining, setRemaining] = useState(null);
   const [earned, setEarned] = useState(null);
   const [compOffLeave, setCompOffLeave] = useState(null);
   const containerStyle = { width: "100%", height: "500px" };
@@ -22,7 +22,11 @@ function EmployeeHome() {
   const [rowData, setRowData] = useState(null);
   const [weekData, setWeekDate] = React.useState(null);
   const [userDetails, setUserDetails] = React.useState(null);
-  const [appliedLeaves, setAppliedLeaves] = React.useState(null);
+  const [remainingLeave, setRemainingLeave] = React.useState(null);
+  const [appliedCompLeave, setApplicedComp] = React.useState(null);
+  const [selectedWeek, setSelectedWeek] = React.useState(null);
+  const [weekNumberList, setWeekNumberList] = React.useState(null);
+
   const token = localStorage.getItem("token");
   console.log(totalLeaves, "rowDatarowData", rowData, weekData);
 
@@ -31,27 +35,37 @@ function EmployeeHome() {
       getUserInfo();
     }
     getLeaves();
+    let tempList = [
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+      22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+      40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
+    ];
+    setWeekNumberList(tempList);
   }, [userDetails, compOffLeave]);
 
   useEffect(() => {
     const currentYear = new Date().getFullYear();
-    let datesss = getWeekDates(getCurrentWeekNumber(), currentYear);
+    let datesss = getWeekDates(
+      selectedWeek ? selectedWeek : getCurrentWeekNumber(),
+      currentYear
+    );
     setWeekDate(datesss);
-  }, []);
+  }, [selectedWeek]);
 
   React.useEffect(() => {
-    let tempLeave =
-      Number(vacationLeave) -
-      Number(sickLeave) -
-      Number(earned) -
-      Number(compOffLeave);
-    console.log(
-      Number(vacationLeave),
-      Number(sickLeave),
-      Number(earned),
-      Number(compOffLeave),
-      "Number(compOffLeave)"
-    );
+    let sum =
+      (Number(vacationLeave) || 0) +
+      (Number(sickLeave) || 0) +
+      (Number(earned) || 0) +
+      (Number(compOffLeave) || 0);
+    setRemainingLeave(sum.toFixed(1));
+    let leaveDetails = {
+      vacationLeave: Number(vacationLeave),
+      sickLeave: Number(sickLeave),
+      earnedLeave: Number(earned),
+      compOffLeave: Number(compOffLeave),
+    };
+    localStorage.setItem("leaveDetails", JSON.stringify(leaveDetails));
   }, [vacationLeave, sickLeave, earned, compOffLeave]);
 
   React,
@@ -129,27 +143,25 @@ function EmployeeHome() {
           axios
             .post(`${commonData?.APIKEY}/dashboard`, { tokensss: token })
             .then((result) => {
+              console.log(res, "45234532sadf");
               const totalEligibility = res?.data?.Result?.reduce(
-                (total, item) => {
-                  // Use parseInt to convert eligibility values to numbers and handle potential non-numeric values
-                  const eligibility = parseInt(item.eligibility) || 0;
-                  return total + eligibility;
-                },
+                (total, item) =>
+                  item.leaveStatus === "approved"
+                    ? total + (parseInt(item.eligibility) || 0)
+                    : total,
                 0
               );
 
-              setCompOffLeave(Math.round(totalEligibility / 8)); // Corrected to Math.round
+              setCompOffLeave(
+                Math.round(totalEligibility / 8) - appliedCompLeave || 0
+              ); // Corrected to Math.round
 
               console.log(totalEligibility, "tempFinalResult");
             });
         }
       })
       .catch((err) => console.log(err));
-    if (compOffLeave) {
-      setTotalLeaves(Number(availableLeaves) + Number(compOffLeave));
-    } else {
-      setTotalLeaves(Number(availableLeaves));
-    }
+    setTotalLeaves(Number(availableLeaves));
 
     // setRemaining(availableLeaves - appliedLeaves?.length);
 
@@ -170,28 +182,18 @@ function EmployeeHome() {
                   Number(res.employeeId?.replace(/[A-Za-z]/g, "")) ===
                     Number(result?.data?.employeeId?.replace(/[A-Za-z]/g, ""))
               );
-              setAppliedLeaves(tempFinalResult);
 
               console.log("tempFinalResult4534", tempFinalResult);
-
               const totalLeaveHoursByType = {};
 
               tempFinalResult?.forEach((leave) => {
                 const leaveType = leave.leaveType;
-                const leaveHours = parseInt(Number(leave.leaveHours), 10);
-                totalLeaveHoursByType["hours"] = + Number(
-                  leave.leaveHours?.match(/\d+/)?.[0] || 0
-                );
+                const leaveHours = parseFloat(leave.leaveHours) || 0;
+
                 if (totalLeaveHoursByType[leaveType]) {
                   totalLeaveHoursByType[leaveType] += leaveHours;
-                  console.log(leave.leaveHours, "leave.leaveHours123");
-                  totalLeaveHoursByType["hours"] = +Number(leave.leaveHours);
                 } else {
                   totalLeaveHoursByType[leaveType] = leaveHours;
-                  console.log(
-                    Number(leave.leaveHours?.match(/\d+/)?.[0] || 0),
-                    "leave.leaveHours123"
-                  );
                 }
               });
 
@@ -200,6 +202,8 @@ function EmployeeHome() {
               const vacationLeaveCount = totalLeaveHoursByType["Casual Leave"];
               const scikLeaveCount = totalLeaveHoursByType["Sick Leave"];
               const earnedLeaveCount = totalLeaveHoursByType["Earned Leave"];
+              const compoffLeaveCount = totalLeaveHoursByType["Comp-off"];
+              setApplicedComp(compoffLeaveCount);
               let dividedLeave = totalLeaves / 3;
               console.log(
                 vacationLeaveCount,
@@ -484,6 +488,7 @@ function EmployeeHome() {
   };
 
   const getWeekDates = (weekNumber, year) => {
+    console.log(year, "year4532", weekNumber);
     const startDate = startOfWeek(new Date(year, 0, 1)); // January 1st of the year
     const daysToAdd = (weekNumber - 1) * 7; // Adjust for the selected week number
     const dates = [];
@@ -491,6 +496,7 @@ function EmployeeHome() {
       const date = addDays(startDate, daysToAdd + i);
       dates.push(date.toLocaleDateString());
     }
+    console.log(dates, "datesdates123234123");
     return dates;
   };
 
@@ -595,7 +601,7 @@ function EmployeeHome() {
                   </div>
                   <div className="counts">
                     <p>Count</p>
-                    <h3>{totalLeaves}</h3>
+                    <h3>{remainingLeave}</h3>
                   </div>
                 </div>
                 <div className="counterCardname">
@@ -689,6 +695,20 @@ function EmployeeHome() {
           <div className="text-center pb-1 my-3">
             <h4>Time Sheet</h4>
           </div>
+          <deiv className="d-block mb-2 mx-3 text-end">
+            <Select
+              className="noPaddingInput"
+              value={
+                selectedWeek ? selectedWeek : String(getCurrentWeekNumber())
+              }
+              defaultValue={String(getCurrentWeekNumber())}
+              onChange={(e, value) => setSelectedWeek(value.props.value)}
+            >
+              {weekNumberList?.map((res) => (
+                <MenuItem value={res}>{res}</MenuItem>
+              ))}
+            </Select>
+          </deiv>
           <div style={containerStyle}>
             <div style={gridStyle} className="ag-theme-alpine">
               <AgGridReact

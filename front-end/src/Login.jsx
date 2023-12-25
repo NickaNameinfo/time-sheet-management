@@ -46,14 +46,13 @@ function Login() {
 
   React.useEffect(() => {
     if (roles?.includes("Admin")) {
-      console.log(roles, "rolesrolesroles");
-      navigate("/Dashboard");
+      navigate("/Dashboard/EmployeeHome");
     } else if (roles?.includes("TL")) {
-      navigate("/Dashboard/TeamLeadHome");
+      navigate("/Dashboard/EmployeeHome");
     } else if (roles?.includes("Employee")) {
       navigate("/Dashboard/EmployeeHome");
     } else if (roles?.includes("HR")) {
-      navigate("/Dashboard/hr");
+      navigate("/Dashboard/EmployeeHome");
     }
   }, [roles]);
 

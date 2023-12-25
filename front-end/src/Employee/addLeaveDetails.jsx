@@ -55,7 +55,6 @@ function addLeaveDetails() {
       {
         field: "employeeName",
         minWidth: 170,
-        headerName : "Employee Email"
       },
       {
         field: "employeeId",
@@ -77,16 +76,19 @@ function addLeaveDetails() {
         editable: false,
         cellRenderer: (params, index) => (
           <div className="actions">
-            {params?.data?.leaveStatus !== "approved" ? (
+            {params?.data?.leaveStatus === "" || !params?.data?.leaveStatus ? (
               <i
                 class="fa-solid fa-trash"
                 onClick={() => handleDelete(params?.data?.id)}
               ></i>
             ) : (
-              <i
-                class="fa-regular fa-circle-xmark"
-                onClick={() => updateLeaveDetails("Cancel Reqest", params)}
-              ></i>
+              (params?.data?.leaveStatus === "" ||
+                !params?.data?.leaveStatus) && (
+                <i
+                  class="fa-regular fa-circle-xmark"
+                  onClick={() => updateLeaveDetails("Cancel Reqest", params)}
+                ></i>
+              )
             )}
           </div>
         ),
@@ -110,18 +112,17 @@ function addLeaveDetails() {
     getLeaves();
   }, [refresh]);
 
-  useEffect(() => {
-    if (formData.leaveFrom !== "" && formData.leaveTo !== "") {
-      const from = new Date(formData.leaveFrom);
-      const to = new Date(formData.leaveTo);
+  // useEffect(() => {
+  //   if (formData.leaveFrom !== "" && formData.leaveTo !== "") {
+  //     const from = new Date(formData.leaveFrom);
+  //     const to = new Date(formData.leaveTo);
 
-      const timeDifference = Math.abs(to - from);
-      const differenceInDays = Math.floor(
-        timeDifference / (24 * 60 * 60 * 1000)
-      );
-      setValue("leaveHours", Math.max(1, differenceInDays));
-    }
-  }, [formData.leaveFrom, formData.leaveTo]);
+  //     const timeDifference = Math.abs(to - from);
+  //     const differenceInDays = Math.floor(
+  //       timeDifference / (24 * 60 * 60 * 1000)
+  //     );
+  //   }
+  // }, [formData.leaveFrom, formData.leaveTo]);
 
   const getLeaves = () => {
     axios
@@ -148,19 +149,58 @@ function addLeaveDetails() {
   };
 
   const onSubmit = (data) => {
-    console.log(data, "tests213");
-    // Perform any other actions you want with the form data
-    axios
-      .post(`${commonData?.APIKEY}/applyLeave`, data)
-      .then((res) => {
-        if (res.data.Error) {
-          alert(res.data.Error);
-        } else {
-          location.reload();
-          setRefresh(true);
-        }
-      })
-      .catch((err) => console.log(err));
+    let storedData = localStorage.getItem("leaveDetails");
+    let retrievedUserData = JSON.parse(storedData);
+    let errorMessage = {};
+    console.log(errorMessage, "errorMessagedfasdf", retrievedUserData);
+    if (
+      (retrievedUserData?.vacationLeave === 0 ||
+        Number(formData?.leaveHours) > retrievedUserData?.vacationLeave) &&
+      formData?.leaveType === "Casual Leave"
+    ) {
+      errorMessage =
+        "You don't have Casual Leave select the lop option or check the leave balance";
+    }
+    if (
+      (retrievedUserData?.sickLeave === 0 ||
+        Number(formData?.leaveHours) > retrievedUserData?.sickLeave) &&
+      formData?.leaveType === "Sick Leave"
+    ) {
+      errorMessage =
+        "You don't have Sick Leave select the lop option or check the leave balance";
+    }
+    if (
+      (retrievedUserData?.earnedLeave === 0 ||
+        Number(formData?.leaveHours) > retrievedUserData?.earnedLeave) &&
+      formData?.leaveType === "Earned Leave"
+    ) {
+      errorMessage =
+        "You don't have Earned Leave select the lop option or check the leave balance";
+    }
+    if (
+      (retrievedUserData?.compOffLeave === 0 ||
+        Number(formData?.leaveHours) > retrievedUserData?.compOffLeave) &&
+      formData?.leaveType === "Comp-off"
+    ) {
+      errorMessage =
+        "You don't have Comp-Off Leave select the lop option or check the leave balance";
+    }
+    if (Object.entries(errorMessage).length === 0) {
+      axios
+        .post(`${commonData?.APIKEY}/applyLeave`, data)
+        .then((res) => {
+          if (res.data.Error) {
+            alert(res.data.Error);
+          } else {
+            location.reload();
+            setRefresh(true);
+          }
+        })
+        .catch((err) => console.log(err));
+    } else {
+      console.log(errorMessage, "eroorers");
+      alert(errorMessage);
+    }
   };
 
   const autoGroupColumnDef = useMemo(
@@ -242,7 +282,7 @@ function addLeaveDetails() {
                         <MenuItem value={"Casual Leave"}>Casual Leave</MenuItem>
                         <MenuItem value={"Sick Leave"}>Sick Leave</MenuItem>
                         <MenuItem value={"Earned Leave"}>Earned Leave</MenuItem>
-                        <MenuItem value={"Comp-off"}>Comp Off</MenuItem>
+                        <MenuItem value={"Comp-off"}>Comp-Off</MenuItem>
                         <MenuItem value={"LOP"}>LOP</MenuItem>
                       </Select>
                     )}

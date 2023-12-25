@@ -73,14 +73,16 @@ function CompOff() {
   console.log(formData, "formData");
 
   useEffect(() => {
-    axios.post(`${commonData?.APIKEY}/dashboard`, { tokensss: token }).then((result) => {
-      console.log(result, "result12121");
-      setValue("employeeName", result?.data?.userName);
-      setValue(
-        "employeeId",
-        result?.data?.employeeId?.replace(/[A-Za-z]/g, "")
-      );
-    });
+    axios
+      .post(`${commonData?.APIKEY}/dashboard`, { tokensss: token })
+      .then((result) => {
+        console.log(result, "result12121");
+        setValue("employeeName", result?.data?.employeeName);
+        setValue(
+          "employeeId",
+          result?.data?.employeeId?.replace(/[A-Za-z]/g, "")
+        );
+      });
     getLeaves();
   }, [refresh]);
 
@@ -90,16 +92,18 @@ function CompOff() {
       .then((res) => {
         console.log(res, "resr23234");
         if (res.data.Status === "Success") {
-          axios.post(`${commonData?.APIKEY}/dashboard`, { tokensss: token }).then((result) => {
-            console.log(result, "resultresult");
-            let tempFinalResult = res?.data?.Result?.filter(
-              (item) =>
-                Number(item.employeeId?.replace(/[A-Za-z]/g, "")) ===
-                Number(result?.data?.employeeId?.replace(/[A-Za-z]/g, ""))
-            );
-            console.log(tempFinalResult, "tempFinalResulttempFinalResult");
-            setRowData(tempFinalResult);
-          });
+          axios
+            .post(`${commonData?.APIKEY}/dashboard`, { tokensss: token })
+            .then((result) => {
+              console.log(result, "resultresult");
+              let tempFinalResult = res?.data?.Result?.filter(
+                (item) =>
+                  Number(item.employeeId?.replace(/[A-Za-z]/g, "")) ===
+                  Number(result?.data?.employeeId?.replace(/[A-Za-z]/g, ""))
+              );
+              console.log(tempFinalResult, "tempFinalResulttempFinalResult");
+              setRowData(tempFinalResult);
+            });
         }
       })
 
@@ -301,7 +305,7 @@ function CompOff() {
           </button>
         </form>
       </div>
-      <div style={{ width: "100%", height: "500px", marginBottom : "10%" }}>
+      <div style={{ width: "100%", height: "500px", marginBottom: "10%" }}>
         <div className="text-center pb-1 my-3">
           <h4>Comp-off Details</h4>
         </div>
