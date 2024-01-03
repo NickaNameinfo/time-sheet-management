@@ -36,6 +36,8 @@ function Employee() {
       { field: "designation" },
       { field: "employeeStatus" },
       { field: "date", headerName: "Join Date" },
+      { field: "relievingDate", headerName: "Relieving Date" },
+      { field: "permanentDate", headerName: "Permanent Date" },
       {
         field: "Action",
         headerName: "Action",

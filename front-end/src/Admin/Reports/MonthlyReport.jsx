@@ -4,8 +4,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
-import commonData from "../../../common.json"
-
+import commonData from "../../../common.json";
 
 const MonthlyReport = () => {
   const containerStyle = { width: "100%", height: "100%" };
@@ -38,7 +37,9 @@ const MonthlyReport = () => {
         workingHoursByMonthAndProject[monthKey][projectKey] = 0;
       }
 
-      workingHoursByMonthAndProject[monthKey][projectKey] += Number(item.totalHours);
+      workingHoursByMonthAndProject[monthKey][projectKey] += Number(
+        item.totalHours
+      );
     });
 
     // Set the state with the organized data
@@ -65,7 +66,10 @@ const MonthlyReport = () => {
       .get(`${commonData?.APIKEY}/getWrokDetails`)
       .then((res) => {
         if (res.data.Status === "Success") {
-          setWorkDetails(res.data.Result);
+          let resultData = res.data.Result?.filter(
+            (item) => item.status === "approved"
+          );
+          setWorkDetails(resultData);
         } else {
           alert("Error");
         }
@@ -80,7 +84,8 @@ const MonthlyReport = () => {
       minWidth: 100,
       valueGetter: (params, index) => {
         const weekField = params.colDef.field.toString();
-        const value = projectWorkHours[weekField]?.[params.data.projectName] || 0;
+        const value =
+          projectWorkHours[weekField]?.[params.data.projectName] || 0;
         return value;
       },
     };
@@ -110,10 +115,11 @@ const MonthlyReport = () => {
       {
         field: "allotatedHours",
         minWidth: 170,
+        headerName: "Allotted Hours",
       },
       {
         field: "Consumed",
-        headerName : "Consumed Hours",
+        headerName: "Consumed Hours",
         minWidth: 170,
         valueGetter: (params) => {
           const totalWorkHours = workDetails.reduce((total, entry) => {
@@ -170,12 +176,10 @@ const MonthlyReport = () => {
     []
   );
 
-  
   const onClickExport = () => {
     console.log(exportApi, "grdiApigrdiApi");
     exportApi.exportDataAsCsv();
   };
-
 
   return (
     <>
@@ -183,7 +187,7 @@ const MonthlyReport = () => {
         <h4>Project Monthly Report</h4>
       </div>
       <div style={containerStyle}>
-      <Button
+        <Button
           onClick={() => onClickExport()}
           variant="contained"
           className="mb-3 mx-3"

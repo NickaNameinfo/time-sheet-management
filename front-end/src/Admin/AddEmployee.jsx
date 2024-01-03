@@ -76,8 +76,10 @@ function AddEmployee() {
         employeeStatus: res?.data?.Result[0]?.employeeStatus,
         date: res?.data?.Result[0]?.date,
         tempRole: res?.data?.Result[0]?.role,
+        relievingDate: res?.data?.Result[0]?.relievingDate,
+        permanentDate: res?.data?.Result[0]?.permanentDate,
       };
-      setTempRole(res?.data?.Result[0]?.role)
+      setTempRole(res?.data?.Result[0]?.role);
       Object.keys(tempData).forEach((key) => {
         setValue(key, tempData[key]);
       });
@@ -122,7 +124,7 @@ function AddEmployee() {
     if (name === "Employee") {
       updatedRoles = "Employee";
     }
-    if(name === "HR"){
+    if (name === "HR") {
       updatedRoles = "HR";
     }
     setTempRole(updatedRoles); // Update the state with the new roles array
@@ -380,6 +382,7 @@ function AddEmployee() {
             </div>
 
             <div className="col-sm-3">
+              <label>Join Date</label>
               <Box sx={{}}>
                 <LocalizationProvider dateAdapter={AdapterDayjs}>
                   <Controller
@@ -405,7 +408,63 @@ function AddEmployee() {
                 </LocalizationProvider>
               </Box>
             </div>
-            <div className="col-sm-4">
+            <div className="col-sm-3">
+              <label>Relieving date</label>
+              <Box sx={{}}>
+                <LocalizationProvider dateAdapter={AdapterDayjs}>
+                  <Controller
+                    name="relievingDate"
+                    control={control}
+                    render={({ field }) => (
+                      <DatePicker
+                        placeholder="Date Of Join"
+                        value={dayjs(formDatas?.relievingDate)}
+                        renderInput={(props) => (
+                          <TextField {...props} fullWidth />
+                        )}
+                        defaultValue={null}
+                        onChange={(newValue) => {
+                          // Convert the selected date to the desired format (YYYY-MM-DD) and update the state using setValue
+                          const formattedDate =
+                            dayjs(newValue).format("YYYY-MM-DD");
+                          setValue("relievingDate", formattedDate);
+                        }}
+                        format="YYYY-MM-DD"
+                      />
+                    )}
+                  />
+                </LocalizationProvider>
+              </Box>
+            </div>
+            <div className="col-sm-3">
+              <label>Permanent date</label>
+              <Box sx={{}}>
+                <LocalizationProvider dateAdapter={AdapterDayjs}>
+                  <Controller
+                    name="permanentDate"
+                    control={control}
+                    render={({ field }) => (
+                      <DatePicker
+                        placeholder="Date Of Permanent"
+                        value={dayjs(formDatas?.permanentDate)}
+                        renderInput={(props) => (
+                          <TextField {...props} fullWidth />
+                        )}
+                        defaultValue={null}
+                        onChange={(newValue) => {
+                          // Convert the selected date to the desired format (YYYY-MM-DD) and update the state using setValue
+                          const formattedDate =
+                            dayjs(newValue).format("YYYY-MM-DD");
+                          setValue("permanentDate", formattedDate);
+                        }}
+                        format="YYYY-MM-DD"
+                      />
+                    )}
+                  />
+                </LocalizationProvider>
+              </Box>
+            </div>
+            <div className="col-sm-3 d-flex align-items-center">
               <Box sx={{}}>
                 <FormControl fullWidth>
                   <RadioGroup

@@ -82,8 +82,7 @@ function addLeaveDetails() {
                 onClick={() => handleDelete(params?.data?.id)}
               ></i>
             ) : (
-              (params?.data?.leaveStatus === "" ||
-                !params?.data?.leaveStatus) && (
+              params?.data?.leaveStatus === "approved" && (
                 <i
                   class="fa-regular fa-circle-xmark"
                   onClick={() => updateLeaveDetails("Cancel Reqest", params)}

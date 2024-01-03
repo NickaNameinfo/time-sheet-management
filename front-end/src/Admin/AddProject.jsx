@@ -59,14 +59,15 @@ function AddProject() {
     const isNumberIncluded = rowData.some(
       (item) => Number(item.referenceNo) === Number(formDatas?.referenceNo)
     );
-    const isProjectNoIncluded = rowData.some(
-      (item) => Number(item.projectNo) === Number(formDatas?.projectNo)
-    );
+    // const isProjectNoIncluded = rowData.some(
+    //   (item) => Number(item.projectNo) === Number(formDatas?.projectNo)
+    // );
+    // else if (isProjectNoIncluded) {
+    //   alert(`${formDatas?.referenceNo} is already existing in Project No`);
+    // }
     console.log(rowData, "rowData321423", isNumberIncluded);
     if (isNumberIncluded) {
       alert(`${formDatas?.referenceNo} is already existing in Reference No`);
-    } else if (isProjectNoIncluded) {
-      alert(`${formDatas?.referenceNo} is already existing in Project No`);
     } else {
       axios
         .post(`${commonData?.APIKEY}/project/create`, data)
