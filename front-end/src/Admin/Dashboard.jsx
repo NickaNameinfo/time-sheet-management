@@ -26,7 +26,7 @@ function Dashboard() {
     axios
       .get(`${commonData?.APIKEY}/logout`)
       .then((res) => {
-        localStorage.removeItem('token');
+        localStorage.removeItem("token");
         navigate("/");
       })
       .catch((err) => console.log(err));
@@ -107,6 +107,12 @@ function Dashboard() {
                     </Link>
                   </div>
                   <ul className="submenu">
+                    <Link to="/Dashboard/Reports/EmployeeReport">
+                      Employee Report
+                    </Link>
+                    <Link to="/Dashboard/Reports/ConsolidatedReport">
+                      Consolidated Report
+                    </Link>
                     <Link to="/Dashboard/Reports/ProjectReport">
                       Project Report
                     </Link>
