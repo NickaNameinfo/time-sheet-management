@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
-import commonData from "../../common.json"
+import commonData from "../../common.json";
 function Projects() {
   const containerStyle = { width: "100%", height: "100%" };
   const gridStyle = { height: "100%", width: "100%" };
@@ -27,7 +27,7 @@ function Projects() {
       { field: "subDivision", minWidth: 170 },
       { field: "startDate", minWidth: 170 },
       { field: "targetDate", minWidth: 170 },
-      { field: "allotatedHours", minWidth: 170 },
+      { field: "allotatedHours", headerName: "Allotted Hours", minWidth: 170 },
     ],
     []
   );

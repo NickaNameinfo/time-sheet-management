@@ -60,7 +60,10 @@ const ProjectReport = () => {
       .get(`${commonData?.APIKEY}/getWrokDetails`)
       .then((res) => {
         if (res.data.Status === "Success") {
-          setWorkDetails(res.data.Result);
+          let resultData = res.data.Result?.filter(
+            (item) => item.status === "approved"
+          );
+          setWorkDetails(resultData);
         } else {
           alert("Error");
         }

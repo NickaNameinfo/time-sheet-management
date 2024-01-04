@@ -82,7 +82,7 @@ function TeamLeadHome() {
         valueGetter: (params) =>
           calculateProjectValues(params, projectWorkHours).consumedHours,
       },
-      { field: "allotatedHours", minWidth: 170 },
+      { field: "allotatedHours", headerName: "Allotted Hours", minWidth: 170 },
       { field: "referenceNo", minWidth: 170 },
       { field: "orderId", minWidth: 170 },
       { field: "positionNumber", minWidth: 170 },

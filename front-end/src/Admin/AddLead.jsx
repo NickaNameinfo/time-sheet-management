@@ -14,7 +14,7 @@ import {
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
-import commonData from "../../common.json"
+import commonData from "../../common.json";
 function AddLead() {
   const {
     handleSubmit,
@@ -24,18 +24,19 @@ function AddLead() {
   } = useForm();
   const navigate = useNavigate();
   const [empList, setEmpList] = useState(null);
+  console.log(empList, "filterted234");
 
-  useEffect((params) => {
+  useEffect(() => {
     axios
       .get(`${commonData?.APIKEY}/getEmployee`)
       .then((res) => {
         if (res.data.Status === "Success") {
           console.log(res.data.Result, "setEmpListsetEmpList");
-          setEmpList(
-            res.data.Result.map(
-              (employee) => employee.role === "TL" && employee.employeeName
-            )
+          let filterted = res?.data?.Result.filter(
+            (item) => item.role === "TL" || item.role === "Admin"
           );
+          console.log(filterted, "filterted134");
+          setEmpList(filterted);
         } else {
           alert("Error");
         }
@@ -84,7 +85,7 @@ function AddLead() {
                         error={Boolean(errors.leadName)}
                       >
                         {empList?.map((res) => (
-                          <MenuItem value={res}>{res}</MenuItem>
+                          <MenuItem value={res?.employeeName}>{res?.employeeName}</MenuItem>
                         ))}
                       </Select>
                     )}

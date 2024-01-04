@@ -4,8 +4,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
-import commonData from "../../../common.json"
-
+import commonData from "../../../common.json";
 
 const WeeklyReport = () => {
   const containerStyle = { width: "100%", height: "100%" };
@@ -62,7 +61,10 @@ const WeeklyReport = () => {
       .get(`${commonData?.APIKEY}/getWrokDetails`)
       .then((res) => {
         if (res.data.Status === "Success") {
-          setWorkDetails(res.data.Result);
+          let resultData = res.data.Result?.filter(
+            (item) => item.status === "approved"
+          );
+          setWorkDetails(resultData);
         } else {
           alert("Error");
         }
@@ -71,7 +73,10 @@ const WeeklyReport = () => {
   };
 
   const getTotalHoursForWeek = (data) => {
-    const totalHours = data.reduce((acc, item) => acc + Number(item.totalHours), 0);
+    const totalHours = data.reduce(
+      (acc, item) => acc + Number(item.totalHours),
+      0
+    );
     console.log(totalHours, "totalHours");
     return totalHours;
   };
@@ -105,18 +110,18 @@ const WeeklyReport = () => {
       {
         field: "allotatedHours",
         minWidth: 170,
-        headerName : "Allotted Hours"
+        headerName: "Allotted Hours",
       },
       {
         field: "Consumed",
-        headerName : "Consumed Hours",
+        headerName: "Consumed Hours",
         minWidth: 170,
         valueGetter: (params) => {
           const project = projectWorkHours?.find(
             (items) => items.projectName === params.data.projectName
           );
 
-          return (project?.totalHours) || 0;
+          return project?.totalHours || 0;
         },
       },
       // { field: "discipline" },
@@ -163,13 +168,10 @@ const WeeklyReport = () => {
     []
   );
 
-  
-  
   const onClickExport = () => {
     console.log(exportApi, "grdiApigrdiApi");
     exportApi.exportDataAsCsv();
   };
-
 
   return (
     <>
@@ -177,7 +179,7 @@ const WeeklyReport = () => {
         <h4>Project Weekly Report</h4>
       </div>
       <div style={containerStyle}>
-      <Button
+        <Button
           onClick={() => onClickExport()}
           variant="contained"
           className="mb-3 mx-3"

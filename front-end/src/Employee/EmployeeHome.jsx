@@ -119,7 +119,7 @@ function EmployeeHome() {
     );
     console.log(useResult?.data, "useResult123", userDetails);
     let monthData = getWorkMonth(
-      useResult?.data?.Result[0]?.date,
+      useResult?.data?.Result[0]?.permanentDate,
       getCurrentDateInFormat()
     );
 
@@ -151,10 +151,14 @@ function EmployeeHome() {
                     : total,
                 0
               );
+              let dataTemp = appliedCompLeave ? appliedCompLeave : 0;
+              console.log(
+                totalEligibility,
+                "totalEligibility",
+                appliedCompLeave
+              );
 
-              setCompOffLeave(
-                Math.round(totalEligibility / 8) - appliedCompLeave || 0
-              ); // Corrected to Math.round
+              setCompOffLeave(Math.round(totalEligibility / 9) - dataTemp); // Corrected to Math.round
 
               console.log(totalEligibility, "tempFinalResult");
             });

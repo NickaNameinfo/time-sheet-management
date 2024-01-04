@@ -82,7 +82,7 @@ app.post("/create", upload.single("employeeImage"), (req, res) => {
     } else {
       // If the userName doesn't exist, proceed with the insert operation
       const sql =
-        "INSERT INTO employee (`employeeName`, `EMPID`, `employeeEmail`, `userName`, `password`, `role`, `discipline`, `designation`, `date`, `employeeImage`, `employeeStatus`) VALUES (?)";
+        "INSERT INTO employee (`employeeName`, `EMPID`, `employeeEmail`, `userName`, `password`, `role`, `discipline`, `designation`, `date`, `employeeImage`, `employeeStatus`, `relievingDate`, `permanentDate`) VALUES (?)";
       if (err) return res.json({ Error: "Error in hashing password" });
 
       // Check if req.file is defined and set the image filename accordingly
@@ -102,6 +102,8 @@ app.post("/create", upload.single("employeeImage"), (req, res) => {
         req.body.date,
         imageFilename, // Use the image filename or a default value
         req.body.employeeStatus,
+        req.body.relievingDate,
+        req.body.permanentDate,
       ];
 
       con.query(sql, [values], (err, result) => {
@@ -436,7 +438,14 @@ app.put("/update/:id", upload.single("employeeImage"), (req, res) => {
             updateSql += ", `employeeStatus`=?";
             values.push(req.body.employeeStatus);
           }
-
+          if (req.body.relievingDate) {
+            updateSql += ", `relievingDate`=?";
+            values.push(req.body.relievingDate);
+          }
+          if (req.body.permanentDate) {
+            updateSql += ", `permanentDate`=?";
+            values.push(req.body.permanentDate);
+          }
           updateSql += " WHERE `id`=?";
           values.push(employeeId);
 
@@ -588,24 +597,23 @@ app.post(
 //teamLead Oprationss
 
 app.post("/lead/create", upload.single("image"), (req, res) => {
-  const checkUserNameSql =
-    "SELECT COUNT(*) AS count FROM team_lead WHERE  `leadName` = ?";
-  con.query(checkUserNameSql, [req.body.leadName], (err, result) => {
-    if (err) {
-      return res.json({ Error: "Error in checking leadName" });
-    }
-    if (result[0]?.count > 0) {
-      return res.json({ Error: "leadName already exists" });
-    } else {
-      const sql = "INSERT INTO team_lead (`leadName`,`teamName`) VALUES (?)";
-      if (err) return res.json({ Error: "Error in hashing password" });
-      const values = [req.body.leadName, req.body.teamName];
-      con.query(sql, [values], (err, result) => {
-        if (err) return res.json({ Error: "Inside singup query" });
-        return res.json({ Status: "Success" });
-      });
-    }
+  // const checkUserNameSql = "SELECT COUNT(*) AS count FROM team_lead WHERE  `leadName` = ?";
+  // con.query(checkUserNameSql, [req.body.leadName], (err, result) => {
+  //   if (err) {
+  //     return res.json({ Error: "Error in checking leadName" });
+  //   }
+  //   if (result[0]?.count > 0) {
+  //     return res.json({ Error: "leadName already exists" });
+  //   } else {
+  const sql = "INSERT INTO team_lead (`leadName`,`teamName`) VALUES (?)";
+  // if (err) return res.json({ Error: "Error in hashing password" });
+  const values = [req.body.leadName, req.body.teamName];
+  con.query(sql, [values], (err, result) => {
+    if (err) return res.json({ Error: "Inside singup query" });
+    return res.json({ Status: "Success" });
   });
+  //   }
+  // });
 });
 
 app.get("/getLead", (req, res) => {

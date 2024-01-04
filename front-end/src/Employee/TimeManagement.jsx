@@ -610,7 +610,7 @@ const TimeManagement = () => {
                 {formData?.map((res, index) => (
                   <tr>
                     <td>
-                      {index !== formData.length - 1 && index}
+                      {index !== formData.length - 1 && index + 1}
                       {index === formData.length - 1 && (
                         <div className="actions addIcon">
                           <i
