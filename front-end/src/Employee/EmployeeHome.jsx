@@ -28,7 +28,6 @@ function EmployeeHome() {
   const [weekNumberList, setWeekNumberList] = React.useState(null);
 
   const token = localStorage.getItem("token");
-  console.log(totalLeaves, "rowDatarowData", rowData, weekData);
 
   React.useEffect(() => {
     if (userDetails) {
@@ -80,15 +79,12 @@ function EmployeeHome() {
     let totalMonths = 0;
     let currentDateIterator = new Date(startDateString);
     while (currentDateIterator < currentDate) {
-      if (currentDateIterator.getDate() >= 20) {
-        // If the current date is 20 or later in the month, increment the total months
+      if (currentDateIterator.getDate() === 1) {
         totalMonths++;
       }
-      // Move to the next month
       currentDateIterator.setMonth(currentDateIterator.getMonth() + 1);
-      currentDateIterator.setDate(21);
+      currentDateIterator.setDate(1); // Set to the first day of the next month
     }
-    console.log(totalMonths, "totalMonthstotalMonths", startDateString);
     return totalMonths; // Moved the return statement outside of the while loop
   };
 
@@ -106,10 +102,9 @@ function EmployeeHome() {
     annualLeaveAllocation,
     status
   ) => {
-    let months = status === "Probation" ? 5 : 11;
+    let months = status === "Probation" ? 6 : 12;
     const leavesPerMonth = annualLeaveAllocation / months; // Divide by 12 months in a year
     const availableLeaves = Math.round(leavesPerMonth * workingMonthsPerYear);
-    console.log(availableLeaves, "availableLeaves231");
     return availableLeaves;
   };
 
@@ -117,11 +112,12 @@ function EmployeeHome() {
     let useResult = await axios.get(
       `${commonData?.APIKEY}/get/${userDetails?.id}`
     );
-    console.log(useResult?.data, "useResult123", userDetails);
-    let monthData = getWorkMonth(
-      useResult?.data?.Result[0]?.permanentDate,
-      getCurrentDateInFormat()
-    );
+    let calculateDate =
+      useResult?.data?.Result[0]?.employeeStatus === "Probation"
+        ? useResult?.data?.Result[0]?.date
+        : useResult?.data?.Result[0]?.permanentDate;
+
+    let monthData = getWorkMonth(calculateDate, getCurrentDateInFormat());
 
     const annualLeaves =
       useResult?.data?.Result[0]?.employeeStatus === "Probation" ? 6 : 18; // Total annual leave allocation
@@ -130,12 +126,7 @@ function EmployeeHome() {
       annualLeaves,
       useResult?.data?.Result[0]?.employeeStatus
     );
-    console.log(
-      monthData,
-      availableLeaves,
-      "availableLeaves213421",
-      annualLeaves
-    );
+
     axios
       .get(`${commonData?.APIKEY}/getcompOffDetails`)
       .then((res) => {
@@ -143,33 +134,22 @@ function EmployeeHome() {
           axios
             .post(`${commonData?.APIKEY}/dashboard`, { tokensss: token })
             .then((result) => {
-              console.log(res, "45234532sadf");
               const totalEligibility = res?.data?.Result?.reduce(
                 (total, item) =>
-                  item.leaveStatus === "approved"
+                  item.leaveStatus === "approved" &&
+                  item?.employeeId === res.data.employeeId
                     ? total + (parseInt(item.eligibility) || 0)
                     : total,
                 0
               );
               let dataTemp = appliedCompLeave ? appliedCompLeave : 0;
-              console.log(
-                totalEligibility,
-                "totalEligibility",
-                appliedCompLeave
-              );
 
               setCompOffLeave(Math.round(totalEligibility / 9) - dataTemp); // Corrected to Math.round
-
-              console.log(totalEligibility, "tempFinalResult");
             });
         }
       })
       .catch((err) => console.log(err));
     setTotalLeaves(Number(availableLeaves));
-
-    // setRemaining(availableLeaves - appliedLeaves?.length);
-
-    console.log(availableLeaves, "useResultuseResult", useResult);
   };
 
   const getLeaves = () => {
@@ -181,13 +161,9 @@ function EmployeeHome() {
             .post(`${commonData?.APIKEY}/dashboard`, { tokensss: token })
             .then((result) => {
               let tempFinalResult = res?.data?.Result?.filter(
-                (res) =>
-                  res?.leaveStatus !== "Canceled" &&
-                  Number(res.employeeId?.replace(/[A-Za-z]/g, "")) ===
-                    Number(result?.data?.employeeId?.replace(/[A-Za-z]/g, ""))
+                (res) => res?.leaveStatus === "approved" && res.employeeId === result?.data?.employeeId
               );
-
-              console.log("tempFinalResult4534", tempFinalResult);
+              console.log(tempFinalResult, "tempFinalResult")
               const totalLeaveHoursByType = {};
 
               tempFinalResult?.forEach((leave) => {
@@ -201,20 +177,13 @@ function EmployeeHome() {
                 }
               });
 
-              console.log(totalLeaveHoursByType, "totalLeaveHoursByType1234");
-
               const vacationLeaveCount = totalLeaveHoursByType["Casual Leave"];
               const scikLeaveCount = totalLeaveHoursByType["Sick Leave"];
               const earnedLeaveCount = totalLeaveHoursByType["Earned Leave"];
               const compoffLeaveCount = totalLeaveHoursByType["Comp-off"];
               setApplicedComp(compoffLeaveCount);
               let dividedLeave = totalLeaves / 3;
-              console.log(
-                vacationLeaveCount,
-                "tempFinalResult",
-                earnedLeaveCount,
-                String(Math.abs(Math.abs(dividedLeave))).split(".")[1]
-              );
+
               setEarned(
                 earnedLeaveCount
                   ? String(Math.abs(earnedLeaveCount - dividedLeave)).split(
@@ -321,16 +290,6 @@ function EmployeeHome() {
                     : "NP"
                 }`
               : "NP"}
-
-            {console.log(
-              // params,
-              "params.data",
-              params.colDef.field,
-
-              // Object.keys(params.data?.item)?.[0]
-              params.data?.item[formatDate(weekData?.[0])]?.["IN"]?.[0]
-              // formatDate(weekData?.[0])
-            )}
           </p>
         ),
       },
@@ -376,12 +335,6 @@ function EmployeeHome() {
         field: formatDate(weekData?.[3]),
         cellRenderer: (params) => (
           <p>
-            {console.log(
-              Object.keys(params.data?.item)?.[0],
-              params.colDef.field,
-              "sdfkjasovjas",
-              params.data
-            )}
             {Object.keys(params.data?.item).includes(params.colDef.field)
               ? `${
                   params.data?.item[formatDate(weekData?.[3])]?.["IN"]?.[0]
@@ -458,24 +411,12 @@ function EmployeeHome() {
     [weekData, rowData]
   );
 
-  const getInTime = (dateString) => {
-    const date = new Date(dateString);
-    const hours = date.getHours();
-    const minutes = date.getMinutes();
-    const amOrPm = hours >= 12 ? "AM" : "PM";
-    const formattedHours = hours % 12 || 12; // Convert 0 to 12 for 12-hour format
-    const formattedMinutes = minutes.toString().padStart(2, "0"); // Ensure minutes are always two digits
-
-    return `${formattedHours}:${formattedMinutes} ${amOrPm}`;
-  };
-
   const getCurrentWeekNumber = () => {
     const now = new Date();
     const startOfYear = new Date(now.getFullYear(), 0, 1); // Changed day from 0 to 1
     const diff = now - startOfYear;
     const oneWeekInMilliseconds = 7 * 24 * 60 * 60 * 1000;
     const weekNumber = Math.floor(diff / oneWeekInMilliseconds) + 1; // Added 1 to account for week 0
-    console.log(weekNumber, "weekNumber");
     return weekNumber;
   };
 
@@ -492,7 +433,6 @@ function EmployeeHome() {
   };
 
   const getWeekDates = (weekNumber, year) => {
-    console.log(year, "year4532", weekNumber);
     const startDate = startOfWeek(new Date(year, 0, 1)); // January 1st of the year
     const daysToAdd = (weekNumber - 1) * 7; // Adjust for the selected week number
     const dates = [];
@@ -500,7 +440,6 @@ function EmployeeHome() {
       const date = addDays(startDate, daysToAdd + i);
       dates.push(date.toLocaleDateString());
     }
-    console.log(dates, "datesdates123234123");
     return dates;
   };
 
@@ -512,7 +451,6 @@ function EmployeeHome() {
         { tokensss: token }
       );
       const userDetails = userDetailsResponse.data;
-      console.log(userDetails, "userDetails1123", userDetailsResponse);
 
       // Convert dates to the "YYYY-MM-DD" format
       const convertedDates = dates?.map((date) => {
@@ -539,7 +477,6 @@ function EmployeeHome() {
 
       // Update state with user details and time sheet data
       setUserDetails(userDetails);
-      console.log(userDetails, "userDetails", timeSheetData);
 
       // Group data by date
       const dateWiseData = {};
@@ -567,7 +504,6 @@ function EmployeeHome() {
         },
       ];
 
-      console.log(rowData, "rowData1231");
       setRowData(rowData);
     } catch (error) {
       console.error("Error in getInOutTime:", error);

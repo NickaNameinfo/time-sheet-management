@@ -76,12 +76,8 @@ function CompOff() {
     axios
       .post(`${commonData?.APIKEY}/dashboard`, { tokensss: token })
       .then((result) => {
-        console.log(result, "result12121");
         setValue("employeeName", result?.data?.employeeName);
-        setValue(
-          "employeeId",
-          result?.data?.employeeId?.replace(/[A-Za-z]/g, "")
-        );
+        setValue("employeeId", result?.data?.employeeId);
       });
     getLeaves();
   }, [refresh]);
@@ -90,29 +86,21 @@ function CompOff() {
     axios
       .get(`${commonData?.APIKEY}/getcompOffDetails`)
       .then((res) => {
-        console.log(res, "resr23234");
         if (res.data.Status === "Success") {
           axios
             .post(`${commonData?.APIKEY}/dashboard`, { tokensss: token })
             .then((result) => {
-              console.log(result, "resultresult");
               let tempFinalResult = res?.data?.Result?.filter(
-                (item) =>
-                  Number(item.employeeId?.replace(/[A-Za-z]/g, "")) ===
-                  Number(result?.data?.employeeId?.replace(/[A-Za-z]/g, ""))
+                (item) => item.employeeId === result?.data?.employeeId
               );
-              console.log(tempFinalResult, "tempFinalResulttempFinalResult");
               setRowData(tempFinalResult);
             });
         }
       })
-
       .catch((err) => console.log(err));
   };
 
   const onSubmit = (data) => {
-    console.log(data, "tests213");
-    // Perform any other actions you want with the form data
     axios
       .post(`${commonData?.APIKEY}/applycompOff`, data)
       .then((res) => {
@@ -178,8 +166,6 @@ function CompOff() {
   return (
     <div className="mainBody">
       <div className="mt-4">
-        {/* <h2 className="heading">Manage Project</h2> */}
-
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="gy-3 row">
             <div className="col-sm-12">

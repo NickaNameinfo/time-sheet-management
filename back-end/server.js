@@ -605,9 +605,10 @@ app.post("/lead/create", upload.single("image"), (req, res) => {
   //   if (result[0]?.count > 0) {
   //     return res.json({ Error: "leadName already exists" });
   //   } else {
-  const sql = "INSERT INTO team_lead (`leadName`,`teamName`) VALUES (?)";
+  const sql =
+    "INSERT INTO team_lead (`leadName`,`teamName`, `EMPID`) VALUES (?)";
   // if (err) return res.json({ Error: "Error in hashing password" });
-  const values = [req.body.leadName, req.body.teamName];
+  const values = [req.body.leadName, req.body.teamName, req.body.EMPID];
   con.query(sql, [values], (err, result) => {
     if (err) return res.json({ Error: "Inside singup query" });
     return res.json({ Status: "Success" });
@@ -756,7 +757,7 @@ app.post("/hrLogin", (req, res) => {
 //Projects Apis
 app.post("/project/create", (req, res) => {
   const sql =
-    "INSERT INTO project (`tlName`,`orderId`,`positionNumber`, `subPositionNumber`,`projectNo`,`taskJobNo`, `referenceNo`,`desciplineCode`, `projectName`,`subDivision`,`startDate`,`targetDate`,`allotatedHours`) VALUES (?)";
+    "INSERT INTO project (`tlName`,`orderId`,`positionNumber`, `subPositionNumber`,`projectNo`,`taskJobNo`, `referenceNo`,`desciplineCode`, `projectName`,`subDivision`,`startDate`,`targetDate`,`allotatedHours`, `tlID`) VALUES (?)";
   const values = [
     req.body.tlName,
     req.body.orderId,
@@ -771,7 +772,7 @@ app.post("/project/create", (req, res) => {
     req.body.startDate,
     req.body.targetDate,
     req.body.allotatedHours,
-    // req.body.summary,
+    req.body.tlID,
   ];
   con.query(sql, [values], (err, result) => {
     console.log(err, "error");
@@ -785,7 +786,7 @@ app.put("/project/update/:projectId", (req, res) => {
   const sql = `
     UPDATE project 
     SET 
-      tlName = ?,
+         = ?,
       orderId = ?,
       positionNumber = ?,
       subPositionNumber = ?,
@@ -797,7 +798,8 @@ app.put("/project/update/:projectId", (req, res) => {
       subDivision = ?,
       startDate = ?,
       targetDate = ?,
-      allotatedHours = ?
+      allotatedHours = ?,
+      tlID = ?
     WHERE id = ?
   `;
   const values = [
@@ -814,6 +816,7 @@ app.put("/project/update/:projectId", (req, res) => {
     req.body.startDate,
     req.body.targetDate,
     req.body.allotatedHours, // Corrected the field name here
+    req.body.tlID, // Corrected the field name here
     projectId, // Use the project ID to specify which project to update
   ];
   con.query(sql, values, (err, result) => {
@@ -1081,11 +1084,29 @@ app.delete("/project/delete/:id", (req, res) => {
   });
 });
 
-app.post("/create/updates", upload.single("Announcements"), (req, res) => {
-  console.log("req.body", req.file);
+// app.post("/create/updates", upload.single("Announcements"), (req, res) => {
+//   console.log("req.body", req.file);
+//   const sql =
+//     "INSERT INTO settings (`updateTitle`, `UpdateDisc`, `Announcements`) VALUES (?)";
+//   const values = [req.body.updateTitle, req.body.UpdateDisc, req.file.filename];
+//   con.query(sql, [values], (err, result) => {
+//     if (err) return res.json({ Error: "Error in signup query" });
+//     return res.json({ Status: "Success" });
+//   });
+// });
+
+app.post("/create/updates", (req, res) => {
+  console.log("req.body", req.body);
   const sql =
-    "INSERT INTO settings (`updateTitle`, `UpdateDisc`, `Announcements`) VALUES (?)";
-  const values = [req.body.updateTitle, req.body.UpdateDisc, req.file.filename];
+    "INSERT INTO settings (`updateTitle`, `UpdateDisc`, `Announcements`, `Circular`, `Gallery`, `ViewExcel`) VALUES (?)";
+  const values = [
+    req.body.updateTitle,
+    req.body.UpdateDisc,
+    req.body.Announcements,
+    req.body.Circular,
+    req.body.Gallery,
+    req.body.ViewExcel,
+  ];
   con.query(sql, [values], (err, result) => {
     if (err) return res.json({ Error: "Error in signup query" });
     return res.json({ Status: "Success" });

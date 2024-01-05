@@ -36,11 +36,10 @@ function AddProject() {
       .then((res) => {
         if (res.data.Status === "Success") {
           console.log(res.data.Result, "setEmpListsetEmpList");
-          setEmpList(
-            res.data.Result.map(
-              (employee) => employee.role === "TL" && employee.employeeName
-            )
+          let filterted = res?.data?.Result.filter(
+            (item) => item.role === "TL" || item.role === "Admin"
           );
+          setEmpList(filterted);
         } else {
           alert("Error");
         }
@@ -69,8 +68,16 @@ function AddProject() {
     if (isNumberIncluded) {
       alert(`${formDatas?.referenceNo} is already existing in Reference No`);
     } else {
+      let foundEmployee = empList?.find(
+        (employee) => employee.EMPID === data?.tlID
+      );
+      let tempData = {
+        ...data,
+        tlName: foundEmployee?.employeeName,
+      };
+      console.log(tempData, "tempData123342")
       axios
-        .post(`${commonData?.APIKEY}/project/create`, data)
+        .post(`${commonData?.APIKEY}/project/create`, tempData)
         .then((res) => {
           if (res.data.Error) {
             alert(res.data.Error);
@@ -86,7 +93,7 @@ function AddProject() {
     await axios.get(`${commonData?.APIKEY}/getProject/${id}`).then((res) => {
       console.log(res, "res2342342");
       let tempData = {
-        tlName: res?.data?.Result?.tlName,
+        tlID: res?.data?.Result?.tlID,
         orderId: res?.data?.Result?.orderId,
         positionNumber: res?.data?.Result?.positionNumber,
         subPositionNumber: res?.data?.Result?.subPositionNumber,
@@ -99,7 +106,6 @@ function AddProject() {
         startDate: res?.data?.Result?.startDate,
         targetDate: res?.data?.Result?.targetDate,
         allotatedHours: res?.data?.Result?.allotatedHours,
-        // summary: "234",
       };
       Object.keys(tempData).forEach((key) => {
         setValue(key, tempData[key]);
@@ -108,8 +114,16 @@ function AddProject() {
   };
 
   const updateProject = (data) => {
+    let foundEmployee = empList?.find(
+      (employee) => employee.EMPID === data?.tlID
+    );
+    let tempData = {
+      ...data,
+      tlName: foundEmployee?.employeeName,
+    };
+    console.log(tempData, "tempData123")
     axios
-      .put(`${commonData?.APIKEY}/project/update/${id}`, data)
+      .put(`${commonData?.APIKEY}/project/update/${id}`, tempData)
       .then((res) => {
         if (res.data.Error) {
           alert(res.data.Error);
@@ -148,26 +162,28 @@ function AddProject() {
                     TL Name is Required
                   </InputLabel>
                   <Controller
-                    name="tlName" // Make sure the name matches the field name in your form
+                    name="tlID" // Make sure the name matches the field name in your form
                     control={control}
-                    rules={{ required: "TLName is Required" }}
+                    rules={{ required: "Name is Required." }}
                     defaultValue="" // Set the default value here if needed
                     render={({ field }) => (
                       <Select
                         labelId="demo-simple-select-label"
                         id="demo-simple-select"
-                        label="TLName is Required"
+                        label="Select Designation"
                         {...field}
-                        error={Boolean(errors.tlName)}
+                        error={Boolean(errors.EMPID)}
                       >
                         {empList?.map((res) => (
-                          <MenuItem value={res}>{res}</MenuItem>
+                          <MenuItem value={res?.EMPID} key={res.id}>
+                            {res?.employeeName}
+                          </MenuItem>
                         ))}
                       </Select>
                     )}
                   />
                   <FormHelperText>
-                    {errors.tlName && errors.tlName.message}
+                    {errors.tlID && errors.tlID.message}
                   </FormHelperText>
                 </FormControl>
               </Box>

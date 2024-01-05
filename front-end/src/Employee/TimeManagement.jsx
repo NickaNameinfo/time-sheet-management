@@ -6,7 +6,6 @@ import React, {
   useState,
   useRef,
 } from "react";
-import { startOfWeek, addDays } from "date-fns";
 import {
   Autocomplete,
   FormControl,
@@ -38,9 +37,6 @@ const TimeManagement = () => {
   const [variation, setVariation] = React.useState(null);
   const [totalMinit, setTotalMinit] = React.useState(null);
   const token = localStorage.getItem("token");
-  console.log(totalMinit, "formStateformState", weekData);
-
-  console.log(selectedWeek, "projectDetails", projectWorkList);
 
   useEffect(() => {
     initData(selectedWeek ? selectedWeek : getCurrentWeekNumber());
@@ -51,7 +47,6 @@ const TimeManagement = () => {
       selectedWeek ? selectedWeek : getCurrentWeekNumber(),
       currentYear
     );
-    console.log(datesss, "datesss123421");
     setWeekDate(datesss);
     let tempList = [
       1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
@@ -59,7 +54,6 @@ const TimeManagement = () => {
       40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
     ];
     setWeekNumberList(tempList);
-    // setSelectedWeek(String(getCurrentWeekNumber()));
     getAreaofWorkDeails();
     getVariation();
   }, [selectedWeek, refresh]);
@@ -74,9 +68,7 @@ const TimeManagement = () => {
     if (formData) {
       let hours = Math.floor(totalMinit / 60);
       let remainingMinutes = totalMinit % 60;
-      console.log(hours, "2304109273", remainingMinutes);
       let tempFormData = [...formData];
-      console.log(calculateTotalHours(tempFormData[currentIndex]), "98098");
       tempFormData[currentIndex] = {
         ...formData[currentIndex],
         totalHours: `${
@@ -98,12 +90,9 @@ const TimeManagement = () => {
   ]);
 
   React.useEffect(() => {
-    console.log(projectWorkList, "projectWorkList2341234123");
-
     if (projectWorkList?.length > 0) {
       let tempObj = [];
       projectWorkList?.map((result, index) => {
-        console.log(result, "resultresult");
         tempObj.push({
           employeeName: result?.employeeName,
           referenceNo: result?.referenceNo,
@@ -141,7 +130,6 @@ const TimeManagement = () => {
     const diff = now - startOfYear;
     const oneWeekInMilliseconds = 7 * 24 * 60 * 60 * 1000;
     const weekNumber = Math.floor(diff / oneWeekInMilliseconds) + 1; // Added 1 to account for week 0
-    console.log(weekNumber, "weekNumber");
     return weekNumber;
   };
 
@@ -165,7 +153,6 @@ const TimeManagement = () => {
       const date = addDays(startDate, daysToAdd + i);
       dates.push(date.toLocaleDateString());
     }
-    console.log(dates, "datesdates123234123");
     return dates;
   };
 
@@ -201,34 +188,26 @@ const TimeManagement = () => {
           tokensss: token,
         });
         axios.get(`${commonData?.APIKEY}/getLeaveDetails`).then((leaveRes) => {
-          console.log(leaveRes, "resres324234");
           if (leaveRes.data.Status === "Success") {
             let tempLeaveResult = leaveRes?.data?.Result?.filter(
-              (item) => item.employeeName === userDetails?.data?.userName
+              (item) => item.employeeId === userDetails?.data?.employeeId
             );
             setLeaveList(tempLeaveResult);
-            console.log(tempLeaveResult, "tempFinalResult");
           }
         });
         let employeeDetails = await axios.get(
           `${commonData?.APIKEY}/getEmployee`
         );
-        console.log(selectedWeek, "selectedWeekselectedWeek");
         if (res.data.Status === "Success") {
           let filterProjectData = res.data.Result.filter(
             (items) =>
-              items.userName === userDetails.data.userName &&
+              items.employeeNo === userDetails.data.employeeId &&
               items.weekNumber === String(weekNumber) &&
               new Date(items.sentDate).getFullYear() ===
                 new Date().getFullYear()
           );
-          console.log(
-            filterProjectData,
-            "filterProjectDatafilterProjectData",
-            new Date().getFullYear()
-          );
           let filterUserData = employeeDetails.data?.Result?.filter(
-            (items) => items.userName === userDetails.data.userName
+            (items) => items.EMPID === userDetails.data.employeeId
           );
           setEmployeeName(filterUserData?.[0]?.employeeName);
           setUserName(filterUserData?.[0]?.userName);
@@ -260,17 +239,22 @@ const TimeManagement = () => {
     // if (formData[index]?.subDivision === "") {
     //   errorMessages["subDivision"] = "This fiedl is required";
     // }
-    if (formData[index]?.monday === "") {
-      errorMessages["monday"] = "This fiedl is required";
-    }
+    // if (formData[index]?.monday === "") {
+    //   errorMessages["monday"] = "This fiedl is required";
+    // }
     if (formData[index]?.referenceNo === "") {
       errorMessages["referenceNo"] = "This fiedl is required";
     }
-    if (!formData?.[index]?.totalHours || formData?.[index]?.totalHours === 0) {
+    if (!formData?.[index]?.totalHours || formData?.[index]?.totalHours === '0.0') {
       errorMessages["TotalWrok"] = "This fiedl is required";
       alert("Total work hours should not 0");
     }
-    console.log(errorMessages, "errorMessageerrorMessage", errorMessage, index);
+    console.log(
+      errorMessages,
+      "errorMessageerrorMessage",
+      errorMessage,
+      formData?.[index]?.totalHours
+    );
     setErrorMessage(() => ({
       [index]: errorMessages,
     }));
@@ -290,7 +274,6 @@ const TimeManagement = () => {
       };
       let submitData = { ...data, ...tempObjec };
       delete submitData.id;
-      console.log(submitData, "submitDatasubmitData");
       axios
         .post(`${commonData?.APIKEY}/project/addWorkDetails`, submitData)
         .then((res) => {
@@ -319,6 +302,9 @@ const TimeManagement = () => {
       userName: userName,
       sentDate: new Date(),
       weekNumber: selectedWeek ? selectedWeek : String(getCurrentWeekNumber()),
+      discipline: getUserDetails?.[0]?.discipline,
+      employeeNo: getUserDetails?.[0]?.EMPID,
+      designation: getUserDetails?.[0]?.designation,
     };
     let submitData = { ...params, ...tempObjec };
     axios
@@ -360,13 +346,10 @@ const TimeManagement = () => {
       "saturday",
       "sunday",
     ].reduce((sum, day) => {
-      console.log(formData, "minit234123", formData?.[day], day);
       return formData?.[day]?.includes(".")
         ? sum + Number(formData?.[day]?.split(".")[1] || 0)
         : sum;
     }, 0);
-    console.log(minit, "minitminitminit");
-
     setTotalMinit(minit);
     let tempWorkHours = [
       "monday",
@@ -392,13 +375,11 @@ const TimeManagement = () => {
     if (value?.match(/[^0-9.]/) && !isNaN(value)) {
       preventDefault();
     }
-    console.log(value, name, "tesfadhandle");
     setCurrentIndex(index);
     if (name === "referenceNo") {
       let tempProject = projectList?.filter(
         (item) => item?.referenceNo === value
       );
-      console.log(tempProject, "tempProject234");
       let tempFormData = [...formData];
       tempFormData[index] = {
         ...formData[index],
@@ -438,15 +419,8 @@ const TimeManagement = () => {
 
   const isDateInclude = (date) => {
     let isDateIncluded = leaveList?.some((item) => {
-      console.log(
-        getDateYear(item?.leaveFrom),
-        "8080e23423",
-        getDateYear(date),
-        date
-      );
       return getDateYear(item.leaveFrom) === getDateYear(date);
     });
-    console.log(date, "adfasdfdate", isDateIncluded);
     return isDateIncluded;
   };
 
