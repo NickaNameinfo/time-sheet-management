@@ -46,16 +46,18 @@ const LeaveReport = () => {
         (total, count) => total + count,
         0
       );
-
-      setTotalLeave(totalCount);
+      // console.log(totalCount, "totalCount");
+      // setTotalLeave(totalCount);
       return {
         employeeName,
         employeeId,
         ...leaveTypeData,
+        totalCount,
       };
     });
 
     console.log(resultArray, "resultArray");
+
     return resultArray;
   };
 
@@ -108,10 +110,11 @@ const LeaveReport = () => {
       },
       {
         headerName: "Total Leaves",
+        field: "totalCount",
         minWidth: 100,
-        valueGetter: (params, index) => {
-          return totalLeave;
-        },
+        // valueGetter: (params, index) => {
+        //   return totalLeave;
+        // },
       },
     ],
     [projectDetails]

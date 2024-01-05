@@ -827,7 +827,7 @@ app.put("/project/update/:projectId", (req, res) => {
 
 app.post("/project/addWorkDetails", (req, res) => {
   const baseSql =
-    "INSERT INTO workdetails (`employeeName`,`userName`,`referenceNo`,`projectName`,`tlName`, `taskNo`,`areaofWork`,`variation`, `subDivision`, `totalHours`, `weekNumber`";
+    "INSERT INTO workdetails (`employeeName`,`userName`,`referenceNo`,`projectName`,`tlName`, `taskNo`,`areaofWork`,`variation`, `subDivision`, `totalHours`, `weekNumber`,`projectNo`,`employeeNo`,`designation`";
   let sql = baseSql;
   const values = [
     req.body.employeeName,
@@ -841,6 +841,9 @@ app.post("/project/addWorkDetails", (req, res) => {
     req.body.subDivision,
     req.body.totalHours,
     req.body.weekNumber,
+    req.body.projectNo,
+    req.body.employeeNo,
+    req.body.designation,
   ];
 
   // Optional fields that are not required
@@ -882,7 +885,7 @@ app.post("/project/addWorkDetails", (req, res) => {
 app.put("/project/updateWorkDetails/:id", (req, res) => {
   const workDetailId = req.params.id;
   const baseSql =
-    "UPDATE workdetails SET `employeeName`=?, `userName`=?, `referenceNo`=?, `projectName`=?, `tlName`=?, `taskNo`=?, `areaofWork`=?, `variation`=?, `subDivision`=?, `totalHours`=?, `weekNumber`=?";
+    "UPDATE workdetails SET `employeeName`=?, `userName`=?, `referenceNo`=?, `projectName`=?, `tlName`=?, `taskNo`=?, `areaofWork`=?, `variation`=?, `subDivision`=?, `totalHours`=?, `weekNumber`=?, `projectNo`=?, `employeeNo`=?, `designation`=?";
   let sql = baseSql;
   const values = [
     req.body.employeeName,
@@ -896,6 +899,9 @@ app.put("/project/updateWorkDetails/:id", (req, res) => {
     req.body.subDivision,
     req.body.totalHours,
     req.body.weekNumber,
+    req.body.projectNo,
+    req.body.employeeNo,
+    req.body.designation,
   ];
 
   // Optional fields that are not required

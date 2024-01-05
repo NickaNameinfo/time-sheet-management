@@ -47,6 +47,8 @@ import { Areaofwork } from "./Admin/Areaofwork";
 import { Variations } from "./Admin/Variations";
 import CompOff from "./Employee/CompOff";
 import CompOffLIst from "./Admin/compOffLIst";
+import ConsolidatedReport from "./Admin/Reports/ConsolidatedReport";
+import EmployeeReport from "./Admin/Reports/EmployeeReport";
 
 function App() {
   return (
@@ -73,6 +75,8 @@ function App() {
           <Route path="/Dashboard/addHr" element={<AddHr />}></Route>
           <Route path="/Dashboard/addProject/:id?" element={<AddProject />}></Route>
           <Route path="/Dashboard/Reports/ProjectReport"  element={<ProjectReport />}></Route>
+          <Route path="/Dashboard/Reports/ConsolidatedReport"  element={<ConsolidatedReport />}></Route>
+          <Route path="/Dashboard/Reports/EmployeeReport"  element={<EmployeeReport />}></Route>
           <Route path="/Dashboard/Reports/WeeklyReport"  element={<WeeklyReport />}></Route>
           <Route path="/Dashboard/Reports/MonthlyReport"  element={<MonthlyReport />}></Route>
           <Route path="/Dashboard/Reports/YearlyReport"  element={<YearlyReport />}></Route>

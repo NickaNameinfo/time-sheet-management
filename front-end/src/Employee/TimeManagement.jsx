@@ -274,7 +274,7 @@ const TimeManagement = () => {
     setErrorMessage(() => ({
       [index]: errorMessages,
     }));
-
+    console.log(getUserDetails, "getUserDetails2453", data);
     if (Object.keys(errorMessages).length === 0) {
       setErrorMessage([]);
       let tempObjec = {
@@ -285,6 +285,8 @@ const TimeManagement = () => {
           ? selectedWeek
           : String(getCurrentWeekNumber()),
         discipline: getUserDetails?.[0]?.discipline,
+        employeeNo: getUserDetails?.[0]?.EMPID,
+        designation: getUserDetails?.[0]?.designation,
       };
       let submitData = { ...data, ...tempObjec };
       delete submitData.id;
@@ -396,6 +398,7 @@ const TimeManagement = () => {
       let tempProject = projectList?.filter(
         (item) => item?.referenceNo === value
       );
+      console.log(tempProject, "tempProject234");
       let tempFormData = [...formData];
       tempFormData[index] = {
         ...formData[index],
@@ -406,6 +409,7 @@ const TimeManagement = () => {
         subDivisionList: tempProject?.[0]?.subDivision,
         allotatedHours: tempProject?.[0]?.allotatedHours,
         desciplineCode: tempProject?.[0]?.desciplineCode,
+        projectNo: tempProject?.[0]?.projectNo,
       };
       setFormData(tempFormData);
     } else {
