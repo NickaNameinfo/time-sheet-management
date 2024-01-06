@@ -210,7 +210,7 @@ const TimeManagement = () => {
             (items) => items.EMPID === userDetails.data.employeeId
           );
           setEmployeeName(filterUserData?.[0]?.employeeName);
-          setUserName(filterUserData?.[0]?.userName);
+          setUserName(userDetails.data.employeeId);
           setProjectWorkList(filterProjectData);
           setUserDetails(filterUserData);
         } else {
@@ -263,13 +263,12 @@ const TimeManagement = () => {
       setErrorMessage([]);
       let tempObjec = {
         employeeName: employeeName,
-        userName: userName,
+        employeeNo: userName,
         sentDate: new Date(),
         weekNumber: selectedWeek
           ? selectedWeek
           : String(getCurrentWeekNumber()),
         discipline: getUserDetails?.[0]?.discipline,
-        employeeNo: getUserDetails?.[0]?.EMPID,
         designation: getUserDetails?.[0]?.designation,
       };
       let submitData = { ...data, ...tempObjec };
@@ -299,11 +298,10 @@ const TimeManagement = () => {
   const updateProjectDetails = (params, id) => {
     let tempObjec = {
       employeeName: employeeName,
-      userName: userName,
+      employeeNo: userName,
       sentDate: new Date(),
       weekNumber: selectedWeek ? selectedWeek : String(getCurrentWeekNumber()),
       discipline: getUserDetails?.[0]?.discipline,
-      employeeNo: getUserDetails?.[0]?.EMPID,
       designation: getUserDetails?.[0]?.designation,
     };
     let submitData = { ...params, ...tempObjec };
@@ -380,12 +378,14 @@ const TimeManagement = () => {
       let tempProject = projectList?.filter(
         (item) => item?.referenceNo === value
       );
+      console.log(tempProject, "tempProject123")
       let tempFormData = [...formData];
       tempFormData[index] = {
         ...formData[index],
         referenceNo: value,
         projectName: tempProject?.[0]?.projectName,
         tlName: tempProject?.[0]?.tlName,
+        userName: tempProject?.[0]?.tlID,
         taskNo: tempProject?.[0]?.taskJobNo,
         subDivisionList: tempProject?.[0]?.subDivision,
         allotatedHours: tempProject?.[0]?.allotatedHours,

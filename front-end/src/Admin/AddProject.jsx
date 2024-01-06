@@ -262,7 +262,7 @@ function AddProject() {
                     id="outlined-basic fullWidth"
                     label="Project No"
                     variant="outlined"
-                    type="number"
+                    type="test"
                     {...field}
                     error={Boolean(errors.projectNo)}
                     helperText={errors.projectNo && errors.projectNo.message}
