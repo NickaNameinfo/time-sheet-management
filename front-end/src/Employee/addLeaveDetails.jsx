@@ -39,7 +39,6 @@ function addLeaveDetails() {
       approvedDate: new Date(),
       leaveStatus: status,
     };
-    console.log(apiTemp, "apiTempapiTempapiTemp", params.data);
     axios
       .put(`${commonData?.APIKEY}/updateLeave/` + params.data.id, apiTemp)
       .then(async (res) => {
@@ -47,7 +46,6 @@ function addLeaveDetails() {
         alert("Update Successfully");
         location.reload();
       });
-    console.log(params.data, "datadatadatadata");
   };
 
   const columnDefs = useMemo(
@@ -96,54 +94,32 @@ function addLeaveDetails() {
     []
   );
 
-  console.log(formData, "formData");
 
   useEffect(() => {
     axios
       .post(`${commonData?.APIKEY}/dashboard`, { tokensss: token })
       .then((result) => {
         setValue("employeeName", result?.data?.employeeName);
-        setValue(
-          "employeeId",
-          result?.data?.employeeId?.replace(/[A-Za-z]/g, "")
-        );
+        setValue("employeeId", result?.data?.employeeId);
       });
     getLeaves();
   }, [refresh]);
-
-  // useEffect(() => {
-  //   if (formData.leaveFrom !== "" && formData.leaveTo !== "") {
-  //     const from = new Date(formData.leaveFrom);
-  //     const to = new Date(formData.leaveTo);
-
-  //     const timeDifference = Math.abs(to - from);
-  //     const differenceInDays = Math.floor(
-  //       timeDifference / (24 * 60 * 60 * 1000)
-  //     );
-  //   }
-  // }, [formData.leaveFrom, formData.leaveTo]);
 
   const getLeaves = () => {
     axios
       .get(`${commonData?.APIKEY}/getLeaveDetails`)
       .then((res) => {
-        console.log(res, "resr23234");
         if (res.data.Status === "Success") {
           axios
             .post(`${commonData?.APIKEY}/dashboard`, { tokensss: token })
             .then((result) => {
-              console.log(result, "resultresult");
               let tempFinalResult = res?.data?.Result?.filter(
-                (item) =>
-                  Number(item.employeeId?.replace(/[A-Za-z]/g, "")) ===
-                  Number(result?.data?.employeeId?.replace(/[A-Za-z]/g, ""))
+                (item) => item.employeeId === result?.data?.employeeId
               );
-              console.log(tempFinalResult, "tempFinalResulttempFinalResult");
               setRowData(tempFinalResult);
             });
         }
       })
-
       .catch((err) => console.log(err));
   };
 

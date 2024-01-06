@@ -29,7 +29,12 @@ function AddEmployee() {
     formState: { errors },
     setValue,
     watch,
-  } = useForm();
+  } = useForm({
+    defaultValues : {
+      relievingDate : null,
+      permanentDate : null
+    }
+  });
   let formDatas = watch();
   const navigate = useNavigate();
   const { id } = useParams();
@@ -63,8 +68,6 @@ function AddEmployee() {
 
   const getEmployeeDetails = async (id) => {
     await axios.get(`${commonData?.APIKEY}/get/${id}`).then((res) => {
-      console.log(res, "res2342342");
-      // setValue("employeeName", res?.data?.Result[0]?.employeeName);
       let tempData = {
         employeeName: res?.data?.Result[0]?.employeeName,
         EMPID: res?.data?.Result[0]?.EMPID,
@@ -95,11 +98,9 @@ function AddEmployee() {
         formdata.append(key, value);
       }
     });
-
     // Append the file input separately
     formdata.append("employeeImage", data.employeeImage);
     formdata.append("role", tempRole);
-    console.log(formdata, "formdataformdata");
     axios
       .post(`${commonData?.APIKEY}/create`, formdata)
       .then((res) => {

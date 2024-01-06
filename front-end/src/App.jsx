@@ -10,7 +10,7 @@ import Home from "./Admin/Home";
 import AddEmployee from "./Admin/AddEmployee";
 import AddLead from "./Admin/AddLead";
 import AddProject from "./Admin/AddProject";
-import EditEmployee from "./Admin/EditEmployee";
+// import EditEmployee from "./Admin/EditEmployee";
 import Start from "./Start";
 import EmployeeDetail from "./Employee/EmployeeDetail";
 import EmployeeLogin from "./EmployeeLogin";
@@ -19,7 +19,7 @@ import EmployeeDashboard from "./Employee/EmployeeDashboard";
 import TeamLeadDashboard from "./TeamLead/TeamLeadDashboard";
 import EmployeeHome from "./Employee/EmployeeHome";
 import TeamLeadHome from "./TeamLead/TeamLeadHome";
-import ProjectsList from "./TeamLead/ProjectsList";
+// import ProjectsList from "./TeamLead/ProjectsList";
 import Hr from "./Admin/Hr";
 import AddHr from "./Admin/AddHr";
 import Leaves from "./Admin/Leaves";
@@ -82,14 +82,14 @@ function App() {
           <Route path="/Dashboard/Reports/YearlyReport"  element={<YearlyReport />}></Route>
           <Route path="/Dashboard/Reports/CodeReport"  element={<DesciplineCodeReport />}></Route>
           <Route path="/Dashboard/Reports/LeaveReport"  element={<LeaveReport />}></Route>
-          <Route path="/Dashboard/employeeEdit/:id" element={<EditEmployee />}></Route>
+          {/* <Route path="/Dashboard/employeeEdit/:id" element={<EditEmployee />}></Route> */}
           <Route path="/Dashboard/EmployeeHome" element={<EmployeeHome />}></Route>
           <Route path="/Dashboard/AddProjectDetails" element={<AddProjectDetails />}></Route>
           <Route path="/Dashboard/AddLeaves" element={<AddLeaveDetails />}></Route>
           <Route path="/Dashboard/CompOff" element={<CompOff />}></Route>
           <Route path="/Dashboard/TimeManagement" element={<TimeManagement />}></Route>
           <Route path="/Dashboard/TeamLeadHome" element={<TeamLeadHome />}></Route>
-          <Route path="/Dashboard/TeamLeadProject" element={<ProjectsList />}></Route>
+          {/* <Route path="/Dashboard/TeamLeadProject" element={<ProjectsList />}></Route> */}
           <Route path="/Dashboard/TeamLeadProjectWorks" element={<ProjectWorkDetails />}></Route>
         </Route>
 

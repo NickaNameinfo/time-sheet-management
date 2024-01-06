@@ -51,13 +51,12 @@ function ProjectWorkDetails() {
         empId: "",
         tlId: "",
       };
-      setFormData(data); 
+      setFormData(data);
     }
   }, [onSelectedData, message]);
 
   const updateProjectDetails = (status, params) => {
     let apiTemp = { ...params.data, approvedDate: new Date(), status: status };
-    console.log(apiTemp, "apiTempapiTempapiTemp", params.data);
     axios
       .put(
         `${commonData?.APIKEY}/project/updateWorkDetails/` + params.data.id,
@@ -206,11 +205,12 @@ function ProjectWorkDetails() {
     axios
       .get(`${commonData?.APIKEY}/getWrokDetails`)
       .then(async (res) => {
-        let userDetails = await axios.post(`${commonData?.APIKEY}/dashboard`, { tokensss: token });
-        console.log(res, "resres324", userDetails);
+        let userDetails = await axios.post(`${commonData?.APIKEY}/dashboard`, {
+          tokensss: token,
+        });
         if (res.data.Status === "Success") {
           let filterData = res.data.Result.filter(
-            (items) => items.tlName === userDetails.data.employeeName
+            (items) => items.employeeNo === userDetails.data.employeeId
           );
           setRowData(filterData);
         } else {

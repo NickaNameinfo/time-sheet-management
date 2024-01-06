@@ -20,6 +20,11 @@ export const Settings = () => {
         minWidth: 170,
       },
       { field: "UpdateDisc" },
+      { field: "Announcements" },
+      { field: "UpdateDisc" },
+      { field: "Circular" },
+      { field: "Gallery" },
+      { field: "ViewExcel" },
       {
         field: "Action",
         headerName: "Action",

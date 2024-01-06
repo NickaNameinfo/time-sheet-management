@@ -6,13 +6,17 @@ import axios from "axios";
 
 function Start() {
   const [rowData, setRowData] = React.useState([]);
-
+  const [lastValue, setLastValue] = React.useState(null);
+  console.log(rowData, "rowData", lastValue);
   React.useEffect(() => {
     axios
       .get(`${commonData?.APIKEY}/settings`)
       .then((res) => {
         if (res.data.Status === "Success") {
           setRowData(res.data.Result);
+          const lastIndex = res.data.Result.length - 1;
+          const lastItem = res.data.Result[lastIndex];
+          setLastValue(lastItem);
         } else {
           alert("Error");
         }
@@ -34,7 +38,7 @@ function Start() {
                   <marquee direction="up" scrollamount="5">
                     {rowData?.map((res) => {
                       return (
-                        <div className="updates">
+                        <div className="updates" key={res.id}>
                           <div>
                             <h4>{res?.updateTitle}</h4>
                             <p className="m-0">{res?.UpdateDisc}</p>
@@ -64,8 +68,7 @@ function Start() {
                         alt="..."
                       />
                     </div>
-                    {rowData?.map((res) => {
-                      console.log(res, "res134234234", res?.Announcements);
+                    {/* {rowData?.map((res) => {
                       return (
                         <div className="carousel-item" data-bs-interval="2000">
                           <img
@@ -75,9 +78,9 @@ function Start() {
                           />
                         </div>
                       );
-                    })}
+                    })} */}
                   </div>
-                  <button
+                  {/* <button
                     className="carousel-control-prev"
                     type="button"
                     data-bs-target="#carouselExampleInterval"
@@ -100,11 +103,11 @@ function Start() {
                       aria-hidden="true"
                     ></span>
                     <span className="visually-hidden">Next</span>
-                  </button>
+                  </button> */}
                 </div>
               </div>
               <div className="flashUpdate">
-                <p>Announcements</p>
+                <p>{lastValue?.Announcements}</p>
               </div>
             </div>
             <div className="col-sm-3 p-0">
@@ -118,20 +121,25 @@ function Start() {
                           width={150}
                         />
                       </div>
-                      
+
                       <ul className="updateslist">
                         <li>
-                          <a>Circular</a>
+                          <a href={`${lastValue?.Circular}`} target="_blank">
+                            Circular
+                          </a>
                         </li>
                         <li>
-                          <a>Photo Gallery</a>
+                          <a href={`${lastValue?.Gallery}`} target="_blank">
+                            Photo Gallery
+                          </a>
                         </li>
                         <li>
-                          <a>View Excel / Word</a>
+                          <a href={`${lastValue?.ViewExcel}`} target="_blank">
+                            View Excel / Word
+                          </a>
                         </li>
                       </ul>
                     </div>
-                    
                   </div>
                   <div className="col-sm-12">
                     <div className="loginSection">

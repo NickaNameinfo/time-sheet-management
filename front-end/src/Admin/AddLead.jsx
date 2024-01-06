@@ -24,14 +24,11 @@ function AddLead() {
   } = useForm();
   const navigate = useNavigate();
   const [empList, setEmpList] = useState(null);
-  console.log(empList, "filterted234");
-
   useEffect(() => {
     axios
       .get(`${commonData?.APIKEY}/getEmployee`)
       .then((res) => {
         if (res.data.Status === "Success") {
-          console.log(res.data.Result, "setEmpListsetEmpList");
           let filterted = res?.data?.Result.filter(
             (item) => item.role === "TL" || item.role === "Admin"
           );
@@ -45,10 +42,17 @@ function AddLead() {
   }, []);
 
   const onSubmit = (data) => {
-    console.log(data, "tests213");
+    let foundEmployee = empList?.find((employee) => employee.EMPID === data?.EMPID);
+    let tempData = {
+      ...data,
+      leadName: foundEmployee?.employeeName,
+    };
+    console.log(data, "tests213", tempData);
+
     axios
-      .post(`${commonData?.APIKEY}/lead/create`, data)
+      .post(`${commonData?.APIKEY}/lead/create`, tempData)
       .then((res) => {
+        console.log(res, "2342");
         if (res.data.Error) {
           alert(res.data.Error);
         } else {
@@ -72,7 +76,7 @@ function AddLead() {
                     Select Name
                   </InputLabel>
                   <Controller
-                    name="leadName" // Make sure the name matches the field name in your form
+                    name="EMPID" // Make sure the name matches the field name in your form
                     control={control}
                     rules={{ required: "Name is Required." }}
                     defaultValue="" // Set the default value here if needed
@@ -82,16 +86,18 @@ function AddLead() {
                         id="demo-simple-select"
                         label="Select Designation"
                         {...field}
-                        error={Boolean(errors.leadName)}
+                        error={Boolean(errors.EMPID)}
                       >
                         {empList?.map((res) => (
-                          <MenuItem value={res?.employeeName}>{res?.employeeName}</MenuItem>
+                          <MenuItem value={res?.EMPID} key={res.id}>
+                            {res?.employeeName}
+                          </MenuItem>
                         ))}
                       </Select>
                     )}
                   />
                   <FormHelperText>
-                    {errors.leadName && errors.leadName.message}
+                    {errors.EMPID && errors.EMPID.message}
                   </FormHelperText>
                 </FormControl>
               </Box>
