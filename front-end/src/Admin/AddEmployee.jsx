@@ -30,9 +30,10 @@ function AddEmployee() {
     setValue,
     watch,
   } = useForm({
-    defaultValues : {
-      relievingDate : null,
-      permanentDate : null
+    defaultValues: {
+      relievingDate: null,
+      permanentDate: null,
+      date: null
     }
   });
   let formDatas = watch();
@@ -389,6 +390,7 @@ function AddEmployee() {
                   <Controller
                     name="date"
                     control={control}
+                    rules={{ required: "Join date Status is Required." }}
                     render={({ field }) => (
                       <DatePicker
                         placeholder="Date Of Join"
@@ -407,6 +409,7 @@ function AddEmployee() {
                     )}
                   />
                 </LocalizationProvider>
+                <p style={{color: "red"}}>{errors.date && "Join date required"}</p>
               </Box>
             </div>
             <div className="col-sm-3">
@@ -418,7 +421,7 @@ function AddEmployee() {
                     control={control}
                     render={({ field }) => (
                       <DatePicker
-                        placeholder="Date Of Join"
+                        placeholder="Reliving date"
                         value={dayjs(formDatas?.relievingDate)}
                         renderInput={(props) => (
                           <TextField {...props} fullWidth />

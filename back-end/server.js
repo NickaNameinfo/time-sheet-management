@@ -31,15 +31,15 @@ const con = mysql.createConnection({
   host: "localhost",
   user: "root",
   password: "",
-  database: "singup",
+  database: "signup",
 });
 
-// const con1 = mysql.createConnection({
-//   host: "localhost",
-//   user: "root",
-//   password: "",
-//   database: "epushserver",
-// });
+const con1 = mysql.createConnection({
+  host: "localhost",
+  user: "root",
+  password: "",
+  database: "epushserver",
+});
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -786,7 +786,7 @@ app.put("/project/update/:projectId", (req, res) => {
   const sql = `
     UPDATE project 
     SET 
-         = ?,
+      tlName = ?,
       orderId = ?,
       positionNumber = ?,
       subPositionNumber = ?,
@@ -972,7 +972,7 @@ app.post("/filterTimeSheet", (req, res) => {
   const sql = `SELECT *, DATE_FORMAT(LogDate, '%Y-%m-%d %H:%i:%s') AS FormattedLogDate FROM devicelogsinfo  WHERE DATE(LogDate) IN (${dateList})  AND UserId = ?`;
 
   // Execute the SQL query with parameters
-  con.query(sql, [req.body.userId], (err, results) => {
+  con1.query(sql, [req.body.userId], (err, results) => {
     if (err) {
       console.error("Error executing SQL query:", err);
       return res.status(500).json({ error: "Internal Server Error" });

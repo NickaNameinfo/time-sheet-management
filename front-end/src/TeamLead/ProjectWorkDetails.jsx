@@ -210,7 +210,7 @@ function ProjectWorkDetails() {
         });
         if (res.data.Status === "Success") {
           let filterData = res.data.Result.filter(
-            (items) => items.employeeNo === userDetails.data.employeeId
+            (items) => items.userName === userDetails.data.employeeId
           );
           setRowData(filterData);
         } else {

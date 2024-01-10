@@ -204,7 +204,7 @@ function TeamLeadHome() {
   return (
     <>
       <div className="text-center pb-1 my-3">
-        <h4>Allotated Project Details</h4>
+        <h4>Allotted Project Details</h4>
       </div>
       <div style={containerStyle}>
         <div style={gridStyle} className="ag-theme-alpine">

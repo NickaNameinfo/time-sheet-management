@@ -137,7 +137,7 @@ function Dashboard() {
             )}
 
             {/* Team Lead List */}
-            {roles?.[0] === "TL" && (
+            {(roles?.[0] === "TL" || roles?.[0] === "Admin") && (
               <>
                 <li>
                   <span className="material-symbols-outlined fs-5 bi-collection"></span>

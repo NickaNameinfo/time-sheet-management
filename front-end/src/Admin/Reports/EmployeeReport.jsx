@@ -73,20 +73,18 @@ const EmployeeReport = () => {
           let tempFilter = filterValue.exEmployee
             ? "Ex-Employee"
             : filterValue.permanent
-            ? "Permanent"
-            : filterValue.probation
-            ? "Probation"
-            : null;
+              ? "Permanent"
+              : filterValue.probation
+                ? "Probation"
+                : null;
           const filteredData = res.data?.Result?.filter((item) => {
             if (startDate || endDate) {
               let tempDate = filterValue.exEmployee
                 ? item.relievingDate
-                : item?.permanentDate;
+                : item?.date;
               const itemDate = new Date(tempDate);
               return (
-                itemDate >= new Date(startDate) ||
-                (itemDate <= new Date(endDate) &&
-                  item?.employeeStatus === tempFilter)
+                itemDate >= new Date(startDate) && itemDate <= new Date(endDate)
               );
             } else {
               return item?.employeeStatus === tempFilter;
@@ -178,6 +176,23 @@ const EmployeeReport = () => {
               label="Probation"
               onClick={() => handleFilterChange("probation")}
               color={!filterValue.probation ? "primary" : "success"}
+            />
+            <Chip
+              label="Clear Filter"
+              onClick={() => {
+                setStartData(null);
+                setEnddate(null);
+                setFilterValue((prevState) => {
+                  return {
+                    ...prevState,
+                    exEmployee: false,
+                    permanent: false,
+                    probation: false,
+                  };
+                });
+              }}
+              color={"warning"}
+              className="ms-3"
             />
           </div>
           <div className="d-flex">
