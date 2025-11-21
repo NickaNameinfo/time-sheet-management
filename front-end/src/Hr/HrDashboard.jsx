@@ -1,12 +1,41 @@
-import React, { useEffect } from "react";
-import "bootstrap-icons/font/bootstrap-icons.css";
-import { Link, Outlet, useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import {
+  Box,
+  Drawer,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Typography,
+  Avatar,
+  useTheme,
+  useMediaQuery,
+  AppBar,
+  Toolbar,
+  IconButton,
+} from "@mui/material";
+import {
+  Dashboard as DashboardIcon,
+  People,
+  Logout,
+  Menu,
+} from "@mui/icons-material";
+import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
-import commonData from "../../common.json"
+import commonData from "../../common.json";
+
+const drawerWidth = 280;
+
 function HrDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const [mobileOpen, setMobileOpen] = useState(false);
   const token = localStorage.getItem("token");
   axios.defaults.withCredentials = true;
+
   useEffect(() => {
     axios.post(`${commonData?.APIKEY}/dashboard`, { tokensss: token }).then((res) => {
       console.log(res, "resresresres");
@@ -21,65 +50,193 @@ function HrDashboard() {
       })
       .catch((err) => console.log(err));
   };
+
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
+
+  const menuItems = [
+    {
+      title: "Dashboard",
+      icon: <DashboardIcon />,
+      path: "/Hr",
+    },
+    {
+      title: "Manage Employee",
+      icon: <People />,
+      path: "/Hr/employee",
+    },
+  ];
+
+  const drawer = (
+    <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <Box
+        sx={{
+          p: 2,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          borderBottom: "1px solid rgba(0,0,0,0.12)",
+        }}
+      >
+        <Avatar
+          src={`${commonData?.BASEURL}/src/assets/logo.png`}
+          sx={{ width: 80, height: 80, borderRadius: 2 }}
+          variant="rounded"
+        />
+      </Box>
+      <Box sx={{ p: 2, textAlign: "center", borderBottom: "1px solid rgba(0,0,0,0.12)" }}>
+        <Typography variant="h6" fontWeight="bold" color="primary">
+          HR Dashboard
+        </Typography>
+      </Box>
+      <List sx={{ flexGrow: 1, pt: 2 }}>
+        {menuItems.map((item) => {
+          const isActive = location.pathname === item.path;
+          return (
+            <ListItem key={item.path} disablePadding>
+              <ListItemButton
+                component={Link}
+                to={item.path}
+                selected={isActive}
+                sx={{
+                  mb: 0.5,
+                  mx: 1,
+                  borderRadius: 2,
+                  "&.Mui-selected": {
+                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    color: "white",
+                    "&:hover": {
+                      background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                    },
+                    "& .MuiListItemIcon-root": {
+                      color: "white",
+                    },
+                  },
+                  "&:hover": {
+                    bgcolor: "action.hover",
+                    transform: "translateX(5px)",
+                  },
+                  transition: "all 0.3s ease",
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 40, color: isActive ? "white" : "inherit" }}>
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText
+                  primary={item.title}
+                  primaryTypographyProps={{
+                    fontSize: "0.95rem",
+                    fontWeight: isActive ? 600 : 400,
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+          );
+        })}
+      </List>
+      <Box sx={{ p: 2, borderTop: "1px solid rgba(0,0,0,0.12)" }}>
+        <ListItemButton
+          onClick={handleLogout}
+          sx={{
+            borderRadius: 2,
+            color: "error.main",
+            "&:hover": {
+              bgcolor: "error.light",
+              color: "white",
+            },
+            transition: "all 0.3s ease",
+          }}
+        >
+          <ListItemIcon sx={{ minWidth: 40, color: "inherit" }}>
+            <Logout />
+          </ListItemIcon>
+          <ListItemText
+            primary="Logout"
+            primaryTypographyProps={{
+              fontSize: "0.95rem",
+              fontWeight: 500,
+            }}
+          />
+        </ListItemButton>
+      </Box>
+    </Box>
+  );
+
   return (
-    <div className="container-fluid">
-      <div className="row flex-nowrap min-vh-91">
-        <div className="col-auto col-md-3 col-xl-2 px-sm-2 px-0 sideBar">
-        <div className="text-center">
-            <img src={`${commonData?.BASEURL}/src/assets/logo.png`} width={100} />
-          </div>
-          <div className="d-flex flex-column align-items-center align-items-sm-start px-3 pt-2 text-white">
-            <a
-              href="/Hr"
-              className="d-flex align-items-center pb-3 mb-md-1  me-md-auto text-white text-decoration-none"
+    <Box sx={{ display: "flex", height: "100vh" }}>
+      {isMobile && (
+        <AppBar
+          position="fixed"
+          sx={{
+            zIndex: theme.zIndex.drawer + 1,
+            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          }}
+        >
+          <Toolbar>
+            <IconButton
+              color="inherit"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2 }}
             >
-              <span className="fs-5 fw-bolder d-none d-sm-inline text-center">
-                HR Dashboard
-              </span>
-            </a>
-            <ul
-              className="nav nav-pills flex-column mb-sm-auto mb-0 align-items-center align-items-sm-start"
-              id="menu"
-            >
-              <li>
-                <Link
-                  to="/Hr"
-                  data-bs-toggle="collapse"
-                  className="nav-link text-white px-0 align-middle"
-                >
-                  <i className="fs-4 bi-speedometer2"></i>{" "}
-                  <span className="ms-1 d-none d-sm-inline">Dashboard</span>{" "}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/Hr/employee"
-                  className="nav-link px-0 align-middle text-white"
-                >
-                  <i className="fs-4 bi-people"></i>{" "}
-                  <span className="ms-1 d-none d-sm-inline">
-                    Manage Employee
-                  </span>{" "}
-                </Link>
-              </li>
-              
-              <li onClick={handleLogout}>
-                <a href="#" className="nav-link px-0 align-middle text-white">
-                  <i className="fs-4 bi-power"></i>{" "}
-                  <span className="ms-1 d-none d-sm-inline">Logout</span>
-                </a>
-              </li>
-            </ul>
-          </div>
-        </div>
-        <div className ="col p-0 m-0 Arristable">
-          <div className="p-2 d-flex justify-content-center shadow">
-            <h4>Employee Management System</h4>
-          </div>
-          <Outlet />
-        </div>
-      </div>
-    </div>
+              <Menu />
+            </IconButton>
+            <Typography variant="h6" noWrap component="div">
+              HR Dashboard
+            </Typography>
+          </Toolbar>
+        </AppBar>
+      )}
+      <Box
+        component="nav"
+        sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
+      >
+        {isMobile ? (
+          <Drawer
+            variant="temporary"
+            open={mobileOpen}
+            onClose={handleDrawerToggle}
+            ModalProps={{ keepMounted: true }}
+            sx={{
+              "& .MuiDrawer-paper": {
+                boxSizing: "border-box",
+                width: drawerWidth,
+              },
+            }}
+          >
+            {drawer}
+          </Drawer>
+        ) : (
+          <Drawer
+            variant="permanent"
+            sx={{
+              "& .MuiDrawer-paper": {
+                boxSizing: "border-box",
+                width: drawerWidth,
+                borderRight: "1px solid rgba(0, 0, 0, 0.12)",
+              },
+            }}
+            open
+          >
+            {drawer}
+          </Drawer>
+        )}
+      </Box>
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: { xs: 1, md: 3 },
+          width: { md: `calc(100% - ${drawerWidth}px)` },
+          mt: { xs: 7, md: 0 },
+          bgcolor: "grey.50",
+          minHeight: "100vh",
+        }}
+      >
+        <Outlet />
+      </Box>
+    </Box>
   );
 }
 

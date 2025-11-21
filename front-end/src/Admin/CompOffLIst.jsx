@@ -1,112 +1,225 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import Button from "@mui/material/Button";
-import { Link } from "react-router-dom";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Typography,
+  IconButton,
+  Tooltip,
+  Chip,
+  Paper,
+  TextField,
+  InputAdornment,
+} from "@mui/material";
+import {
+  CheckCircle,
+  Cancel,
+  Refresh,
+  Search,
+  Person,
+  CalendarToday,
+  AccessTime,
+  Edit,
+} from "@mui/icons-material";
 import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
+import "ag-grid-community/styles/ag-theme-alpine.css";
 import commonData from "../../common.json";
-function CompOffLIst() {
-  const containerStyle = { width: "100%", height: "100%" };
-  const gridStyle = { height: "100%", width: "100%" };
-  const [rowData, setRowData] = useState([]);
-  const [refresh, setRefresh] = useState(false);
 
-  const updateLeaveDetails = (status, params) => {
-    let apiTemp = {
+function CompOffLIst() {
+  const [rowData, setRowData] = useState([]);
+  const [searchText, setSearchText] = useState("");
+  const [gridApi, setGridApi] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const updateCompOffDetails = async (status, params) => {
+    if (!params.data.eligibility || params.data.eligibility === "") {
+      alert("Please enter eligibility hours");
+      return;
+    }
+
+    const apiTemp = {
       ...params.data,
       approvedDate: new Date(),
       leaveStatus: status,
       eligibility: params.data.eligibility,
     };
-    console.log(apiTemp, "apiTempapiTempapiTemp", params.data);
-    if (params.data.eligibility !== "") {
-      axios
-        .put(`${commonData?.APIKEY}/updateCompOff/` + params.data.id, apiTemp)
-        .then(async (res) => {
-          setRefresh(true);
-          alert("Update Successfully");
-          location.reload();
-        });
-    } else {
-      alert("Please enter eligibility hours");
-    }
 
-    console.log(params.data, "datadatadatadata");
+    try {
+      const res = await axios.put(
+        `${commonData?.APIKEY}/updateCompOff/` + params.data.id,
+        apiTemp
+      );
+      if (res.data.Status === "Success") {
+        alert("Update Successfully");
+        fetchCompOffData();
+      } else {
+        alert("Error updating comp-off");
+      }
+    } catch (err) {
+      console.log(err);
+      alert("Error updating comp-off");
+    }
   };
+
+  const fetchCompOffData = useCallback(() => {
+    setLoading(true);
+    axios
+      .get(`${commonData?.APIKEY}/getcompOffDetails`)
+      .then((res) => {
+        if (res.data.Status === "Success") {
+          const filterDat = res.data.Result?.filter(
+            (item) => item?.leaveStatus !== "approved"
+          );
+          setRowData(filterDat || []);
+        } else {
+          alert("Error loading comp-off data");
+        }
+      })
+      .catch((err) => {
+        console.log(err);
+        alert("Error loading comp-off data");
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   const columnDefs = useMemo(
     () => [
       {
         field: "employeeName",
-        minWidth: 170,
+        headerName: "Employee Name",
+        minWidth: 180,
+        cellRenderer: (params) => (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 1 }}>
+            <Person color="primary" sx={{ fontSize: 20 }} />
+            <Typography variant="body2" fontWeight="medium">
+              {params.value || "N/A"}
+            </Typography>
+          </Box>
+        ),
       },
       {
         field: "employeeId",
-        minWidth: 170,
-      },
-      { field: "workHours" },
-      { field: "eligibility", editable: true },
-      { field: "leaveFrom", headerName: "Worked on" },
-      { field: "leaveStatus", headerName: "Approval Status" },
-      {
-        headerName: "Action",
-        pinned: "right",
-        minWidth: 100,
-        width: 100,
-        field: "id",
-        filter: false,
-        editable: false,
-        cellRenderer: (params, index) => (
-          <div className="actions">
-            <i
-              style={{ color: "color", backgroundColor: "green" }}
-              class="fa-solid fa-check"
-              onClick={() => {
-                setRefresh(true);
-                updateLeaveDetails("approved", params);
-              }}
-            ></i>
-            <i
-              class="fa-regular fa-circle-xmark"
-              onClick={() => {
-                setRefresh(true);
-                updateLeaveDetails("rejected", params);
-              }}
-            ></i>
-          </div>
+        headerName: "Employee ID",
+        minWidth: 120,
+        cellRenderer: (params) => (
+          <Chip label={params.value || "N/A"} size="small" variant="outlined" />
         ),
       },
+      {
+        field: "workHours",
+        headerName: "Work Hours",
+        minWidth: 120,
+        cellRenderer: (params) => (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <AccessTime sx={{ fontSize: 14, color: "text.secondary" }} />
+            <Typography variant="body2">{params.value || "N/A"}</Typography>
+          </Box>
+        ),
+      },
+      {
+        field: "eligibility",
+        headerName: "Eligibility Hours",
+        minWidth: 150,
+        editable: true,
+        cellRenderer: (params) => (
+          <Typography variant="body2">{params.value || "0"}</Typography>
+        ),
+        cellEditor: "agTextCellEditor",
+        cellEditorParams: {
+          useFormatter: false,
+        },
+      },
+      {
+        field: "leaveFrom",
+        headerName: "Worked On",
+        minWidth: 130,
+        cellRenderer: (params) => (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <CalendarToday sx={{ fontSize: 14, color: "text.secondary" }} />
+            <Typography variant="body2">
+              {params.value ? new Date(params.value).toLocaleDateString() : "N/A"}
+            </Typography>
+          </Box>
+        ),
+      },
+      {
+        field: "leaveStatus",
+        headerName: "Approval Status",
+        minWidth: 150,
+        cellRenderer: (params) => {
+          const status = params.value?.toLowerCase();
+          const statusColors = {
+            approved: "success",
+            rejected: "error",
+            pending: "warning",
+          };
+          return (
+            <Chip
+              label={params.value || "Pending"}
+              size="small"
+              color={statusColors[status] || "default"}
+              variant={status === "approved" ? "filled" : "outlined"}
+            />
+          );
+        },
+      },
+      {
+        headerName: "Actions",
+        pinned: "right",
+        minWidth: 150,
+        filter: false,
+        sortable: false,
+        cellRenderer: (params) => {
+          return (
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <Tooltip title="Approve Comp-Off">
+                <IconButton
+                  size="small"
+                  color="success"
+                  onClick={() => {
+                    updateCompOffDetails("approved", params);
+                  }}
+                  sx={{
+                    "&:hover": {
+                      bgcolor: "success.light",
+                      color: "white",
+                    },
+                  }}
+                >
+                  <CheckCircle fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Reject Comp-Off">
+                <IconButton
+                  size="small"
+                  color="error"
+                  onClick={() => {
+                    updateCompOffDetails("rejected", params);
+                  }}
+                  sx={{
+                    "&:hover": {
+                      bgcolor: "error.light",
+                      color: "white",
+                    },
+                  }}
+                >
+                  <Cancel fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Box>
+          );
+        },
+      },
     ],
-    []
-  );
-
-  const autoGroupColumnDef = useMemo(
-    () => ({
-      headerName: "Group",
-      minWidth: 170,
-      field: "athlete",
-      valueGetter: (params) => {
-        if (params.node.group) {
-          return params.node.key;
-        } else {
-          return params.data[params.colDef.field];
-        }
-      },
-      headerCheckboxSelection: false,
-      cellRenderer: "agGroupCellRenderer",
-      cellRendererParams: {
-        checkbox: false,
-      },
-    }),
     []
   );
 
   const defaultColDef = useMemo(
     () => ({
       editable: false,
-      enableRowGroup: true,
-      enablePivot: true,
-      enableValue: true,
       sortable: true,
       resizable: true,
       filter: true,
@@ -118,46 +231,107 @@ function CompOffLIst() {
   );
 
   const onGridReady = useCallback((params) => {
-    axios
-      .get(`${commonData?.APIKEY}/getcompOffDetails`)
-      .then((res) => {
-        if (res.data.Status === "Success") {
-          let filterDat = res.data.Result?.filter(
-            (item) => item?.leaveStatus !== "approved"
-          );
-          console.log(filterDat, "filterDat");
-          setRowData(filterDat);
-        } else {
-          alert("Error");
-        }
-      })
-      .catch((err) => console.log(err));
+    setGridApi(params.api);
+    params.api.sizeColumnsToFit();
+    fetchCompOffData();
   }, []);
 
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (gridApi) {
+        if (searchText) {
+          gridApi.setQuickFilter(searchText);
+        } else {
+          gridApi.setQuickFilter("");
+        }
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchText, gridApi]);
+
   return (
-    <>
-      <div className="text-center pb-1 my-3">
-        <h4>Comp-Off Details</h4>
-      </div>
-      <div style={containerStyle}>
-        <div style={gridStyle} className="ag-theme-alpine leavetable">
-          <AgGridReact
-            rowData={rowData}
-            columnDefs={columnDefs}
-            autoGroupColumnDef={autoGroupColumnDef}
-            defaultColDef={defaultColDef}
-            suppressRowClickSelection={true}
-            groupSelectsChildren={true}
-            rowSelection={"single"}
-            rowGroupPanelShow={"always"}
-            pivotPanelShow={"always"}
-            pagination={true}
-            onGridReady={onGridReady}
-            onSelectionChanged={(event) => onSelectionChanged(event)}
+    <Box>
+      {/* Header */}
+      <Box sx={{ mb: 3 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 2,
+          }}
+        >
+          <Box>
+            <Typography variant="h4" fontWeight="bold" gutterBottom>
+              Comp-Off Management
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Review and manage pending comp-off requests
+            </Typography>
+          </Box>
+          <Button
+            variant="outlined"
+            startIcon={<Refresh />}
+            onClick={fetchCompOffData}
+            disabled={loading}
+          >
+            Refresh
+          </Button>
+        </Box>
+
+        {/* Search Bar */}
+        <Paper elevation={1} sx={{ p: 1 }}>
+          <TextField
+            placeholder="Search comp-off requests..."
+            variant="outlined"
+            size="small"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search color="action" />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ flex: 1, minWidth: 250 }}
+            fullWidth
           />
-        </div>
-      </div>
-    </>
+        </Paper>
+      </Box>
+
+      {/* AG Grid */}
+      <Card
+        sx={{
+          height: "calc(100vh - 300px)",
+          minHeight: 500,
+          borderRadius: 3,
+          overflow: "hidden",
+        }}
+      >
+        <CardContent sx={{ p: 0, height: "100%" }}>
+          <Box sx={{ height: "100%", width: "100%" }} className="ag-theme-alpine">
+            <AgGridReact
+              rowData={rowData}
+              columnDefs={columnDefs}
+              defaultColDef={defaultColDef}
+              suppressRowClickSelection={true}
+              pagination={true}
+              paginationPageSize={20}
+              onGridReady={onGridReady}
+              animateRows={true}
+              rowHeight={60}
+              headerHeight={50}
+              enableRangeSelection={true}
+              suppressCellFocus={true}
+              loading={loading}
+              stopEditingWhenCellsLoseFocus={true}
+            />
+          </Box>
+        </CardContent>
+      </Card>
+    </Box>
   );
 }
 

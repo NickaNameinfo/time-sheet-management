@@ -1,5 +1,19 @@
 import axios from "axios";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Button,
+  IconButton,
+  Tooltip,
+} from "@mui/material";
+import {
+  Folder,
+  CheckCircle,
+  Refresh,
+} from "@mui/icons-material";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
@@ -95,21 +109,29 @@ function TeamLeadHome() {
       {
         headerName: "Action",
         pinned: "right",
-        minWidth: 100,
-        width: 100,
+        minWidth: 120,
+        width: 120,
         field: "id",
         filter: false,
         editable: false,
-        cellRenderer: (params, index) => (
-          <div className="actions">
-            <>
-              <i
-                style={{ color: "color", backgroundColor: "green" }}
-                class="fa-solid fa-check"
+        cellRenderer: (params) => (
+          <Box sx={{ display: "flex", justifyContent: "center" }}>
+            <Tooltip title="Update Completion">
+              <IconButton
+                size="small"
+                color="success"
                 onClick={() => updateProjectDetails(params)}
-              ></i>
-            </>
-          </div>
+                sx={{
+                  "&:hover": {
+                    bgcolor: "success.light",
+                    color: "white",
+                  },
+                }}
+              >
+                <CheckCircle fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
         ),
       },
     ],
@@ -201,30 +223,70 @@ function TeamLeadHome() {
     console.log(params.data, "datadatadatadata");
   };
 
+  const onSelectionChanged = (event) => {
+    // Handle selection if needed
+  };
+
   return (
-    <>
-      <div className="text-center pb-1 my-3">
-        <h4>Allotted Project Details</h4>
-      </div>
-      <div style={containerStyle}>
-        <div style={gridStyle} className="ag-theme-alpine">
-          <AgGridReact
-            rowData={rowData}
-            columnDefs={columnDefs}
-            autoGroupColumnDef={autoGroupColumnDef}
-            defaultColDef={defaultColDef}
-            suppressRowClickSelection={true}
-            groupSelectsChildren={true}
-            rowSelection={"single"}
-            rowGroupPanelShow={"always"}
-            pivotPanelShow={"always"}
-            pagination={true}
-            onGridReady={onGridReady}
-            onSelectionChanged={(event) => onSelectionChanged(event)}
-          />
-        </div>
-      </div>
-    </>
+    <Box sx={{ p: 3 }}>
+      {/* Header */}
+      <Box sx={{ mb: 3 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 2,
+          }}
+        >
+          <Box>
+            <Typography variant="h4" fontWeight="bold" gutterBottom>
+              Allotted Project Details
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              View and manage projects assigned to your team
+            </Typography>
+          </Box>
+          <Button
+            variant="outlined"
+            startIcon={<Refresh />}
+            onClick={onGridReady}
+          >
+            Refresh
+          </Button>
+        </Box>
+      </Box>
+
+      {/* Grid Card */}
+      <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
+        <CardContent>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
+            <Folder color="primary" />
+            <Typography variant="h6" fontWeight="bold">
+              Projects
+            </Typography>
+          </Box>
+          <Box sx={{ width: "100%", height: "600px" }}>
+            <div style={gridStyle} className="ag-theme-alpine">
+              <AgGridReact
+                rowData={rowData}
+                columnDefs={columnDefs}
+                autoGroupColumnDef={autoGroupColumnDef}
+                defaultColDef={defaultColDef}
+                suppressRowClickSelection={true}
+                groupSelectsChildren={true}
+                rowSelection={"single"}
+                rowGroupPanelShow={"always"}
+                pivotPanelShow={"always"}
+                pagination={true}
+                onGridReady={onGridReady}
+                onSelectionChanged={onSelectionChanged}
+              />
+            </div>
+          </Box>
+        </CardContent>
+      </Card>
+    </Box>
   );
 }
 

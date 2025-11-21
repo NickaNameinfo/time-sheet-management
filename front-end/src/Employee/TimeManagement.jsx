@@ -14,7 +14,26 @@ import {
   MenuItem,
   Select,
   TextField,
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Grid,
+  Paper,
+  IconButton,
+  Chip,
+  Stack,
 } from "@mui/material";
+import {
+  Add,
+  Delete,
+  Send,
+  Edit,
+  Save,
+  CheckCircle,
+  Cancel,
+  Schedule,
+} from "@mui/icons-material";
 import commonData from "../../common.json";
 
 const TimeManagement = () => {
@@ -425,71 +444,87 @@ const TimeManagement = () => {
   };
 
   return (
-    <>
-      {/* <div className="text-center pb-1 my-3 d-flex align-items-center justify-content-between px-3"> */}
-      <div className=" pb-1 my-3 d-flex align-items-center  px-3">
-        <div className="container">
-          <div className="row p-0">
-            <div className="col-4">
-              <p>
-                NAME : <b>{getUserDetails?.[0]?.employeeName}</b>
-              </p>{" "}
-              <p></p>
-            </div>
-            <div className="col-4">
-              <p>
-                EMPLOYEE ID : <b>{getUserDetails?.[0]?.EMPID}</b>
-              </p>
-            </div>
-            <div className="col-4">
-              <p>
-                MONTH & YEAR : <b>{getUserDetails?.[0]?.date}</b>
-              </p>
-            </div>
-          </div>
-          <div className="row p-0">
-            <div className="col">
-              <p>
-                DESIGNATION : <b>{getUserDetails?.[0]?.designation}</b>
-              </p>
-            </div>
-            <div className="col">
-              <p>
-                DESCIPLINE : <b>{getUserDetails?.[0]?.discipline}</b>
-              </p>
-            </div>
-            <div className="col">
-              <p>
-                CALENDAR WEEK :{" "}
-                <b>
-                  {
-                    <Select
-                      className="noPaddingInput"
-                      value={
-                        selectedWeek
-                          ? selectedWeek
-                          : String(getCurrentWeekNumber())
-                      }
-                      defaultValue={String(getCurrentWeekNumber())}
-                      onChange={(e, value) =>
-                        setSelectedWeek(value.props.value)
-                      }
-                    >
-                      {weekNumberList?.map((res) => (
-                        <MenuItem value={res}>{res}</MenuItem>
-                      ))}
-                    </Select>
+    <Box sx={{ p: 3 }}>
+      {/* Header Card */}
+      <Card sx={{ mb: 3, borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
+        <CardContent>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
+            <Schedule color="primary" />
+            <Typography variant="h5" fontWeight="bold">
+              Time Management
+            </Typography>
+          </Box>
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={4}>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Name
+              </Typography>
+              <Typography variant="h6" fontWeight="bold">
+                {getUserDetails?.[0]?.employeeName || "N/A"}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Employee ID
+              </Typography>
+              <Typography variant="h6" fontWeight="bold">
+                {getUserDetails?.[0]?.EMPID || "N/A"}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Month & Year
+              </Typography>
+              <Typography variant="h6" fontWeight="bold">
+                {getUserDetails?.[0]?.date || "N/A"}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Designation
+              </Typography>
+              <Typography variant="h6" fontWeight="bold">
+                {getUserDetails?.[0]?.designation || "N/A"}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Discipline
+              </Typography>
+              <Typography variant="h6" fontWeight="bold">
+                {getUserDetails?.[0]?.discipline || "N/A"}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Calendar Week
+              </Typography>
+              <FormControl fullWidth>
+                <Select
+                  value={
+                    selectedWeek
+                      ? selectedWeek
+                      : String(getCurrentWeekNumber())
                   }
-                </b>
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className=" px-3">
-        <div>
-          <div className="tableSection">
-            <table className="table-responsive tablesss table align-middle">
+                  onChange={(e) => setSelectedWeek(e.target.value)}
+                >
+                  {(weekNumberList || []).map((res) => (
+                    <MenuItem key={res} value={res}>
+                      Week {res}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
+      {/* Table Card */}
+      <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
+        <CardContent>
+          <Box sx={{ overflowX: "auto" }}>
+            <Paper sx={{ width: "100%", overflow: "auto" }}>
+              <table className="table-responsive tablesss table align-middle" style={{ width: "100%" }}>
               <thead>
                 <tr>
                   <th scope="col" className="text-center">
@@ -574,13 +609,22 @@ const TimeManagement = () => {
               <tbody>
                 {formData === null && (
                   <tr>
-                    <td>
-                      <div className="actions addIcon">
-                        <i
-                          class="fa-solid fa-plus"
-                          onClick={() => handleClickOpen()}
-                        ></i>
-                      </div>
+                    <td colSpan="20" style={{ textAlign: "center", padding: "20px" }}>
+                      <IconButton
+                        onClick={() => handleClickOpen()}
+                        sx={{
+                          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                          color: "white",
+                          "&:hover": {
+                            background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                          },
+                        }}
+                      >
+                        <Add />
+                      </IconButton>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                        Click to add work details
+                      </Typography>
                     </td>
                   </tr>
                 )}
@@ -588,25 +632,35 @@ const TimeManagement = () => {
                 {formData?.map((res, index) => (
                   <tr>
                     <td>
-                      {index !== formData.length - 1 && index + 1}
+                      {index !== formData.length - 1 && (
+                        <Typography variant="body2" fontWeight="bold">
+                          {index + 1}
+                        </Typography>
+                      )}
                       {index === formData.length - 1 && (
-                        <div className="actions addIcon">
-                          <i
-                            class="fa-solid fa-plus"
-                            onClick={() => handleClickOpen()}
-                          ></i>
-                        </div>
+                        <IconButton
+                          onClick={() => handleClickOpen()}
+                          size="small"
+                          sx={{
+                            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                            color: "white",
+                            "&:hover": {
+                              background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                            },
+                          }}
+                        >
+                          <Add />
+                        </IconButton>
                       )}
                     </td>
                     <td>
                       <FormControl fullWidth>
                         <Autocomplete
                           id="combo-box-demo"
-                          options={referenceNoList}
+                          options={referenceNoList || []}
                           sx={{ width: 200 }}
                           className={"inputTextStyle"}
-                          // value={formData?.[index]?.referenceNo}
-                          defaultValue={formData?.[index]?.referenceNo}
+                          value={formData?.[index]?.referenceNo || null}
                           error={errorMessage?.[index]?.referenceNo}
                           disabled={
                             isDisable?.[index]?.disable === false
@@ -704,9 +758,9 @@ const TimeManagement = () => {
                             )
                           }
                         >
-                          {areaofWork?.map((res) => {
+                          {(areaofWork || []).map((res) => {
                             return (
-                              <MenuItem value={res?.areaofwork}>
+                              <MenuItem key={res?.areaofwork} value={res?.areaofwork}>
                                 {res?.areaofwork}
                               </MenuItem>
                             );
@@ -739,9 +793,9 @@ const TimeManagement = () => {
                             )
                           }
                         >
-                          {variation?.map((res) => {
+                          {(variation || []).map((res) => {
                             return (
-                              <MenuItem value={res?.variation}>
+                              <MenuItem key={res?.variation} value={res?.variation}>
                                 {res?.variation}
                               </MenuItem>
                             );
@@ -775,10 +829,9 @@ const TimeManagement = () => {
                             )
                           }
                         >
-                          {formData?.[index]?.subDivisionList
-                            ?.split(",")
-                            ?.map((res) => (
-                              <MenuItem value={res}>{res}</MenuItem>
+                          {(formData?.[index]?.subDivisionList
+                            ?.split(",") || []).map((res, idx) => (
+                              <MenuItem key={`${res}-${idx}`} value={res}>{res}</MenuItem>
                             ))}
                         </Select>
                         {/* <FormHelperText>
@@ -954,26 +1007,29 @@ const TimeManagement = () => {
                       />
                     </td>
                     <td>
-                      <div className="d-flex justify-content-center align-items-center h-100">
-                        {formData?.[index]?.status?.toLowerCase() ===
-                        "approved" ? (
-                          <i
-                            class="fa-regular fa-circle-check"
-                            style={{ fontSize: "20px", color: "green" }}
-                          ></i>
-                        ) : formData?.[index]?.status?.toLowerCase() ===
-                          "rejected" ? (
-                          <i
-                            class="fa-regular fa-circle-xmark"
-                            style={{ fontSize: "20px", color: "red" }}
-                          ></i>
+                      <Box sx={{ display: "flex", justifyContent: "center" }}>
+                        {formData?.[index]?.status?.toLowerCase() === "approved" ? (
+                          <Chip
+                            icon={<CheckCircle />}
+                            label="Approved"
+                            color="success"
+                            size="small"
+                          />
+                        ) : formData?.[index]?.status?.toLowerCase() === "rejected" ? (
+                          <Chip
+                            icon={<Cancel />}
+                            label="Rejected"
+                            color="error"
+                            size="small"
+                          />
                         ) : (
-                          <i
-                            class="fa-solid fa-circle"
-                            style={{ fontSize: "20px", color: "orange" }}
-                          ></i>
+                          <Chip
+                            label="Pending"
+                            color="warning"
+                            size="small"
+                          />
                         )}
-                      </div>
+                      </Box>
                     </td>
                     <td>
                       {formData?.[index]?.sentDate
@@ -985,81 +1041,78 @@ const TimeManagement = () => {
                         ? getDateYear(formData?.[index]?.approvedDate)
                         : null}
                     </td>
-                    <td
-                      className="fixedColumn actions"
-                      style={{ height: "70px" }}
-                    >
-                      {!formData[index]?.id ? (
-                        <>
-                          <i
-                            style={{
-                              color: "color",
-                              backgroundColor: "green",
-                            }}
-                            class="fa-solid fa-share-alt"
-                            onClick={() => onSubmit(formData[index], index)}
-                          ></i>
-                          <i
-                            class="fa-solid fa-trash"
-                            onClick={() => onDeleteIndex(index)}
-                          ></i>
-                        </>
-                      ) : formData?.[index]?.status?.toLowerCase() ===
-                        "approved" ? null : (
-                        <>
-                          <i
-                            class="fa-solid fa-pen-to-square"
-                            onClick={() => {
-                              setIsDisable((prev) => ({
-                                ...prev,
-                                [index]: {
-                                  disable: false,
+                    <td style={{ height: "70px" }}>
+                      <Stack direction="row" spacing={1} justifyContent="center">
+                        {!formData[index]?.id ? (
+                          <>
+                            <IconButton
+                              onClick={() => onSubmit(formData[index], index)}
+                              size="small"
+                              sx={{
+                                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                                color: "white",
+                                "&:hover": {
+                                  background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
                                 },
-                              }));
-                            }}
-                          ></i>
-                          <i
-                            style={{
-                              color: "color",
-                              backgroundColor: "green",
-                            }}
-                            class="fa-regular fa-floppy-disk"
-                            onClick={() =>
-                              updateProjectDetails(
-                                formData[index],
-                                formData[index]?.id
-                              )
-                            }
-                          ></i>
-                        </>
-                      )}
+                              }}
+                            >
+                              <Send fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              onClick={() => onDeleteIndex(index)}
+                              size="small"
+                              color="error"
+                            >
+                              <Delete fontSize="small" />
+                            </IconButton>
+                          </>
+                        ) : formData?.[index]?.status?.toLowerCase() === "approved" ? null : (
+                          <>
+                            <IconButton
+                              onClick={() => {
+                                setIsDisable((prev) => ({
+                                  ...prev,
+                                  [index]: {
+                                    disable: false,
+                                  },
+                                }));
+                              }}
+                              size="small"
+                              color="primary"
+                            >
+                              <Edit fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              onClick={() =>
+                                updateProjectDetails(
+                                  formData[index],
+                                  formData[index]?.id
+                                )
+                              }
+                              size="small"
+                              sx={{
+                                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                                color: "white",
+                                "&:hover": {
+                                  background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                                },
+                              }}
+                            >
+                              <Save fontSize="small" />
+                            </IconButton>
+                          </>
+                        )}
+                      </Stack>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-        </div>
-      </div>
-
-      {/* 
-      <Dialog
-        fullWidth
-        open={open}
-        maxWidth="md"
-        onClose={handleClose}
-        aria-labelledby="responsive-dialog-title"
-      >
-        <DialogTitle
-          id="alert-dialog-title"
-          className="d-flex align-items-center justify-content-between"
-        >
-          <h2>{"Add Work Details"}</h2>
-          <i class="fa-solid fa-xmark cursor-pointer" onClick={() => setOpen(false)} style={{cursor: "pointer"}}></i>
-        </DialogTitle>
-        <AddProjectDetails onSubmitValue={(value) => setOpen(false)} />
-      </Dialog> */}
-    </>
+          </Paper>
+        </Box>
+      </CardContent>
+    </Card>
+    </Box>
   );
 };
 

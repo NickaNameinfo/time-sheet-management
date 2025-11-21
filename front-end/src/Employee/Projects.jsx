@@ -1,5 +1,21 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import Button from "@mui/material/Button";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Button,
+  IconButton,
+  Tooltip,
+  Stack,
+} from "@mui/material";
+import {
+  Add,
+  Delete,
+  Refresh,
+  Folder,
+  Assignment,
+} from "@mui/icons-material";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
@@ -101,39 +117,95 @@ function Projects() {
   };
 
   return (
-    <>
-      <div className="addBtn pb-1 my-3">
-        <Link to="/Dashboard/addProject" className="btn">
-          Add Project
-        </Link>
-        {selectedRows?.length > 0 && (
-          <Button
-            variant="contained"
-            onClick={() => handleDelete(selectedRows?.[0]?.id)}
-          >
-            Delete
-          </Button>
-        )}
-      </div>
-      <div style={containerStyle}>
-        <div style={gridStyle} className="ag-theme-alpine">
-          <AgGridReact
-            rowData={rowData}
-            columnDefs={columnDefs}
-            autoGroupColumnDef={autoGroupColumnDef}
-            defaultColDef={defaultColDef}
-            suppressRowClickSelection={true}
-            groupSelectsChildren={true}
-            rowSelection={"single"}
-            rowGroupPanelShow={"always"}
-            pivotPanelShow={"always"}
-            pagination={true}
-            onGridReady={onGridReady}
-            onSelectionChanged={(event) => onSelectionChanged(event)}
-          />
-        </div>
-      </div>
-    </>
+    <Box sx={{ p: 3 }}>
+      {/* Header */}
+      <Box sx={{ mb: 3 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 2,
+          }}
+        >
+          <Box>
+            <Typography variant="h4" fontWeight="bold" gutterBottom>
+              Projects
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              View and manage assigned projects
+            </Typography>
+          </Box>
+          <Stack direction="row" spacing={2}>
+            <Button
+              variant="outlined"
+              startIcon={<Refresh />}
+              onClick={onGridReady}
+            >
+              Refresh
+            </Button>
+            <Button
+              component={Link}
+              to="/Dashboard/addProject"
+              variant="contained"
+              startIcon={<Add />}
+              sx={{
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                "&:hover": {
+                  background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                },
+              }}
+            >
+              Add Project
+            </Button>
+            {selectedRows?.length > 0 && (
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<Delete />}
+                onClick={() => {
+                  if (window.confirm("Are you sure you want to delete this project?")) {
+                    handleDelete(selectedRows?.[0]?.id);
+                  }
+                }}
+              >
+                Delete
+              </Button>
+            )}
+          </Stack>
+        </Box>
+      </Box>
+
+      {/* Grid Card */}
+      <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
+        <CardContent>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
+            <Folder color="primary" />
+            <Typography variant="h6" fontWeight="bold">
+              Project List
+            </Typography>
+          </Box>
+          <Box sx={{ width: "100%", height: "600px" }}>
+            <div style={gridStyle} className="ag-theme-alpine">
+              <AgGridReact
+                rowData={rowData}
+                columnDefs={columnDefs}
+                autoGroupColumnDef={autoGroupColumnDef}
+                defaultColDef={defaultColDef}
+                suppressRowClickSelection={true}
+                groupSelectsChildren={true}
+                rowSelection={"single"}
+                rowGroupPanelShow={"always"}
+                pivotPanelShow={"always"}
+                pagination={true}
+                onGridReady={onGridReady}
+                onSelectionChanged={(event) => onSelectionChanged(event)}
+              />
+            </div>
+          </Box>
+        </CardContent>
+      </Card>
+    </Box>
   );
 }
 

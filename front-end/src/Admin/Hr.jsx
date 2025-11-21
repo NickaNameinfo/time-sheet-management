@@ -1,55 +1,84 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import Button from "@mui/material/Button";
-import { Link } from "react-router-dom";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Typography,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Chip,
+  Tooltip,
+  Paper,
+  TextField,
+  InputAdornment,
+  Stack,
+} from "@mui/material";
+import {
+  Add,
+  Delete,
+  Search,
+  Person,
+  Refresh,
+  AccountCircle,
+} from "@mui/icons-material";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
-import commonData from "../../common.json"
+import commonData from "../../common.json";
+
 function Hr() {
-  const containerStyle = { width: "100%", height: "100%" };
-  const gridStyle = { height: "100%", width: "100%" };
+  const navigate = useNavigate();
   const [rowData, setRowData] = useState([]);
-  const [selectedRows, setSelectedRows] = useState(null);
+  const [selectedRows, setSelectedRows] = useState([]);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [hrToDelete, setHrToDelete] = useState(null);
+  const [searchText, setSearchText] = useState("");
+  const [gridApi, setGridApi] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const columnDefs = useMemo(
     () => [
       {
         field: "hrName",
-        minWidth: 170,
+        headerName: "HR Name",
+        minWidth: 200,
+        checkboxSelection: true,
+        cellRenderer: (params) => {
+          return (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 1 }}>
+              <Person color="primary" sx={{ fontSize: 20 }} />
+              <Typography variant="body2" fontWeight="medium">
+                {params.value}
+              </Typography>
+            </Box>
+          );
+        },
       },
-      { field: "userName" },
+      {
+        field: "userName",
+        headerName: "Username",
+        minWidth: 150,
+        cellRenderer: (params) => (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <AccountCircle sx={{ fontSize: 16, color: "text.secondary" }} />
+            <Typography variant="body2">{params.value}</Typography>
+          </Box>
+        ),
+      },
     ],
-    []
-  );
-
-  const autoGroupColumnDef = useMemo(
-    () => ({
-      headerName: "Group",
-      minWidth: 170,
-      field: "athlete",
-      valueGetter: (params) => {
-        if (params.node.group) {
-          return params.node.key;
-        } else {
-          return params.data[params.colDef.field];
-        }
-      },
-      headerCheckboxSelection: false,
-      cellRenderer: "agGroupCellRenderer",
-      cellRendererParams: {
-        checkbox: false,
-      },
-    }),
     []
   );
 
   const defaultColDef = useMemo(
     () => ({
-      editable: true,
-      enableRowGroup: true,
-      enablePivot: true,
-      enableValue: true,
+      editable: false,
       sortable: true,
       resizable: true,
       filter: true,
@@ -61,73 +90,241 @@ function Hr() {
   );
 
   const onGridReady = useCallback((params) => {
+    setGridApi(params.api);
+    params.api.sizeColumnsToFit();
+    fetchHrData();
+  }, []);
+
+  const fetchHrData = useCallback(() => {
+    setLoading(true);
     axios
       .get(`${commonData?.APIKEY}/getHr`)
       .then((res) => {
         if (res.data.Status === "Success") {
           setRowData(res.data.Result);
         } else {
-          alert("Error");
+          alert("Error loading HR data");
         }
       })
-      .catch((err) => console.log(err));
+      .catch((err) => {
+        console.log(err);
+        alert("Error loading HR data");
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-
-  const handleDelete = (id) => {
-    axios
-      .delete(`${commonData?.APIKEY}/hr/delete/` + id)
-      .then((res) => {
-        if (res.data.Status === "Success") {
-          window.location.reload(true);
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (gridApi) {
+        if (searchText) {
+          gridApi.setQuickFilter(searchText);
         } else {
-          alert("Error");
+          gridApi.setQuickFilter("");
         }
-      })
-      .catch((err) => console.log(err));
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchText, gridApi]);
+
+  const handleDeleteClick = (hr) => {
+    setHrToDelete(hr);
+    setDeleteDialogOpen(true);
   };
 
-  
-  const onSelectionChanged = (event) => {
-    const selectedItem = event.api.getSelectedRows();
-    setSelectedRows(selectedItem);
+  const handleDeleteConfirm = () => {
+    if (hrToDelete) {
+      axios
+        .delete(`${commonData?.APIKEY}/hr/delete/` + hrToDelete.id)
+        .then((res) => {
+          if (res.data.Status === "Success") {
+            setDeleteDialogOpen(false);
+            setHrToDelete(null);
+            setSelectedRows([]);
+            fetchHrData();
+          } else {
+            alert("Error deleting HR");
+          }
+        })
+        .catch((err) => {
+          console.log(err);
+          alert("Error deleting HR");
+        });
+    }
   };
 
+  const onSelectionChanged = useCallback((event) => {
+    const selectedItems = event.api.getSelectedRows();
+    setSelectedRows(selectedItems);
+  }, []);
+
+  const handleBulkDelete = () => {
+    if (selectedRows.length > 0) {
+      setHrToDelete(selectedRows[0]);
+      setDeleteDialogOpen(true);
+    }
+  };
 
   return (
-    <>
-      <div className="addBtn pb-1 my-3">
-        <Link to="/Dashboard/addHr" className="btn">
-          Add Hr
-        </Link>
-        {selectedRows?.length > 0 && (
+    <Box>
+      {/* Header */}
+      <Box sx={{ mb: 3 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 2,
+          }}
+        >
+          <Box>
+            <Typography variant="h4" fontWeight="bold" gutterBottom>
+              HR Management
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Manage and view all HR personnel in your organization
+            </Typography>
+          </Box>
+          <Stack direction="row" spacing={2}>
+            <Button
+              variant="outlined"
+              startIcon={<Refresh />}
+              onClick={fetchHrData}
+              disabled={loading}
+            >
+              Refresh
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={() => navigate("/Dashboard/addHr")}
+              sx={{
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                "&:hover": {
+                  background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                },
+              }}
+            >
+              Add HR
+            </Button>
+          </Stack>
+        </Box>
+
+        {/* Search and Actions Bar */}
+        <Paper
+          elevation={1}
+          sx={{
+            p: 1,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 2,
+            flexWrap: "wrap",
+          }}
+        >
+          <TextField
+            placeholder="Search HR..."
+            variant="outlined"
+            size="small"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search color="action" />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ flex: 1, minWidth: 250 }}
+          />
+          {selectedRows.length > 0 && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Chip
+                label={`${selectedRows.length} selected`}
+                color="primary"
+                size="small"
+              />
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<Delete />}
+                onClick={handleBulkDelete}
+                size="small"
+              >
+                Delete Selected
+              </Button>
+            </Box>
+          )}
+        </Paper>
+      </Box>
+
+      {/* AG Grid */}
+      <Card
+        sx={{
+          height: "calc(100vh - 300px)",
+          minHeight: 500,
+          borderRadius: 3,
+          overflow: "hidden",
+        }}
+      >
+        <CardContent sx={{ p: 0, height: "100%" }}>
+          <Box sx={{ height: "100%", width: "100%" }} className="ag-theme-alpine">
+            <AgGridReact
+              rowData={rowData}
+              columnDefs={columnDefs}
+              defaultColDef={defaultColDef}
+              suppressRowClickSelection={true}
+              rowSelection="multiple"
+              pagination={true}
+              paginationPageSize={20}
+              onGridReady={onGridReady}
+              onSelectionChanged={onSelectionChanged}
+              animateRows={true}
+              rowHeight={60}
+              headerHeight={50}
+              enableRangeSelection={true}
+              suppressCellFocus={true}
+              loading={loading}
+            />
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Delete color="error" />
+            <Typography variant="h6">Confirm Delete</Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete HR{" "}
+            <strong>{hrToDelete?.hrName}</strong> (Username: {hrToDelete?.userName})?
+            <br />
+            <br />
+            This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
           <Button
+            onClick={handleDeleteConfirm}
             variant="contained"
-            onClick={() => handleDelete(selectedRows?.[0]?.id)}
+            color="error"
+            startIcon={<Delete />}
           >
             Delete
           </Button>
-        )}
-      </div>
-      <div style={containerStyle}>
-        <div style={gridStyle} className="ag-theme-alpine">
-          <AgGridReact
-            rowData={rowData}
-            columnDefs={columnDefs}
-            autoGroupColumnDef={autoGroupColumnDef}
-            defaultColDef={defaultColDef}
-            suppressRowClickSelection={true}
-            groupSelectsChildren={true}
-            rowSelection={"single"}
-            rowGroupPanelShow={"always"}
-            pivotPanelShow={"always"}
-            pagination={true}
-            onGridReady={onGridReady}
-            onSelectionChanged={(event) => onSelectionChanged(event)}
-          />
-        </div>
-      </div>
-    </>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }
 

@@ -1,6 +1,17 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import Button from "@mui/material/Button";
-import { Link } from "react-router-dom";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Button,
+  Stack,
+} from "@mui/material";
+import {
+  EventAvailable,
+  FileDownload,
+  Refresh,
+} from "@mui/icons-material";
 import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
@@ -137,40 +148,92 @@ const LeaveReport = () => {
   );
 
   const onClickExport = () => {
-    console.log(exportApi, "grdiApigrdiApi");
-    exportApi.exportDataAsCsv();
+    if (exportApi) {
+      exportApi.exportDataAsCsv();
+      alert("Report exported successfully");
+    } else {
+      alert("Please wait for the grid to load");
+    }
+  };
+
+  const onSelectionChanged = (event) => {
+    // Handle selection if needed
   };
 
   return (
-    <>
-      <div className="text-center pb-1 my-3">
-        <h4>Leave Report</h4>
-      </div>
-      <div style={containerStyle}>
-        <Button
-          onClick={() => onClickExport()}
-          variant="contained"
-          className="mb-3 mx-3"
+    <Box sx={{ p: 3 }}>
+      {/* Header */}
+      <Box sx={{ mb: 3 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 2,
+          }}
         >
-          Export{" "}
-        </Button>
-        <div style={gridStyle} className="ag-theme-alpine leavetable">
-          <AgGridReact
-            rowData={projectDetails}
-            columnDefs={columnDefs}
-            defaultColDef={defaultColDef}
-            suppressRowClickSelection={true}
-            groupSelectsChildren={true}
-            rowSelection={"single"}
-            rowGroupPanelShow={"always"}
-            pivotPanelShow={"always"}
-            pagination={true}
-            onGridReady={onGridReady}
-            onSelectionChanged={(event) => onSelectionChanged(event)}
-          />
-        </div>
-      </div>
-    </>
+          <Box>
+            <Typography variant="h4" fontWeight="bold" gutterBottom>
+              Leave Report
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              View employee leave details by leave type
+            </Typography>
+          </Box>
+          <Stack direction="row" spacing={2}>
+            <Button
+              variant="outlined"
+              startIcon={<Refresh />}
+              onClick={onGridReady}
+            >
+              Refresh
+            </Button>
+            <Button
+              onClick={onClickExport}
+              variant="contained"
+              startIcon={<FileDownload />}
+              sx={{
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                "&:hover": {
+                  background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                },
+              }}
+            >
+              Export CSV
+            </Button>
+          </Stack>
+        </Box>
+      </Box>
+
+      {/* Grid Card */}
+      <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
+        <CardContent>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
+            <EventAvailable color="primary" />
+            <Typography variant="h6" fontWeight="bold">
+              Employee Leave Summary
+            </Typography>
+          </Box>
+          <Box sx={{ width: "100%", height: "600px" }}>
+            <div style={gridStyle} className="ag-theme-alpine">
+              <AgGridReact
+                rowData={projectDetails}
+                columnDefs={columnDefs}
+                defaultColDef={defaultColDef}
+                suppressRowClickSelection={true}
+                groupSelectsChildren={true}
+                rowSelection={"single"}
+                rowGroupPanelShow={"always"}
+                pivotPanelShow={"always"}
+                pagination={true}
+                onGridReady={onGridReady}
+                onSelectionChanged={onSelectionChanged}
+              />
+            </div>
+          </Box>
+        </CardContent>
+      </Card>
+    </Box>
   );
 };
 

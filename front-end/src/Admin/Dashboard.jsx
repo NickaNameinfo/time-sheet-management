@@ -1,231 +1,534 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import "bootstrap-icons/font/bootstrap-icons.css";
-import { Link, Outlet, useNavigate } from "react-router-dom";
-import axios from "axios";
-import commonData from "../../common.json";
+import React, { useState } from "react";
+import {
+  Box,
+  Drawer,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Typography,
+  Divider,
+  Avatar,
+  IconButton,
+  Collapse,
+  useTheme,
+  useMediaQuery,
+  AppBar,
+  Toolbar,
+  Chip,
+} from "@mui/material";
+import {
+  Dashboard as DashboardIcon,
+  People,
+  PersonAdd,
+  Business,
+  Settings,
+  Assessment,
+  Logout,
+  ExpandLess,
+  ExpandMore,
+  Schedule,
+  EventAvailable,
+  WorkHistory,
+  Payments,
+  AccountBalance,
+  TrendingUp,
+  CheckCircle,
+  AccessTime,
+  Assignment,
+  Notifications,
+  Menu,
+  LocationOn,
+  Face,
+  PhoneAndroid,
+  Email,
+  AccountTree,
+} from "@mui/icons-material";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import config from "../config/index.js";
+import { useAuth } from "../context/AuthContext";
+
+const drawerWidth = 280;
 
 function Dashboard() {
-  const token = localStorage.getItem("token");
-  const [roles, setRoles] = React.useState(null);
-  console.log(roles, "rolesroles", token);
+  const { roles, logout, user, loading } = useAuth();
+  const location = useLocation();
   const navigate = useNavigate();
-  axios.defaults.withCredentials = true;
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [openMenus, setOpenMenus] = useState({});
 
-  useEffect(() => {
-    axios
-      .post(`${commonData?.APIKEY}/dashboard`, { tokensss: token })
-      .then((res) => {
-        console.log(res, "resresresres12345");
-        if (res.data.Status === "Success") {
-          setRoles(res.data.role?.split(","));
-        }
-      });
-  }, []);
+  // Normalize roles - trim whitespace and handle null/undefined
+  const normalizedRoles = React.useMemo(() => {
+    if (!roles || !Array.isArray(roles)) return [];
+    return roles.map(role => role?.trim()).filter(Boolean);
+  }, [roles]);
 
-  const handleLogout = () => {
-    axios
-      .get(`${commonData?.APIKEY}/logout`)
-      .then((res) => {
-        localStorage.removeItem("token");
-        navigate("/");
-      })
-      .catch((err) => console.log(err));
+  const handleMenuToggle = (menu) => {
+    setOpenMenus((prev) => ({
+      ...prev,
+      [menu]: !prev[menu],
+    }));
   };
 
-  return (
-    <div className="container-fluid arris-page">
-      <div className="row flex-nowrap">
-        <div className="col-auto px-sm-2 px-0 sidebar">
-          <div className="logo">
-            <img
-              src={`${commonData?.BASEURL}/src/assets/logo.png`}
-              width={100}
-            />
-            {/* <h2> Arris</h2> */}
-          </div>
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
 
-          <ul className="links">
-            {/* Admin List */}
-            {roles?.[0] === "Admin" && (
-              <>
-                <h4 className="fs-4 text-center mb-2 txt_col">Dashboard</h4>
-                <li>
-                  <span className="material-symbols-outlined fs-5 bi-collection"></span>
-                  <Link to="/Dashboard">
-                    <span className="txt_col">Dashboard</span>
-                  </Link>
-                </li>
-                {(roles?.[0] === "HR" || roles?.[0] === "Admin") && (
-                  <li>
-                    <span className="material-symbols-outlined fs-5 bi-explicit-fill"></span>
-                    <Link to="/Dashboard/employee">
-                      <span className="txt_col">Manage Employees</span>
-                    </Link>
-                  </li>
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
+
+  const menuItems = [
+    {
+      title: "Dashboard",
+      icon: <DashboardIcon />,
+      path: "/Dashboard",
+      roles: ["Admin"],
+    },
+    {
+      title: "Manage Employees",
+      icon: <People />,
+      path: "/Dashboard/employee",
+      roles: ["Admin", "HR"],
+    },
+    {
+      title: "Manage TL",
+      icon: <PersonAdd />,
+      path: "/Dashboard/lead",
+      roles: ["Admin"],
+    },
+    {
+      title: "Manage Projects",
+      icon: <Business />,
+      path: "/Dashboard/projects",
+      roles: ["Admin"],
+    },
+  ];
+
+  const approvalItems = [
+    { title: "Leave Details", path: "/Dashboard/leaves" },
+    { title: "Comp-Off Details", path: "/Dashboard/CompOffList" },
+  ];
+
+  const reportItems = [
+    { title: "Employee Report", path: "/Dashboard/Reports/EmployeeReport" },
+    { title: "Consolidated Report", path: "/Dashboard/Reports/ConsolidatedReport" },
+    { title: "Project Report", path: "/Dashboard/Reports/ProjectReport" },
+    { title: "Weekly Report", path: "/Dashboard/Reports/WeeklyReport" },
+    { title: "Monthly Report", path: "/Dashboard/Reports/MonthlyReport" },
+    { title: "Yearly Report", path: "/Dashboard/Reports/YearlyReport" },
+    { title: "Discipline Report", path: "/Dashboard/Reports/CodeReport" },
+    { title: "Leave Report", path: "/Dashboard/Reports/LeaveReport" },
+  ];
+
+  // Phase 1 & 2 - Implemented Features
+  const phase1Phase2Items = [
+    { title: "Overtime Management", icon: <Schedule />, path: "/Dashboard/Overtime" },
+    { title: "Leave Balance", icon: <EventAvailable />, path: "/Dashboard/LeaveBalance" },
+    { title: "Shift Management", icon: <WorkHistory />, path: "/Dashboard/Shifts" },
+    { title: "Payroll Export", icon: <Payments />, path: "/Dashboard/Payroll" },
+    { title: "Billing & Invoicing", icon: <AccountBalance />, path: "/Dashboard/Billing" },
+    { title: "Budget Tracking", icon: <AccountTree />, path: "/Dashboard/Budget" },
+    { title: "Productivity", icon: <TrendingUp />, path: "/Dashboard/Productivity" },
+    { title: "Approval Center", icon: <CheckCircle />, path: "/Dashboard/Approvals" },
+    { title: "Automated Reports", icon: <Email />, path: "/Dashboard/Reports/Automated" },
+  ];
+
+  // Phase 3 - Coming Soon Features
+  const comingSoonItems = [
+    { title: "GPS & Geolocation Tracking", icon: <LocationOn />, path: "#", comingSoon: true },
+    { title: "Face Recognition Attendance", icon: <Face />, path: "#", comingSoon: true },
+    { title: "Mobile App", icon: <PhoneAndroid />, path: "#", comingSoon: true },
+    { title: "Push Notifications", icon: <Notifications />, path: "#", comingSoon: true },
+  ];
+
+  const commonItems = [
+    { title: "Employee Dashboard", icon: <DashboardIcon />, path: "/Dashboard/EmployeeHome", roles: ["TL", "Admin", "Employee", "HR"] },
+    { title: "Team Lead Dashboard", icon: <DashboardIcon />, path: "/Dashboard/TeamLeadHome", roles: ["TL", "Admin"] },
+    { title: "Project Work Details", icon: <Assignment />, path: "/Dashboard/TeamLeadProjectWorks", roles: ["TL", "Admin"] },
+    { title: "Time Management", icon: <AccessTime />, path: "/Dashboard/TimeManagement" },
+    { title: "Apply Leave", icon: <EventAvailable />, path: "/Dashboard/AddLeaves" },
+    { title: "Comp-Off", icon: <Assignment />, path: "/Dashboard/CompOff" },
+  ];
+
+  const settingsItems = [
+    { title: "Updates", path: "/Dashboard/Settings" },
+    { title: "Discipline", path: "/Dashboard/Discipline" },
+    { title: "Designation", path: "/Dashboard/Designation" },
+    { title: "Area of Work", path: "/Dashboard/Areaofwork" },
+    { title: "Variation", path: "/Dashboard/Variations" },
+  ];
+
+  const hasRole = (requiredRoles) => {
+    if (!requiredRoles || !Array.isArray(requiredRoles)) return true;
+    if (!normalizedRoles || normalizedRoles.length === 0) return false;
+    return requiredRoles.some((role) => 
+      normalizedRoles.some((userRole) => 
+        userRole?.trim().toLowerCase() === role?.trim().toLowerCase()
+      )
+    );
+  };
+
+  const isAdmin = () => hasRole(["Admin"]);
+  const isTL = () => hasRole(["TL", "teamLead"]);
+  const isHR = () => hasRole(["HR"]);
+
+  const renderMenuItem = (item) => {
+    if (item.roles && !hasRole(item.roles)) return null;
+
+    const isActive = location.pathname === item.path;
+    const isComingSoon = item.comingSoon;
+    
+    return (
+      <ListItem key={item.path || item.title} disablePadding>
+        <ListItemButton
+          component={isComingSoon ? "div" : Link}
+          to={isComingSoon ? undefined : item.path}
+          selected={isActive}
+          disabled={isComingSoon}
+          onClick={isComingSoon ? (e) => e.preventDefault() : undefined}
+          sx={{
+            mb: 0.5,
+            mx: 1,
+            borderRadius: 2,
+            opacity: isComingSoon ? 0.6 : 1,
+            cursor: isComingSoon ? "not-allowed" : "pointer",
+            "&.Mui-selected": {
+              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              color: "white",
+              "&:hover": {
+                background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+              },
+              "& .MuiListItemIcon-root": {
+                color: "white",
+              },
+            },
+            "&:hover": {
+              bgcolor: isComingSoon ? "transparent" : "action.hover",
+              transform: isComingSoon ? "none" : "translateX(5px)",
+            },
+            transition: "all 0.3s ease",
+          }}
+        >
+          <ListItemIcon sx={{ minWidth: 40, color: isActive ? "white" : "inherit" }}>
+            {item.icon}
+          </ListItemIcon>
+          <ListItemText
+            primary={
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <span>{item.title}</span>
+                {isComingSoon && (
+                  <Chip
+                    label="Coming Soon"
+                    size="small"
+                    sx={{
+                      height: 18,
+                      fontSize: "0.65rem",
+                      bgcolor: "warning.light",
+                      color: "warning.contrastText",
+                    }}
+                  />
                 )}
-                <li>
-                  <span className="material-symbols-outlined fs-5 bi-person-bounding-box"></span>
-                  <Link to="/Dashboard/lead">
-                    <span className="txt_col">Manage TL</span>
-                  </Link>
-                </li>
-                <li>
-                  <span className="material-symbols-outlined fs-5 bi-laptop-fill"></span>
-                  <Link to="/Dashboard/projects">
-                    <span className="txt_col">Manage Projects</span>
-                  </Link>
-                </li>
-                {/* <li>
-                  <span className="material-symbols-outlined fs-5 bi-people-fill"></span>
-                  <Link to="/Dashboard/hr">
-                    <span className="txt_col">Manage Hr</span>
-                  </Link>
-                </li> */}
-                <li className="multimenu">
-                  <div className="d-flex justify-content-center">
-                    <span className="material-symbols-outlined fa-solid fa-gear"></span>
-                    <Link>
-                      <span className="txt_col">Approvals</span>
-                    </Link>
-                  </div>
-                  <ul className="submenu">
-                    <Link to="/Dashboard/Leaves">Leave Details</Link>
-                    <Link to="/Dashboard/CompOffList">Comp-Off Details</Link>
-                  </ul>
-                </li>
-                {/* <li>
-                  <span className="material-symbols-outlined fs-5  bi-journal-check "></span>
-                  <Link to="/Dashboard/Leaves">
-                    <span className="txt_col">Leave Details</span>
-                  </Link>
-                </li> */}
-                <li className="multimenu">
-                  <div className="d-flex justify-content-center">
-                    <span className="material-symbols-outlined fs-5  bi-clipboard-data-fill"></span>
-                    <Link>
-                      <span className="txt_col">Report</span>
-                    </Link>
-                  </div>
-                  <ul className="submenu">
-                    <Link to="/Dashboard/Reports/EmployeeReport">
-                      Employee Report
-                    </Link>
-                    <Link to="/Dashboard/Reports/ConsolidatedReport">
-                      Consolidated Report
-                    </Link>
-                    <Link to="/Dashboard/Reports/ProjectReport">
-                      Project Report
-                    </Link>
-                    <Link to="/Dashboard/Reports/WeeklyReport">
-                      Weekly Report
-                    </Link>
-                    <Link to="/Dashboard/Reports/MonthlyReport">
-                      Monthly Report
-                    </Link>
-                    <Link to="/Dashboard/Reports/YearlyReport">
-                      Yearly Report
-                    </Link>
-                    <Link to="/Dashboard/Reports/CodeReport">
-                      Discipline Report
-                    </Link>
-                    <Link to="/Dashboard/Reports/LeaveReport">
-                      Leave Report
-                    </Link>
-                  </ul>
-                </li>
-              </>
-            )}
+              </Box>
+            }
+            primaryTypographyProps={{
+              fontSize: "0.95rem",
+              fontWeight: isActive ? 600 : 400,
+            }}
+          />
+        </ListItemButton>
+      </ListItem>
+    );
+  };
 
-            {/* Team Lead List */}
-            {(roles?.[0] === "TL" || roles?.[0] === "Admin") && (
+  const renderNestedMenu = (title, icon, items, menuKey) => {
+    const isOpen = openMenus[menuKey];
+    const hasActiveItem = items.some((item) => location.pathname === item.path);
+
+    return (
+      <>
+        <ListItem disablePadding>
+          <ListItemButton
+            onClick={() => handleMenuToggle(menuKey)}
+            sx={{
+              mb: 0.5,
+              mx: 1,
+              borderRadius: 2,
+              bgcolor: hasActiveItem ? "action.selected" : "transparent",
+              "&:hover": {
+                bgcolor: "action.hover",
+              },
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: 40 }}>{icon}</ListItemIcon>
+            <ListItemText primary={title} />
+            {isOpen ? <ExpandLess /> : <ExpandMore />}
+          </ListItemButton>
+        </ListItem>
+        <Collapse in={isOpen} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding>
+            {items.map((item) => {
+              const isActive = location.pathname === item.path;
+              return (
+                <ListItem key={item.path} disablePadding>
+                  <ListItemButton
+                    component={Link}
+                    to={item.path}
+                    selected={isActive}
+                    sx={{
+                      pl: 4,
+                      mb: 0.5,
+                      mx: 1,
+                      borderRadius: 2,
+                      "&.Mui-selected": {
+                        bgcolor: "primary.light",
+                        color: "white",
+                        "&:hover": {
+                          bgcolor: "primary.main",
+                        },
+                      },
+                    }}
+                  >
+                    <ListItemText
+                      primary={item.title}
+                      primaryTypographyProps={{
+                        fontSize: "0.9rem",
+                      }}
+                    />
+                  </ListItemButton>
+                </ListItem>
+              );
+            })}
+          </List>
+        </Collapse>
+      </>
+    );
+  };
+
+  const drawer = (
+    <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      {/* Logo Section */}
+      <Box
+        sx={{
+          p: 2,
+          display: "flex",
+          alignItems: "center",
+          gap: 2,
+          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          color: "white",
+        }}
+      >
+        <Box
+          component="img"
+          src={`${config.baseUrl}/src/assets/logo.png`}
+          alt="Logo"
+          sx={{ width: 50, height: 50, borderRadius: 1 }}
+        />
+        <Box>
+          <Typography variant="h6" fontWeight="bold">
+            Time Sheet
+          </Typography>
+          <Typography variant="caption">Management System</Typography>
+        </Box>
+      </Box>
+
+      <Divider />
+
+      {/* User Info */}
+      {user && (
+        <Box sx={{ p: 2, bgcolor: "grey.50" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Avatar sx={{ bgcolor: "primary.main", width: 40, height: 40 }}>
+              {user.employeeName?.charAt(0) || "U"}
+            </Avatar>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography variant="subtitle2" fontWeight="bold" noWrap>
+                {user.employeeName || "User"}
+              </Typography>
+              <Chip
+                label={normalizedRoles?.[0] || "User"}
+                size="small"
+                sx={{ height: 20, fontSize: "0.7rem", mt: 0.5 }}
+                color="primary"
+                variant="outlined"
+              />
+            </Box>
+          </Box>
+        </Box>
+      )}
+
+      <Divider />
+
+      {/* Menu Items */}
+      <Box sx={{ flex: 1, overflow: "auto", py: 1 }}>
+        {loading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", p: 3 }}>
+            <Typography variant="body2" color="text.secondary">
+              Loading...
+            </Typography>
+          </Box>
+        ) : (
+          <List>
+            {isAdmin() && (
+            <>
+              <Typography variant="overline" sx={{ px: 2, py: 1, color: "text.secondary", fontSize: "0.75rem" }}>
+                Main Menu
+              </Typography>
+              {menuItems.map((item) => hasRole(item.roles) && renderMenuItem(item))}
+
+              <Divider sx={{ my: 1 }} />
+
+              <Typography variant="overline" sx={{ px: 2, py: 1, color: "text.secondary", fontSize: "0.75rem" }}>
+                Phase 1 & 2 Features ✅
+              </Typography>
+              {phase1Phase2Items.map((item) => renderMenuItem(item))}
+
+              <Divider sx={{ my: 1 }} />
+
+              {renderNestedMenu("Approvals", <CheckCircle />, approvalItems, "approvals")}
+              {renderNestedMenu("Reports", <Assessment />, reportItems, "reports")}
+              {isAdmin() && renderNestedMenu("Settings", <Settings />, settingsItems, "settings")}
+
+              <Divider sx={{ my: 1 }} />
+
+              <Typography variant="overline" sx={{ px: 2, py: 1, color: "text.secondary", fontSize: "0.75rem" }}>
+                Phase 3 - Coming Soon 🚀
+              </Typography>
+              {comingSoonItems.map((item) => renderMenuItem(item))}
+            </>
+          )}
+
+            {(isTL() || isAdmin()) && (
               <>
-                <li>
-                  <span className="material-symbols-outlined fs-5 bi-collection"></span>
-                  <Link to="/Dashboard/TeamLeadHome">
-                    <span className="txt_col">Dashboard</span>
-                  </Link>
-                </li>
-                <li>
-                  <span className="material-symbols-outlined fs-5 bi-person-workspace"></span>
-                  <Link to="/Dashboard/TeamLeadProjectWorks">
-                    <span className="txt_col">Project Work Details</span>
-                  </Link>
-                </li>
+                <Typography variant="overline" sx={{ px: 2, py: 1, color: "text.secondary", fontSize: "0.75rem" }}>
+                  Team Lead
+                </Typography>
+                {commonItems
+                  .filter((item) => !item.roles || hasRole(item.roles))
+                  .map((item) => renderMenuItem(item))}
               </>
             )}
 
-            {/* Employee List */}
-            {(roles?.[0] === "TL" ||
-              roles?.[0] === "Admin" ||
-              roles?.[0] === "Employee" ||
-              roles?.[0] === "HR") && (
-              <>
-                <li>
-                  <span className="material-symbols-outlined fs-5 bi-collection"></span>
-                  <Link to="/Dashboard/EmployeeHome">
-                    <span className="txt_col">Employee Dashboard</span>
-                  </Link>
-                </li>
-              </>
-            )}
+            <Divider sx={{ my: 1 }} />
 
-            <li>
-              <span className="material-symbols-outlined fs-5 bi-person-bounding-box"></span>
-              <Link to="/Dashboard/TimeManagement">
-                <span className="txt_col">Time Management</span>
-              </Link>
-            </li>
+            <Typography variant="overline" sx={{ px: 2, py: 1, color: "text.secondary", fontSize: "0.75rem" }}>
+              Common
+            </Typography>
+            {commonItems
+              .filter((item) => !item.roles || hasRole(item.roles))
+              .map((item) => renderMenuItem(item))}
+          </List>
+        )}
+      </Box>
 
-            {/* Common List */}
-            {/* <li>
-              <span className="material-symbols-outlined fs-5 bi-bell-fill"></span>
-              <Link to="#">
-                <span className="txt_col">Notifications</span>
-              </Link>
-            </li> */}
-            <li>
-              <span className="material-symbols-outlined fs-5  bi-journal-check "></span>
-              <Link to="/Dashboard/AddLeaves">
-                <span className="txt_col">Apply Leave</span>
-              </Link>
-            </li>
-            <li>
-              <span className="material-symbols-outlined fs-5  bi-journal-check "></span>
-              <Link to="/Dashboard/CompOff">
-                <span className="txt_col">Comp-Off</span>
-              </Link>
-            </li>
-            {roles?.[0] === "Admin" && (
-              <li className="multimenu">
-                <div className="d-flex justify-content-center">
-                  <span className="material-symbols-outlined fa-solid fa-gear"></span>
-                  <Link>
-                    <span className="txt_col">Settings</span>
-                  </Link>
-                </div>
-                <ul className="submenu">
-                  <Link to="/Dashboard/Settings">Updates</Link>
-                  <Link to="/Dashboard/Discipline">Discipline</Link>
-                  <Link to="/Dashboard/Designation">Designation</Link>
-                  <Link to="/Dashboard/Areaofwork">Area of Work</Link>
-                  <Link to="/Dashboard/Variations">Variation</Link>
-                </ul>
-              </li>
-            )}
+      <Divider />
 
-            <li onClick={() => handleLogout()}>
-              <span className="material-symbols-outlined  fs-5 bi-power"></span>
-              <Link>
-                <span className="txt_col">Logout</span>
-              </Link>
-            </li>
-          </ul>
-        </div>
-        <div className="col p-0 m-0 Arristable">
-          <Outlet />
-        </div>
-      </div>
-    </div>
+      {/* Logout */}
+      <Box sx={{ p: 1 }}>
+        <ListItemButton
+          onClick={handleLogout}
+          sx={{
+            borderRadius: 2,
+            mx: 1,
+            color: "error.main",
+            "&:hover": {
+              bgcolor: "error.light",
+              color: "white",
+            },
+          }}
+        >
+          <ListItemIcon sx={{ minWidth: 40, color: "inherit" }}>
+            <Logout />
+          </ListItemIcon>
+          <ListItemText primary="Logout" />
+        </ListItemButton>
+      </Box>
+    </Box>
+  );
+
+  return (
+    <Box sx={{ display: "flex", height: "100vh" }}>
+      {/* App Bar for Mobile */}
+      {isMobile && (
+        <AppBar
+          position="fixed"
+          sx={{
+            zIndex: theme.zIndex.drawer + 1,
+            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          }}
+        >
+          <Toolbar>
+            <IconButton
+              color="inherit"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2 }}
+            >
+              <Menu />
+            </IconButton>
+            <Typography variant="h6" noWrap component="div">
+              Time Sheet Management
+            </Typography>
+          </Toolbar>
+        </AppBar>
+      )}
+
+      {/* Sidebar Drawer */}
+      <Box
+        component="nav"
+        sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
+      >
+        {isMobile ? (
+          <Drawer
+            variant="temporary"
+            open={mobileOpen}
+            onClose={handleDrawerToggle}
+            ModalProps={{ keepMounted: true }}
+            sx={{
+              "& .MuiDrawer-paper": {
+                boxSizing: "border-box",
+                width: drawerWidth,
+              },
+            }}
+          >
+            {drawer}
+          </Drawer>
+        ) : (
+          <Drawer
+            variant="permanent"
+            sx={{
+              "& .MuiDrawer-paper": {
+                boxSizing: "border-box",
+                width: drawerWidth,
+                borderRight: "1px solid rgba(0, 0, 0, 0.12)",
+              },
+            }}
+            open
+          >
+            {drawer}
+          </Drawer>
+        )}
+      </Box>
+
+      {/* Main Content */}
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: { xs: 1, md: 3 },
+          width: { md: `calc(100% - ${drawerWidth}px)` },
+          mt: { xs: 7, md: 0 },
+          bgcolor: "grey.50",
+          minHeight: "100vh",
+        }}
+      >
+        <Outlet />
+      </Box>
+    </Box>
   );
 }
 

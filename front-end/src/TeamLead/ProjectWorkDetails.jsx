@@ -7,11 +7,29 @@ import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 import {
   Box,
+  Card,
+  CardContent,
+  Typography,
+  Button,
   Dialog,
   DialogTitle,
+  DialogContent,
+  DialogActions,
   TextField,
   TextareaAutosize,
+  IconButton,
+  Tooltip,
+  Chip,
 } from "@mui/material";
+import {
+  Assignment,
+  CheckCircle,
+  Cancel,
+  Refresh,
+  Close,
+  Comment,
+  Send,
+} from "@mui/icons-material";
 import commonData from "../../common.json";
 function ProjectWorkDetails() {
   const containerStyle = { width: "100%", height: "100%" };
@@ -95,69 +113,82 @@ function ProjectWorkDetails() {
       {
         field: "Status",
         pinned: "right",
-        minWidth: 80,
-        width: 50,
+        minWidth: 120,
+        width: 120,
         filter: false,
         editable: false,
-        cellRenderer: (params) => (
-          <div className="d-flex justify-content-center align-items-center h-100">
-            {params?.data?.status?.toLowerCase() === "approved" ? (
-              <i
-                class="fa-regular fa-circle-check"
-                style={{ fontSize: "20px", color: "green" }}
-              ></i>
-            ) : params?.data?.status?.toLowerCase() === "rejected" ? (
-              <>
-                <i
-                  class="fa-regular fa-circle-xmark"
-                  style={{ fontSize: "20px", color: "red" }}
-                ></i>
-                {/* <i
-                  class="fa-regular fa-comment"
-                  style={{
-                    fontSize: "20px",
-                    color: "green",
-                    marginLeft: "20px",
-                  }}
-                  onClick={() => {
-                    setSelectedData(params?.data);
-                    setOpen(true);
-                  }}
-                ></i> */}
-              </>
-            ) : (
-              <i
-                class="fa-solid fa-circle"
-                style={{ fontSize: "20px", color: "orange" }}
-              ></i>
-            )}
-          </div>
-        ),
+        cellRenderer: (params) => {
+          const status = params?.data?.status?.toLowerCase();
+          return (
+            <Box sx={{ display: "flex", justifyContent: "center" }}>
+              <Chip
+                label={status || "Pending"}
+                color={
+                  status === "approved"
+                    ? "success"
+                    : status === "rejected"
+                    ? "error"
+                    : "warning"
+                }
+                size="small"
+                variant={status === "approved" ? "filled" : "outlined"}
+                icon={
+                  status === "approved" ? (
+                    <CheckCircle fontSize="small" />
+                  ) : status === "rejected" ? (
+                    <Cancel fontSize="small" />
+                  ) : null
+                }
+              />
+            </Box>
+          );
+        },
       },
       {
         headerName: "Action",
         pinned: "right",
-        minWidth: 100,
-        width: 100,
+        minWidth: 150,
+        width: 150,
         field: "id",
         filter: false,
         editable: false,
-        cellRenderer: (params, index) => (
-          <div className="actions">
+        cellRenderer: (params) => (
+          <Box sx={{ display: "flex", justifyContent: "center", gap: 1 }}>
             {params?.data?.status?.toLowerCase() !== "approved" && (
               <>
-                <i
-                  style={{ color: "color", backgroundColor: "green" }}
-                  class="fa-solid fa-check"
-                  onClick={() => updateProjectDetails("approved", params)}
-                ></i>
-                <i
-                  class="fa-regular fa-circle-xmark"
-                  onClick={() => updateProjectDetails("rejected", params)}
-                ></i>
+                <Tooltip title="Approve">
+                  <IconButton
+                    size="small"
+                    color="success"
+                    onClick={() => updateProjectDetails("approved", params)}
+                    sx={{
+                      "&:hover": {
+                        bgcolor: "success.light",
+                        color: "white",
+                      },
+                    }}
+                  >
+                    <CheckCircle fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Reject">
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={() => updateProjectDetails("rejected", params)}
+                    sx={{
+                      "&:hover": {
+                        bgcolor: "error.light",
+                        color: "white",
+                      },
+                    }}
+                  >
+                    <Cancel fontSize="small" />
+                  </IconButton>
+                </Tooltip>
               </>
             )}
-          </div>
+          </Box>
         ),
       },
     ],
@@ -222,6 +253,7 @@ function ProjectWorkDetails() {
 
   const handleClose = () => {
     setOpen(false);
+    setMessage("");
   };
 
   const handleSubmit = () => {
@@ -232,80 +264,149 @@ function ProjectWorkDetails() {
         if (res.data.Error) {
           alert(res.data.Error);
         } else {
-          // navigate("/Dashboard/hr");
+          alert("Notification sent successfully");
           setOpen(false);
+          setMessage("");
         }
       })
-      .catch((err) => console.log(err));
+      .catch((err) => {
+        console.log(err);
+        alert("Error sending notification");
+      });
+  };
+
+  const onSelectionChanged = (event) => {
+    // Handle selection if needed
+  };
+
+  const onChangeValue = (value) => {
+    // Handle cell editing if needed
   };
 
   return (
-    <>
-      <div className="text-center pb-1 my-3">
-        <h4>Team Project Work Details</h4>
-      </div>
-      <div style={containerStyle}>
-        <div style={gridStyle} className="ag-theme-alpine">
-          <AgGridReact
-            ref={gridRef}
-            rowData={rowData}
-            onRowEditingStarted={(value) => console.log(value, "ajdflajsdlfk")}
-            columnDefs={columnDefs}
-            autoGroupColumnDef={autoGroupColumnDef}
-            defaultColDef={defaultColDef}
-            suppressRowClickSelection={true}
-            groupSelectsChildren={true}
-            gridOptions={gridOptions}
-            stopEditingWhenCellsLoseFocus={true}
-            rowSelection={"single"}
-            rowGroupPanelShow={"always"}
-            pivotPanelShow={"always"}
-            pagination={true}
-            refresh={refresh}
-            onCellEditingStarted={(value) => onChangeValue(value)}
-            onGridReady={onGridReady}
-            onSelectionChanged={(event) => onSelectionChanged(event)}
-          />
-        </div>
-      </div>
+    <Box sx={{ p: 3 }}>
+      {/* Header */}
+      <Box sx={{ mb: 3 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 2,
+          }}
+        >
+          <Box>
+            <Typography variant="h4" fontWeight="bold" gutterBottom>
+              Team Project Work Details
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Review and approve team member work submissions
+            </Typography>
+          </Box>
+          <Button
+            variant="outlined"
+            startIcon={<Refresh />}
+            onClick={() => {
+              setRefresh(!refresh);
+              onGridReady();
+            }}
+          >
+            Refresh
+          </Button>
+        </Box>
+      </Box>
 
+      {/* Grid Card */}
+      <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
+        <CardContent>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
+            <Assignment color="primary" />
+            <Typography variant="h6" fontWeight="bold">
+              Work Submissions
+            </Typography>
+          </Box>
+          <Box sx={{ width: "100%", height: "600px" }}>
+            <div style={gridStyle} className="ag-theme-alpine">
+              <AgGridReact
+                ref={gridRef}
+                rowData={rowData}
+                onRowEditingStarted={(value) => console.log(value, "ajdflajsdlfk")}
+                columnDefs={columnDefs}
+                autoGroupColumnDef={autoGroupColumnDef}
+                defaultColDef={defaultColDef}
+                suppressRowClickSelection={true}
+                groupSelectsChildren={true}
+                gridOptions={gridOptions}
+                stopEditingWhenCellsLoseFocus={true}
+                rowSelection={"single"}
+                rowGroupPanelShow={"always"}
+                pivotPanelShow={"always"}
+                pagination={true}
+                refresh={refresh}
+                onCellEditingStarted={(value) => onChangeValue(value)}
+                onGridReady={onGridReady}
+                onSelectionChanged={onSelectionChanged}
+              />
+            </div>
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* Notification Dialog */}
       <Dialog
         fullWidth
         open={open}
         maxWidth="sm"
         onClose={handleClose}
-        aria-labelledby="responsive-dialog-title"
+        PaperProps={{ sx: { borderRadius: 3 } }}
       >
-        <DialogTitle
-          id="alert-dialog-title"
-          className="d-flex align-items-center justify-content-between"
-        >
-          <h3>{"Add Command"}</h3>
-          <i
-            class="fa-solid fa-xmark cursor-pointer"
-            onClick={() => setOpen(false)}
-            style={{ cursor: "pointer" }}
-          ></i>
+        <DialogTitle>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Comment color="primary" />
+              <Typography variant="h6" fontWeight="bold">
+                Add Comment
+              </Typography>
+            </Box>
+            <IconButton onClick={handleClose} size="small">
+              <Close />
+            </IconButton>
+          </Box>
         </DialogTitle>
-        <div className="px-3">
+        <DialogContent>
           <TextareaAutosize
-            fullWidth
-            variant="outlined"
+            minRows={4}
+            style={{
+              width: "100%",
+              padding: "12px",
+              borderRadius: "4px",
+              border: "1px solid #ccc",
+              fontFamily: "inherit",
+              fontSize: "14px",
+            }}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Leave message"
-            className="textarea"
+            placeholder="Leave a message..."
+            value={message}
           />
-          <div>
-            <button
-              onClick={() => handleSubmit()}
-              className="btn btn-primary button mt-2"
-            >
-              Submit
-            </button>
-          </div>
-        </div>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={handleClose}>Cancel</Button>
+          <Button
+            onClick={handleSubmit}
+            variant="contained"
+            startIcon={<Send />}
+            sx={{
+              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              "&:hover": {
+                background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+              },
+            }}
+          >
+            Send
+          </Button>
+        </DialogActions>
       </Dialog>
-    </>
+    </Box>
   );
 }
 

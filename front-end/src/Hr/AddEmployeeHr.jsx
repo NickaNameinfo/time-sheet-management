@@ -1,7 +1,28 @@
 import axios from 'axios';
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom';
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Button,
+  Grid,
+  TextField,
+  Stack,
+} from "@mui/material";
+import {
+  PersonAdd,
+  Person,
+  Email,
+  Lock,
+  AttachMoney,
+  LocationOn,
+  PhotoCamera,
+  Save,
+} from "@mui/icons-material";
 import commonData from "../../common.json"
+
 function AddEmployeeHr() {
 	const [data, setData] = useState({
 		name: '',
@@ -25,50 +46,138 @@ function AddEmployeeHr() {
 		
 		axios.post(`${commonData?.APIKEY}/create`, formdata)
 		.then(res => {
+			alert("Employee created successfully");
 			navigate('/Dashboard/employee')
 		})
-		.catch(err => console.log(err));
+		.catch(err => {
+			console.log(err);
+			alert("Error creating employee");
+		});
 	}
 	return (
-		<div className='d-flex flex-column align-items-center pt-4'>
-			<h2>Add Employee</h2>
-			<form className="row g-3 w-50" onSubmit={handleSubmit}>
-			<div className="col-12">
-					<label for="inputName" className="form-label">Name</label>
-					<input type="text" className="form-control" id="inputName" placeholder='Enter Name' autoComplete='off'
-					onChange={e => setData({...data, name: e.target.value})}/>
-				</div>
-				<div className="col-12">
-					<label for="inputEmail4" className="form-label">Email</label>
-					<input type="email" className="form-control" id="inputEmail4" placeholder='Enter Email' autoComplete='off'
-					onChange={e => setData({...data, email: e.target.value})}/>
-				</div>
-				<div className="col-12">
-					<label for="inputPassword4" className="form-label">Password</label>
-					<input type="password" className="form-control" id="inputPassword4" placeholder='Enter Password'
-					 onChange={e => setData({...data, password: e.target.value})}/>
-				</div>
-				<div className="col-12">
-					<label for="inputSalary" className="form-label">Salary</label>
-					<input type="text" className="form-control" id="inputSalary" placeholder="Enter Salary" autoComplete='off'
-					onChange={e => setData({...data, salary: e.target.value})}/>
-				</div>
-				<div className="col-12">
-					<label for="inputAddress" className="form-label">Address</label>
-					<input type="text" className="form-control" id="inputAddress" placeholder="1234 Main St" autoComplete='off'
-					onChange={e => setData({...data, address: e.target.value})}/>
-				</div>
-				<div className="col-12 mb-3">
-					<label className="form-label" for="inputGroupFile01">Select Image</label>
-					<input type="file" className="form-control" id="inputGroupFile01"
-					onChange={e => setData({...data, image: e.target.files[0]})}/>
-				</div>
-				<div className="col-12">
-					<button type="submit" className="btn btn-primary">Create</button>
-				</div>
-			</form>
-		</div>
-
+		<Box sx={{ p: 3 }}>
+			<Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)", maxWidth: 900, mx: "auto" }}>
+				<CardContent sx={{ p: 4 }}>
+					<Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 4 }}>
+						<PersonAdd color="primary" />
+						<Typography variant="h5" fontWeight="bold">
+							Add Employee
+						</Typography>
+					</Box>
+					<form onSubmit={handleSubmit}>
+						<Grid container spacing={3}>
+							<Grid item xs={12} md={6}>
+								<TextField
+									fullWidth
+									label="Name"
+									placeholder="Enter Name"
+									value={data.name}
+									onChange={e => setData({...data, name: e.target.value})}
+									required
+									InputProps={{
+										startAdornment: <Person sx={{ mr: 1, color: "text.secondary" }} />,
+									}}
+								/>
+							</Grid>
+							<Grid item xs={12} md={6}>
+								<TextField
+									fullWidth
+									label="Email"
+									type="email"
+									placeholder="Enter Email"
+									value={data.email}
+									onChange={e => setData({...data, email: e.target.value})}
+									required
+									InputProps={{
+										startAdornment: <Email sx={{ mr: 1, color: "text.secondary" }} />,
+									}}
+								/>
+							</Grid>
+							<Grid item xs={12} md={6}>
+								<TextField
+									fullWidth
+									label="Password"
+									type="password"
+									placeholder="Enter Password"
+									value={data.password}
+									onChange={e => setData({...data, password: e.target.value})}
+									required
+									InputProps={{
+										startAdornment: <Lock sx={{ mr: 1, color: "text.secondary" }} />,
+									}}
+								/>
+							</Grid>
+							<Grid item xs={12} md={6}>
+								<TextField
+									fullWidth
+									label="Salary"
+									placeholder="Enter Salary"
+									value={data.salary}
+									onChange={e => setData({...data, salary: e.target.value})}
+									required
+									InputProps={{
+										startAdornment: <AttachMoney sx={{ mr: 1, color: "text.secondary" }} />,
+									}}
+								/>
+							</Grid>
+							<Grid item xs={12}>
+								<TextField
+									fullWidth
+									label="Address"
+									placeholder="1234 Main St"
+									value={data.address}
+									onChange={e => setData({...data, address: e.target.value})}
+									required
+									InputProps={{
+										startAdornment: <LocationOn sx={{ mr: 1, color: "text.secondary" }} />,
+									}}
+								/>
+							</Grid>
+							<Grid item xs={12}>
+								<Button
+									variant="outlined"
+									component="label"
+									fullWidth
+									startIcon={<PhotoCamera />}
+									sx={{ py: 1.5 }}
+								>
+									{data.image ? data.image.name : "Select Image"}
+									<input
+										type="file"
+										hidden
+										accept="image/*"
+										onChange={e => setData({...data, image: e.target.files[0]})}
+									/>
+								</Button>
+							</Grid>
+							<Grid item xs={12}>
+								<Stack direction="row" spacing={2}>
+									<Button
+										type="submit"
+										variant="contained"
+										startIcon={<Save />}
+										sx={{
+											background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+											"&:hover": {
+												background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+											},
+										}}
+									>
+										Create Employee
+									</Button>
+									<Button
+										variant="outlined"
+										onClick={() => navigate('/Dashboard/employee')}
+									>
+										Cancel
+									</Button>
+								</Stack>
+							</Grid>
+						</Grid>
+					</form>
+				</CardContent>
+			</Card>
+		</Box>
 	)
 }
 

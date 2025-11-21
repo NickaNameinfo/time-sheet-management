@@ -1,119 +1,256 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import Button from "@mui/material/Button";
-import { Link } from "react-router-dom";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Typography,
+  IconButton,
+  Tooltip,
+  Chip,
+  Paper,
+  TextField,
+  InputAdornment,
+  Stack,
+} from "@mui/material";
+import {
+  CheckCircle,
+  Cancel,
+  Refresh,
+  Search,
+  Person,
+  CalendarToday,
+  AccessTime,
+  Description,
+} from "@mui/icons-material";
 import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
+import "ag-grid-community/styles/ag-theme-alpine.css";
 import commonData from "../../common.json";
-function Leaves() {
-  const containerStyle = { width: "100%", height: "100%" };
-  const gridStyle = { height: "100%", width: "100%" };
-  const [rowData, setRowData] = useState([]);
-  const [refresh, setRefresh] = useState(false);
 
-  const updateLeaveDetails = (status, params) => {
-    let apiTemp = {
+function Leaves() {
+  const [rowData, setRowData] = useState([]);
+  const [searchText, setSearchText] = useState("");
+  const [gridApi, setGridApi] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const updateLeaveDetails = async (status, params) => {
+    const apiTemp = {
       ...params.data,
       approvedDate: new Date(),
       leaveStatus: status,
     };
-    console.log(apiTemp, "apiTempapiTempapiTemp", params.data);
-    axios
-      .put(`${commonData?.APIKEY}/updateLeave/` + params.data.id, apiTemp)
-      .then(async (res) => {
-        setRefresh(true);
+
+    try {
+      const res = await axios.put(
+        `${commonData?.APIKEY}/updateLeave/` + params.data.id,
+        apiTemp
+      );
+      if (res.data.Status === "Success") {
         alert("Update Successfully");
-        location.reload();
-      });
-    console.log(params.data, "datadatadatadata");
+        fetchLeaveData();
+      } else {
+        alert("Error updating leave");
+      }
+    } catch (err) {
+      console.log(err);
+      alert("Error updating leave");
+    }
   };
+
+  const fetchLeaveData = useCallback(() => {
+    setLoading(true);
+    axios
+      .get(`${commonData?.APIKEY}/getLeaveDetails`)
+      .then((res) => {
+        if (res.data.Status === "Success") {
+          const filterDat = res.data.Result?.filter(
+            (item) => item?.leaveStatus !== "approved"
+          );
+          setRowData(filterDat || []);
+        } else {
+          alert("Error loading leave data");
+        }
+      })
+      .catch((err) => {
+        console.log(err);
+        alert("Error loading leave data");
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   const columnDefs = useMemo(
     () => [
       {
         field: "employeeName",
-        minWidth: 170,
+        headerName: "Employee Name",
+        minWidth: 180,
+        cellRenderer: (params) => (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 1 }}>
+            <Person color="primary" sx={{ fontSize: 20 }} />
+            <Typography variant="body2" fontWeight="medium">
+              {params.value || "N/A"}
+            </Typography>
+          </Box>
+        ),
       },
       {
         field: "employeeId",
-        minWidth: 170,
-      },
-      { field: "leaveType" },
-      { field: "leaveFrom" },
-      { field: "leaveTo" },
-      { field: "leaveHours" },
-      { field: "reason" },
-      { field: "leaveStatus" },
-      {
-        headerName: "Action",
-        pinned: "right",
-        minWidth: 100,
-        width: 100,
-        field: "id",
-        filter: false,
-        editable: false,
-        cellRenderer: (params, index) => (
-          <div className="actions">
-            {params?.data?.leaveStatus !== "Canceled" && (
-              <>
-                <i
-                  style={{ color: "color", backgroundColor: "green" }}
-                  class="fa-solid fa-check"
-                  onClick={() => {
-                    setRefresh(true);
-                    updateLeaveDetails(
-                      params?.data?.leaveStatus === "Cancel Reqest"
-                        ? "Canceled"
-                        : "approved",
-                      params
-                    );
-                  }}
-                ></i>
-                {params?.data?.leaveStatus !== "Cancel Reqest" && (
-                  <i
-                    class="fa-regular fa-circle-xmark"
-                    onClick={() => {
-                      setRefresh(true);
-                      updateLeaveDetails("rejected", params);
-                    }}
-                  ></i>
-                )}
-              </>
-            )}
-          </div>
+        headerName: "Employee ID",
+        minWidth: 120,
+        cellRenderer: (params) => (
+          <Chip label={params.value || "N/A"} size="small" variant="outlined" />
         ),
       },
-    ],
-    []
-  );
+      {
+        field: "leaveType",
+        headerName: "Leave Type",
+        minWidth: 120,
+      },
+      {
+        field: "leaveFrom",
+        headerName: "From Date",
+        minWidth: 120,
+        cellRenderer: (params) => (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <CalendarToday sx={{ fontSize: 14, color: "text.secondary" }} />
+            <Typography variant="body2">
+              {params.value ? new Date(params.value).toLocaleDateString() : "N/A"}
+            </Typography>
+          </Box>
+        ),
+      },
+      {
+        field: "leaveTo",
+        headerName: "To Date",
+        minWidth: 120,
+        cellRenderer: (params) => (
+          <Typography variant="body2">
+            {params.value ? new Date(params.value).toLocaleDateString() : "N/A"}
+          </Typography>
+        ),
+      },
+      {
+        field: "leaveHours",
+        headerName: "Hours",
+        minWidth: 100,
+        cellRenderer: (params) => (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <AccessTime sx={{ fontSize: 14, color: "text.secondary" }} />
+            <Typography variant="body2">{params.value || "N/A"}</Typography>
+          </Box>
+        ),
+      },
+      {
+        field: "reason",
+        headerName: "Reason",
+        minWidth: 200,
+        cellRenderer: (params) => (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <Description sx={{ fontSize: 14, color: "text.secondary" }} />
+            <Typography
+              variant="body2"
+              sx={{
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                maxWidth: 200,
+              }}
+            >
+              {params.value || "N/A"}
+            </Typography>
+          </Box>
+        ),
+      },
+      {
+        field: "leaveStatus",
+        headerName: "Status",
+        minWidth: 130,
+        cellRenderer: (params) => {
+          const status = params.value?.toLowerCase();
+          const statusColors = {
+            approved: "success",
+            rejected: "error",
+            canceled: "default",
+            "cancel reqest": "warning",
+          };
+          return (
+            <Chip
+              label={params.value || "Pending"}
+              size="small"
+              color={statusColors[status] || "default"}
+              variant={status === "approved" ? "filled" : "outlined"}
+            />
+          );
+        },
+      },
+      {
+        headerName: "Actions",
+        pinned: "right",
+        minWidth: 150,
+        filter: false,
+        sortable: false,
+        cellRenderer: (params) => {
+          const isCanceled = params?.data?.leaveStatus === "Canceled";
+          const isCancelRequest = params?.data?.leaveStatus === "Cancel Reqest";
 
-  const autoGroupColumnDef = useMemo(
-    () => ({
-      headerName: "Group",
-      minWidth: 170,
-      field: "athlete",
-      valueGetter: (params) => {
-        if (params.node.group) {
-          return params.node.key;
-        } else {
-          return params.data[params.colDef.field];
-        }
+          return (
+            <Box sx={{ display: "flex", gap: 1 }}>
+              {!isCanceled && (
+                <>
+                  <Tooltip title={isCancelRequest ? "Approve Cancel" : "Approve Leave"}>
+                    <IconButton
+                      size="small"
+                      color="success"
+                      onClick={() => {
+                        updateLeaveDetails(
+                          isCancelRequest ? "Canceled" : "approved",
+                          params
+                        );
+                      }}
+                      sx={{
+                        "&:hover": {
+                          bgcolor: "success.light",
+                          color: "white",
+                        },
+                      }}
+                    >
+                      <CheckCircle fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  {!isCancelRequest && (
+                    <Tooltip title="Reject Leave">
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => {
+                          updateLeaveDetails("rejected", params);
+                        }}
+                        sx={{
+                          "&:hover": {
+                            bgcolor: "error.light",
+                            color: "white",
+                          },
+                        }}
+                      >
+                        <Cancel fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </>
+              )}
+            </Box>
+          );
+        },
       },
-      headerCheckboxSelection: false,
-      cellRenderer: "agGroupCellRenderer",
-      cellRendererParams: {
-        checkbox: false,
-      },
-    }),
+    ],
     []
   );
 
   const defaultColDef = useMemo(
     () => ({
       editable: false,
-      enableRowGroup: true,
-      enablePivot: true,
-      enableValue: true,
       sortable: true,
       resizable: true,
       filter: true,
@@ -125,46 +262,106 @@ function Leaves() {
   );
 
   const onGridReady = useCallback((params) => {
-    axios
-      .get(`${commonData?.APIKEY}/getLeaveDetails`)
-      .then((res) => {
-        if (res.data.Status === "Success") {
-          let filterDat = res.data.Result?.filter(
-            (item) => item?.leaveStatus !== "approved"
-          );
-          console.log(filterDat, "filterDat");
-          setRowData(filterDat);
-        } else {
-          alert("Error");
-        }
-      })
-      .catch((err) => console.log(err));
+    setGridApi(params.api);
+    params.api.sizeColumnsToFit();
+    fetchLeaveData();
   }, []);
 
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (gridApi) {
+        if (searchText) {
+          gridApi.setQuickFilter(searchText);
+        } else {
+          gridApi.setQuickFilter("");
+        }
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchText, gridApi]);
+
   return (
-    <>
-      <div className="text-center pb-1 my-3">
-        <h4>Leave Details</h4>
-      </div>
-      <div style={containerStyle}>
-        <div style={gridStyle} className="ag-theme-alpine leavetable">
-          <AgGridReact
-            rowData={rowData}
-            columnDefs={columnDefs}
-            autoGroupColumnDef={autoGroupColumnDef}
-            defaultColDef={defaultColDef}
-            suppressRowClickSelection={true}
-            groupSelectsChildren={true}
-            rowSelection={"single"}
-            rowGroupPanelShow={"always"}
-            pivotPanelShow={"always"}
-            pagination={true}
-            onGridReady={onGridReady}
-            onSelectionChanged={(event) => onSelectionChanged(event)}
+    <Box>
+      {/* Header */}
+      <Box sx={{ mb: 3 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 2,
+          }}
+        >
+          <Box>
+            <Typography variant="h4" fontWeight="bold" gutterBottom>
+              Leave Management
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Review and manage pending leave requests
+            </Typography>
+          </Box>
+          <Button
+            variant="outlined"
+            startIcon={<Refresh />}
+            onClick={fetchLeaveData}
+            disabled={loading}
+          >
+            Refresh
+          </Button>
+        </Box>
+
+        {/* Search Bar */}
+        <Paper elevation={1} sx={{ p: 1 }}>
+          <TextField
+            placeholder="Search leaves..."
+            variant="outlined"
+            size="small"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search color="action" />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ flex: 1, minWidth: 250 }}
+            fullWidth
           />
-        </div>
-      </div>
-    </>
+        </Paper>
+      </Box>
+
+      {/* AG Grid */}
+      <Card
+        sx={{
+          height: "calc(100vh - 300px)",
+          minHeight: 500,
+          borderRadius: 3,
+          overflow: "hidden",
+        }}
+      >
+        <CardContent sx={{ p: 0, height: "100%" }}>
+          <Box sx={{ height: "100%", width: "100%" }} className="ag-theme-alpine">
+            <AgGridReact
+              rowData={rowData}
+              columnDefs={columnDefs}
+              defaultColDef={defaultColDef}
+              suppressRowClickSelection={true}
+              pagination={true}
+              paginationPageSize={20}
+              onGridReady={onGridReady}
+              animateRows={true}
+              rowHeight={60}
+              headerHeight={50}
+              enableRangeSelection={true}
+              suppressCellFocus={true}
+              loading={loading}
+            />
+          </Box>
+        </CardContent>
+      </Card>
+    </Box>
   );
 }
 

@@ -1,40 +1,40 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./style.css";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { Box, Button, TextField } from "@mui/material";
 import { Controller, useForm } from "react-hook-form";
-import commonData from "../common.json";
+import { useAuth } from "./context/AuthContext";
+import ErrorMessage from "./components/ErrorMessage";
+
 function EmployeeLogin() {
   const {
     handleSubmit,
     control,
     formState: { errors },
   } = useForm();
-
-  axios.defaults.withCredentials = true;
-  const navigate = useNavigate(); 
-  axios.defaults.withCredentials = true;
+  const navigate = useNavigate();
+  const { login, isAuthenticated } = useAuth();
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const Submit = (date) => {
-    // Create a config object to specify withCredentials
-    const config = {
-      withCredentials: true,
-    };
+  const Submit = async (data) => {
+    setError("");
+    setLoading(true);
+    const result = await login(data, "employee");
+    setLoading(false);
 
-    axios
-      .post(`${commonData?.APIKEY}/employeelogin`, date, config) // Pass the config object
-      .then((res) => {
-        if (res.data.Status === "Success") {
-          const id = res.data.id;
-          navigate("/Employee");
-        } else {
-          setError(res.data.Error ? " Invalid Username and password" : null);
-        }
-      })
-      .catch((err) => console.log(err));
+    if (result.success) {
+      navigate("/Employee");
+    } else {
+      setError(result.error || "Invalid Username and password");
+    }
   };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/Employee");
+    }
+  }, [isAuthenticated, navigate]);
 
   return (
     <div className="d-flex justify-content-center align-items-center vh-100 loginPage">
@@ -88,16 +88,15 @@ function EmployeeLogin() {
               )}
             />
           </div>
-          <small className="text-danger mb-2 d-flex justify-content-center align-items-center">
-            {error && error}
-          </small>
+          <ErrorMessage error={error} onClose={() => setError("")} />
 
           <Button
             variant="contained"
             type="submit"
             className="btn btn-success w-100 rounded-0"
+            disabled={loading}
           >
-            Log in
+            {loading ? "Logging in..." : "Log in"}
           </Button>
         </form>
       </div>

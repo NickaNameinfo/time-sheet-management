@@ -1,6 +1,7 @@
 import React from "react";
 import Login from "./Login";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
 import Dashboard from "./Admin/Dashboard";
 import Employee from "./Admin/Employee";
 import Leads from "./Admin/Leads";
@@ -49,11 +50,22 @@ import CompOff from "./Employee/CompOff";
 import CompOffLIst from "./Admin/compOffLIst";
 import ConsolidatedReport from "./Admin/Reports/ConsolidatedReport";
 import EmployeeReport from "./Admin/Reports/EmployeeReport";
+import AutomatedReports from "./Admin/Reports/AutomatedReports";
+// Phase 1 & 2 Components
+import OvertimeManagement from "./components/OvertimeManagement";
+import LeaveBalance from "./components/LeaveBalance";
+import ShiftManagement from "./components/ShiftManagement";
+import PayrollExport from "./components/PayrollExport";
+import BudgetTracking from "./components/BudgetTracking";
+import BillingManagement from "./components/BillingManagement";
+import ProductivityDashboard from "./components/ProductivityDashboard";
+import ApprovalCenter from "./components/ApprovalCenter";
 
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
+      <AuthProvider>
+        <Routes>
         <Route path="/" element={<Start />}></Route>
         <Route path="/Dashboard" element={<Dashboard />}>
           <Route path="" index element={<Home />}></Route>
@@ -82,6 +94,17 @@ function App() {
           <Route path="/Dashboard/Reports/YearlyReport"  element={<YearlyReport />}></Route>
           <Route path="/Dashboard/Reports/CodeReport"  element={<DesciplineCodeReport />}></Route>
           <Route path="/Dashboard/Reports/LeaveReport"  element={<LeaveReport />}></Route>
+          <Route path="/Dashboard/Reports/Automated"  element={<AutomatedReports />}></Route>
+          {/* Phase 1 & 2 Routes */}
+          <Route path="/Dashboard/Overtime" element={<OvertimeManagement />}></Route>
+          <Route path="/Dashboard/LeaveBalance" element={<LeaveBalance />}></Route>
+          <Route path="/Dashboard/Shifts" element={<ShiftManagement />}></Route>
+          <Route path="/Dashboard/Payroll" element={<PayrollExport />}></Route>
+          <Route path="/Dashboard/Budget" element={<BudgetTracking />}></Route>
+          <Route path="/Dashboard/Projects/:projectId/Budget" element={<BudgetTracking />}></Route>
+          <Route path="/Dashboard/Billing" element={<BillingManagement />}></Route>
+          <Route path="/Dashboard/Productivity" element={<ProductivityDashboard />}></Route>
+          <Route path="/Dashboard/Approvals" element={<ApprovalCenter />}></Route>
           {/* <Route path="/Dashboard/employeeEdit/:id" element={<EditEmployee />}></Route> */}
           <Route path="/Dashboard/EmployeeHome" element={<EmployeeHome />}></Route>
           <Route path="/Dashboard/AddProjectDetails" element={<AddProjectDetails />}></Route>
@@ -106,7 +129,8 @@ function App() {
         </Route>
 
         <Route path="/login" element={<Login />}></Route>
-      </Routes>
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

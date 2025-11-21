@@ -3,13 +3,24 @@ import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import {
-  BsBadgeTmFill,
-  BsBarChartLineFill,
-  BsFillHCircleFill,
-  BsFillPersonBadgeFill,
-  BsPersonCircle,
-} from "react-icons/bs";
-import { MenuItem, Select } from "@mui/material";
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Grid,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Stack,
+} from "@mui/material";
+import {
+  EventAvailable,
+  LocalHospital,
+  BeachAccess,
+  Work,
+  CalendarToday,
+} from "@mui/icons-material";
 import commonData from "../../common.json";
 function EmployeeHome() {
   const [totalLeaves, setTotalLeaves] = React.useState(null);
@@ -527,129 +538,143 @@ function EmployeeHome() {
     []
   );
 
+  const onSelectionChanged = (event) => {
+    // Handle selection if needed
+  };
+
+  const leaveCards = [
+    {
+      title: "Total Leave",
+      value: remainingLeave || "0",
+      icon: <EventAvailable />,
+      color: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    },
+    {
+      title: "Casual Leave",
+      value: vacationLeave || "0",
+      icon: <BeachAccess />,
+      color: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+    },
+    {
+      title: "Sick Leave",
+      value: sickLeave || "0",
+      icon: <LocalHospital />,
+      color: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+    },
+    {
+      title: "Earned Leave",
+      value: earned || "0",
+      icon: <Work />,
+      color: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
+    },
+    {
+      title: "Comp-off Leave",
+      value: compOffLeave || "0",
+      icon: <CalendarToday />,
+      color: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+    },
+  ];
+
   return (
-    <>
-      {/* <div className="text-center pb-1 my-3 d-flex align-items-center justify-content-between px-3"> */}
-      <div className="mainBody">
-        <div className="mt-4">
-          <div className="row">
-            <div className="col">
-              <div className="counterCard">
-                <div className="counterCardmain">
-                  <div className="smallboxTL">
-                    <BsBadgeTmFill className="icon_admin" />
-                  </div>
-                  <div className="counts">
-                    <p>Count</p>
-                    <h3>{remainingLeave}</h3>
-                  </div>
-                </div>
-                <div className="counterCardname">
-                  <p className="counterCardTitle">Leave</p>
-                </div>
-              </div>
-            </div>
-            <div className="col">
-              <div className="counterCard">
-                <div className="counterCardmain">
-                  <div className="smallboxHR">
-                    <BsFillHCircleFill className="icon_admin" />
-                  </div>
-                  <div className="counts">
-                    <p>Count</p>
-                    <h3>{vacationLeave} </h3>
-                  </div>
-                </div>
-                <div className="counterCardname">
-                  <p className="counterCardTitle">Casual Leave</p>
-                </div>
-              </div>
-            </div>
-            <div className="col">
-              <div className="counterCard">
-                <div className="counterCardmain">
-                  <div className="smallboxE">
-                    <BsPersonCircle className="icon_admin" />
-                  </div>
-                  <div className="counts">
-                    <p>Count</p>
-                    <h3>{sickLeave} </h3>
-                  </div>
-                </div>
-                <div className="counterCardname">
-                  <p className="counterCardTitle">Sick Leave</p>
-                </div>
-              </div>
-            </div>
-            <div className="col">
-              <div className="counterCard">
-                <div className="counterCardmain">
-                  <div className="smallboxP">
-                    <BsBarChartLineFill className="icon_admin" />
-                  </div>
-                  <div className="counts">
-                    <p>Count</p>
-                    <h3>{earned} </h3>
-                  </div>
-                </div>
-                <div className="counterCardname">
-                  <p className="counterCardTitle">Earned Leave</p>
-                </div>
-              </div>
-            </div>
-            <div className="col">
-              <div className="counterCard">
-                <div className="counterCardmain">
-                  <div className="smallboxP">
-                    <BsBarChartLineFill className="icon_admin" />
-                  </div>
-                  <div className="counts">
-                    <p>Count</p>
-                    <h3>{compOffLeave} </h3>
-                  </div>
-                </div>
-                <div className="counterCardname">
-                  <p className="counterCardTitle">Comp-off Leave</p>
-                </div>
-              </div>
-            </div>
-            {/* <div className="col">
-              <div className="counterCard">
-                <div className="counterCardmain">
-                  <div className="smallboxP">
-                    <BsBarChartLineFill className="icon_admin" />
-                  </div>
-                  <div className="counts">
-                    <p>Count</p>
-                    <h3>{reamaining} </h3>
-                  </div>
-                </div>
-                <div className="counterCardname">
-                  <p className="counterCardTitle">Remaining Leave</p>
-                </div>
-              </div>
-            </div> */}
-          </div>
-        </div>
-        <div style={{ width: "100%", height: "500px", marginBottom: "10%" }}>
-          <div className="text-center pb-1 my-3">
-            <h4>Time Sheet</h4>
-          </div>
-          <deiv className="d-block mb-2 mx-3 text-end">
-            <Select
-              className="noPaddingInput"
-              value={
-                selectedWeek ? selectedWeek : String(getCurrentWeekNumber())
-              }
-              defaultValue={String(getCurrentWeekNumber())}
-              onChange={(e, value) => setSelectedWeek(value.props.value)}
+    <Box sx={{ p: 3 }}>
+      {/* Header */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h4" fontWeight="bold" gutterBottom>
+          Employee Dashboard
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          View your leave balance and timesheet
+        </Typography>
+      </Box>
+
+      {/* Leave Cards */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        {leaveCards.map((card, index) => (
+          <Grid item xs={12} sm={6} md={4} lg={2.4} key={index}>
+            <Card
+              sx={{
+                borderRadius: 3,
+                boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
+                background: card.color,
+                color: "white",
+                transition: "transform 0.3s ease, box-shadow 0.3s ease",
+                "&:hover": {
+                  transform: "translateY(-5px)",
+                  boxShadow: "0 8px 30px rgba(0,0,0,0.2)",
+                },
+              }}
             >
-              {weekNumberList?.map((res) => (
-                <MenuItem value={res}>{res}</MenuItem>
-              ))}
-            </Select>
-          </deiv>
-          <div style={containerStyle}>
+              <CardContent>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    mb: 2,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 2,
+                      bgcolor: "rgba(255,255,255,0.2)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {card.icon}
+                  </Box>
+                </Box>
+                <Typography variant="h3" fontWeight="bold" gutterBottom>
+                  {card.value}
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                  {card.title}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+
+      {/* Timesheet Section */}
+      <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
+        <CardContent>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: 3,
+            }}
+          >
+            <Box>
+              <Typography variant="h5" fontWeight="bold" gutterBottom>
+                Time Sheet
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                View your weekly time entries
+              </Typography>
+            </Box>
+            <FormControl sx={{ minWidth: 150 }}>
+              <InputLabel>Select Week</InputLabel>
+              <Select
+                value={
+                  selectedWeek ? selectedWeek : String(getCurrentWeekNumber())
+                }
+                label="Select Week"
+                onChange={(e) => setSelectedWeek(e.target.value)}
+              >
+                {weekNumberList?.map((res) => (
+                  <MenuItem key={res} value={res}>
+                    Week {res}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+          <Box sx={{ width: "100%", height: "500px" }}>
             <div style={gridStyle} className="ag-theme-alpine">
               <AgGridReact
                 rowData={rowData}
@@ -661,13 +686,13 @@ function EmployeeHome() {
                 rowGroupPanelShow={"always"}
                 pivotPanelShow={"always"}
                 pagination={true}
-                onSelectionChanged={(event) => onSelectionChanged(event)}
+                onSelectionChanged={onSelectionChanged}
               />
             </div>
-          </div>
-        </div>
-      </div>
-    </>
+          </Box>
+        </CardContent>
+      </Card>
+    </Box>
   );
 }
 

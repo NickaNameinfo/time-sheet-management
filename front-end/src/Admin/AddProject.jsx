@@ -2,15 +2,30 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
-import Box from "@mui/material/Box";
-import TextField from "@mui/material/TextField";
 import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  Button,
+  Grid,
   FormControl,
-  FormHelperText,
   InputLabel,
   MenuItem,
   Select,
+  FormHelperText,
+  IconButton,
+  Stack,
 } from "@mui/material";
+import {
+  ArrowBack,
+  Person,
+  Business,
+  Save,
+  CalendarToday,
+  AccessTime,
+} from "@mui/icons-material";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
@@ -149,359 +164,350 @@ function AddProject() {
   };
 
   return (
-    <div className="mainBody">
-      <div className="mt-4">
-        <h2 className="heading">Manage Project</h2>
+    <Box sx={{ p: 3 }}>
+      {/* Header */}
+      <Box sx={{ display: "flex", alignItems: "center", mb: 3, gap: 2 }}>
+        <IconButton onClick={() => navigate("/Dashboard/Projects")} color="primary">
+          <ArrowBack />
+        </IconButton>
+        <Box>
+          <Typography variant="h4" fontWeight="bold">
+            {id ? "Edit Project" : "Add New Project"}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {id ? "Update project information" : "Create a new project"}
+          </Typography>
+        </Box>
+      </Box>
 
-        <form onSubmit={handleSubmit(id ? updateProject : onSubmit)}>
-          <div className="gy-3 row">
-            <div className="col-sm-12">
-              <Box sx={{}}>
-                <FormControl fullWidth>
-                  <InputLabel id="demo-simple-select-label">
-                    TL Name is Required
-                  </InputLabel>
-                  <Controller
-                    name="tlID" // Make sure the name matches the field name in your form
-                    control={control}
-                    rules={{ required: "Name is Required." }}
-                    defaultValue="" // Set the default value here if needed
-                    render={({ field }) => (
-                      <Select
-                        labelId="demo-simple-select-label"
-                        id="demo-simple-select"
-                        label="Select Designation"
-                        {...field}
-                        error={Boolean(errors.EMPID)}
-                      >
-                        {empList?.map((res) => (
-                          <MenuItem value={res?.EMPID} key={res.id}>
-                            {res?.employeeName}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    )}
-                  />
-                  <FormHelperText>
-                    {errors.tlID && errors.tlID.message}
-                  </FormHelperText>
-                </FormControl>
-              </Box>
-            </div>
-            <div className="col-sm-12">
-              <Controller
-                control={control}
-                name="orderId"
-                defaultValue=""
-                render={({ field }) => (
-                  <TextField
-                    fullWidth
-                    id="outlined-basic fullWidth"
-                    label="Order ID"
-                    variant="outlined"
-                    type="number"
-                    {...field}
-                    error={Boolean(errors.orderId)}
-                    helperText={errors.orderId && errors.orderId.message}
-                  />
-                )}
-              />
-            </div>
-            <div className="col-sm-12">
-              <Controller
-                control={control}
-                name="positionNumber"
-                defaultValue=""
-                render={({ field }) => (
-                  <TextField
-                    fullWidth
-                    id="outlined-basic fullWidth"
-                    label="Position Number"
-                    variant="outlined"
-                    type="number"
-                    {...field}
-                    error={Boolean(errors.positionNumber)}
-                    helperText={
-                      errors.positionNumber && errors.positionNumber.message
-                    }
-                  />
-                )}
-              />
-            </div>
-            <div className="col-sm-12">
-              <Controller
-                control={control}
-                name="subPositionNumber"
-                defaultValue=""
-                render={({ field }) => (
-                  <TextField
-                    fullWidth
-                    id="outlined-basic fullWidth"
-                    label="SubPosition Number"
-                    variant="outlined"
-                    type="number"
-                    {...field}
-                    error={Boolean(errors.subPositionNumber)}
-                    helperText={
-                      errors.subPositionNumber &&
-                      errors.subPositionNumber.message
-                    }
-                  />
-                )}
-              />
-            </div>
-            <div className="col-sm-12">
-              <Controller
-                control={control}
-                name="projectNo"
-                defaultValue=""
-                rules={{ required: "Project No is required." }}
-                render={({ field }) => (
-                  <TextField
-                    fullWidth
-                    id="outlined-basic fullWidth"
-                    label="Project No"
-                    variant="outlined"
-                    type="test"
-                    {...field}
-                    error={Boolean(errors.projectNo)}
-                    helperText={errors.projectNo && errors.projectNo.message}
-                  />
-                )}
-              />
-            </div>
-            <div className="col-sm-12">
-              <Controller
-                control={control}
-                name="taskJobNo"
-                defaultValue=""
-                rules={{ required: "Task/ Job No is required." }}
-                render={({ field }) => (
-                  <TextField
-                    fullWidth
-                    id="outlined-basic fullWidth"
-                    label="Task / Job No"
-                    variant="outlined"
-                    type="number"
-                    {...field}
-                    error={Boolean(errors.taskJobNo)}
-                    helperText={errors.taskJobNo && errors.taskJobNo.message}
-                  />
-                )}
-              />
-            </div>
-            <div className="col-sm-12">
-              <Controller
-                control={control}
-                name="referenceNo"
-                defaultValue=""
-                rules={{ required: "Reference No is required." }}
-                render={({ field }) => (
-                  <TextField
-                    fullWidth
-                    id="outlined-basic fullWidth"
-                    label="Reference No"
-                    variant="outlined"
-                    type="number"
-                    {...field}
-                    error={Boolean(errors.referenceNo)}
-                    helperText={
-                      errors.referenceNo && errors.referenceNo.message
-                    }
-                  />
-                )}
-              />
-            </div>
-            <div className="col-sm-12">
-              <Controller
-                control={control}
-                name="desciplineCode"
-                defaultValue=""
-                rules={{ required: "Reference No is required." }}
-                render={({ field }) => (
-                  <TextField
-                    fullWidth
-                    id="outlined-basic fullWidth"
-                    label="Descipline Code"
-                    variant="outlined"
-                    type="string"
-                    {...field}
-                    error={Boolean(errors.desciplineCode)}
-                    helperText={
-                      errors.desciplineCode && errors.desciplineCode.message
-                    }
-                  />
-                )}
-              />
-            </div>
-            <div className="col-sm-12">
-              <Controller
-                control={control}
-                name="projectName"
-                defaultValue=""
-                rules={{ required: "ProjectName Name is required." }}
-                render={({ field }) => (
-                  <TextField
-                    fullWidth
-                    id="outlined-basic fullWidth"
-                    label="Enter Project Name"
-                    variant="outlined"
-                    type="text"
-                    {...field}
-                    error={Boolean(errors.projectName)}
-                    helperText={
-                      errors.projectName && errors.projectName.message
-                    }
-                  />
-                )}
-              />
-            </div>
+      <form onSubmit={handleSubmit(id ? updateProject : onSubmit)}>
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={8}>
+            <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 3 }}>
+                  Project Information
+                </Typography>
 
-            <div className="col-sm-12">
-              <Controller
-                control={control}
-                name="subDivision"
-                defaultValue=""
-                render={({ field }) => (
-                  <TextField
-                    fullWidth
-                    id="outlined-basic fullWidth"
-                    label="Sub Division"
-                    type="text"
-                    variant="outlined"
-                    {...field}
-                    error={Boolean(errors.subDivision)}
-                    helperText={
-                      errors.subDivision && errors.subDivision.message
-                    }
-                  />
-                )}
-              />
-            </div>
-            <div className="col-sm-4">
-              <Box sx={{}}>
-                <LocalizationProvider dateAdapter={AdapterDayjs}>
-                  <Controller
-                    name="startDate" // Make sure the name matches the field name in your form
-                    control={control}
-                    value={dayjs(formDatas?.startDate)}
-                    defaultValue="" // Set the default value here if needed
-                    rules={{ required: "Start Date is Required." }}
-                    render={({ field }) => (
-                      <DatePicker
-                        label="Start Date"
-                        // {...field}
-                        value={dayjs(formDatas?.startDate)}
-                        error={Boolean(errors.startDate)}
-                        helperText={
-                          errors.startDate && errors.startDate.message
-                        }
-                        renderInput={(props) => (
-                          <TextField {...props} fullWidth />
+                <Grid container spacing={2}>
+                  <Grid item xs={12}>
+                    <FormControl fullWidth error={Boolean(errors.tlID)}>
+                      <InputLabel id="tl-select-label">Team Lead</InputLabel>
+                      <Controller
+                        name="tlID"
+                        control={control}
+                        rules={{ required: "Team Lead is required" }}
+                        defaultValue=""
+                        render={({ field }) => (
+                          <Select
+                            labelId="tl-select-label"
+                            label="Team Lead"
+                            {...field}
+                            startAdornment={<Person sx={{ mr: 1, color: "text.secondary" }} />}
+                          >
+                            {empList?.map((res) => (
+                              <MenuItem value={res?.EMPID} key={res.id}>
+                                {res?.employeeName} ({res?.EMPID})
+                              </MenuItem>
+                            ))}
+                          </Select>
                         )}
-                        onChange={(newValue) =>
-                          setValue(
-                            "startDate",
-                            dayjs(newValue).format("YYYY-MM-DD")
-                          )
-                        }
-                        format="YYYY-MM-DD"
                       />
-                    )}
-                  />
-                </LocalizationProvider>
-                <FormHelperText>
-                  {errors.startDate && errors.startDate.message}
-                </FormHelperText>
-              </Box>
-            </div>
+                      <FormHelperText>
+                        {errors.tlID && errors.tlID.message}
+                      </FormHelperText>
+                    </FormControl>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Controller
+                      name="orderId"
+                      control={control}
+                      defaultValue=""
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth
+                          label="Order ID"
+                          type="number"
+                          error={Boolean(errors.orderId)}
+                          helperText={errors.orderId?.message}
+                        />
+                      )}
+                    />
+                  </Grid>
 
-            <div className="col-sm-4">
-              <Box sx={{}}>
-                <LocalizationProvider dateAdapter={AdapterDayjs}>
-                  <Controller
-                    name="targetDate" // Make sure the name matches the field name in your form
-                    control={control}
-                    defaultValue="" // Set the default value here if needed
-                    rules={{ required: "Target Date is Required." }}
-                    render={({ field }) => (
-                      <DatePicker
-                        minDate={dayjs(formDatas?.startDate)}
-                        label="Target Date"
-                        value={dayjs(formDatas?.targetDate)}
-                        error={Boolean(errors.targetDate)}
-                        helperText={
-                          errors.targetDate && errors.targetDate.message
-                        }
-                        renderInput={(props) => (
-                          <TextField {...props} fullWidth />
+                  <Grid item xs={12} sm={6}>
+                    <Controller
+                      name="positionNumber"
+                      control={control}
+                      defaultValue=""
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth
+                          label="Position Number"
+                          type="number"
+                          error={Boolean(errors.positionNumber)}
+                          helperText={errors.positionNumber?.message}
+                        />
+                      )}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <Controller
+                      name="subPositionNumber"
+                      control={control}
+                      defaultValue=""
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth
+                          label="Sub Position Number"
+                          type="number"
+                          error={Boolean(errors.subPositionNumber)}
+                          helperText={errors.subPositionNumber?.message}
+                        />
+                      )}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <Controller
+                      name="projectNo"
+                      control={control}
+                      defaultValue=""
+                      rules={{ required: "Project No is required" }}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth
+                          label="Project No"
+                          error={Boolean(errors.projectNo)}
+                          helperText={errors.projectNo?.message}
+                        />
+                      )}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <Controller
+                      name="taskJobNo"
+                      control={control}
+                      defaultValue=""
+                      rules={{ required: "Task/Job No is required" }}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth
+                          label="Task / Job No"
+                          type="number"
+                          error={Boolean(errors.taskJobNo)}
+                          helperText={errors.taskJobNo?.message}
+                        />
+                      )}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <Controller
+                      name="referenceNo"
+                      control={control}
+                      defaultValue=""
+                      rules={{ required: "Reference No is required" }}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth
+                          label="Reference No"
+                          type="number"
+                          error={Boolean(errors.referenceNo)}
+                          helperText={errors.referenceNo?.message}
+                        />
+                      )}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <Controller
+                      name="desciplineCode"
+                      control={control}
+                      defaultValue=""
+                      rules={{ required: "Discipline Code is required" }}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth
+                          label="Discipline Code"
+                          error={Boolean(errors.desciplineCode)}
+                          helperText={errors.desciplineCode?.message}
+                        />
+                      )}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <Controller
+                      name="projectName"
+                      control={control}
+                      defaultValue=""
+                      rules={{ required: "Project Name is required" }}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth
+                          label="Project Name"
+                          error={Boolean(errors.projectName)}
+                          helperText={errors.projectName?.message}
+                          InputProps={{
+                            startAdornment: (
+                              <Business sx={{ mr: 1, color: "text.secondary" }} />
+                            ),
+                          }}
+                        />
+                      )}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <Controller
+                      name="subDivision"
+                      control={control}
+                      defaultValue=""
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth
+                          label="Sub Division"
+                          error={Boolean(errors.subDivision)}
+                          helperText={errors.subDivision?.message}
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <LocalizationProvider dateAdapter={AdapterDayjs}>
+                      <Controller
+                        name="startDate"
+                        control={control}
+                        rules={{ required: "Start Date is required" }}
+                        render={({ field }) => (
+                          <DatePicker
+                            label="Start Date"
+                            value={formDatas?.startDate ? dayjs(formDatas.startDate) : null}
+                            onChange={(newValue) =>
+                              setValue(
+                                "startDate",
+                                newValue ? dayjs(newValue).format("YYYY-MM-DD") : ""
+                              )
+                            }
+                            slotProps={{
+                              textField: {
+                                fullWidth: true,
+                                error: Boolean(errors.startDate),
+                                helperText: errors.startDate?.message,
+                                InputProps: {
+                                  startAdornment: (
+                                    <CalendarToday sx={{ mr: 1, color: "text.secondary" }} />
+                                  ),
+                                },
+                              },
+                            }}
+                          />
                         )}
-                        onChange={(newValue) =>
-                          setValue(
-                            "targetDate",
-                            dayjs(newValue).format("YYYY-MM-DD")
-                          )
-                        }
-                        format="YYYY-MM-DD"
                       />
-                    )}
-                  />
-                </LocalizationProvider>
-                <FormHelperText>
-                  {errors.targetDate && errors.targetDate.message}
-                </FormHelperText>
-              </Box>
-            </div>
+                    </LocalizationProvider>
+                  </Grid>
 
-            <div className="col-sm-12">
-              <Controller
-                control={control}
-                name="allotatedHours"
-                defaultValue=""
-                rules={{ required: "Allotated Hours is required." }}
-                render={({ field }) => (
-                  <TextField
-                    fullWidth
-                    id="outlined-basic fullWidth"
-                    label="Allotated Hours"
-                    variant="outlined"
-                    {...field}
-                    error={Boolean(errors.allotatedHours)}
-                    helperText={
-                      errors.allotatedHours && errors.allotatedHours.message
-                    }
-                    type="number"
-                  />
-                )}
-              />
-            </div>
-            {/* <div className="col-sm-12">
-              <Controller
-                control={control}
-                name="summary"
-                defaultValue=""
-                rules={{ required: "summary is required." }}
-                render={({ field }) => (
-                  <TextField
-                    fullWidth
-                    id="outlined-basic fullWidth"
-                    label="summary"
-                    variant="outlined"
-                    type="text"
-                    {...field}
-                    error={Boolean(errors.summary)}
-                    helperText={errors.summary && errors.summary.message}
-                  />
-                )}
-              />
-            </div> */}
-          </div>
-          <button type="submit" className="btn btn-primary button">
-            Submit
-          </button>
-        </form>
-      </div>
-    </div>
+                  <Grid item xs={12} sm={6}>
+                    <LocalizationProvider dateAdapter={AdapterDayjs}>
+                      <Controller
+                        name="targetDate"
+                        control={control}
+                        rules={{ required: "Target Date is required" }}
+                        render={({ field }) => (
+                          <DatePicker
+                            label="Target Date"
+                            minDate={formDatas?.startDate ? dayjs(formDatas.startDate) : undefined}
+                            value={formDatas?.targetDate ? dayjs(formDatas.targetDate) : null}
+                            onChange={(newValue) =>
+                              setValue(
+                                "targetDate",
+                                newValue ? dayjs(newValue).format("YYYY-MM-DD") : ""
+                              )
+                            }
+                            slotProps={{
+                              textField: {
+                                fullWidth: true,
+                                error: Boolean(errors.targetDate),
+                                helperText: errors.targetDate?.message,
+                                InputProps: {
+                                  startAdornment: (
+                                    <CalendarToday sx={{ mr: 1, color: "text.secondary" }} />
+                                  ),
+                                },
+                              },
+                            }}
+                          />
+                        )}
+                      />
+                    </LocalizationProvider>
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <Controller
+                      name="allotatedHours"
+                      control={control}
+                      defaultValue=""
+                      rules={{ required: "Allotted Hours is required" }}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth
+                          label="Allotted Hours"
+                          type="number"
+                          error={Boolean(errors.allotatedHours)}
+                          helperText={errors.allotatedHours?.message}
+                          InputProps={{
+                            startAdornment: (
+                              <AccessTime sx={{ mr: 1, color: "text.secondary" }} />
+                            ),
+                          }}
+                        />
+                      )}
+                    />
+                  </Grid>
+                </Grid>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+
+        <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
+          <Button
+            variant="outlined"
+            onClick={() => navigate("/Dashboard/Projects")}
+            size="large"
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="contained"
+            startIcon={<Save />}
+            size="large"
+            sx={{
+              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              "&:hover": {
+                background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+              },
+            }}
+          >
+            {id ? "Update Project" : "Create Project"}
+          </Button>
+        </Stack>
+      </form>
+    </Box>
   );
 }
 

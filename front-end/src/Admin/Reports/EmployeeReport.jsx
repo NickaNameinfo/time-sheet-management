@@ -1,11 +1,28 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import Button from "@mui/material/Button";
-import { Link } from "react-router-dom";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Button,
+  Chip,
+  TextField,
+  Stack,
+  Grid,
+  Paper,
+} from "@mui/material";
+import {
+  People,
+  FileDownload,
+  Refresh,
+  CalendarToday,
+  FilterList,
+  Clear,
+} from "@mui/icons-material";
 import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import commonData from "../../../common.json";
-import { Box, Chip, TextField } from "@mui/material";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
@@ -141,122 +158,198 @@ const EmployeeReport = () => {
   );
 
   const onClickExport = () => {
-    console.log(exportApi, "grdiApigrdiApi");
-    exportApi.exportDataAsCsv();
+    if (exportApi) {
+      exportApi.exportDataAsCsv();
+      alert("Report exported successfully");
+    } else {
+      alert("Please wait for the grid to load");
+    }
+  };
+
+  const onSelectionChanged = (event) => {
+    // Handle selection if needed
+  };
+
+  const handleClearFilter = () => {
+    setStartData(null);
+    setEnddate(null);
+    setFilterValue({
+      exEmployee: false,
+      permanent: false,
+      probation: false,
+    });
   };
 
   return (
-    <>
-      <div className="text-center pb-1 my-3">
-        <h4>Consolidated Report</h4>
-      </div>
-      <div style={containerStyle}>
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <div className="d-flex align-items-center">
+    <Box sx={{ p: 3 }}>
+      {/* Header */}
+      <Box sx={{ mb: 3 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 2,
+          }}
+        >
+          <Box>
+            <Typography variant="h4" fontWeight="bold" gutterBottom>
+              Employee Report
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              View and filter employee information by status and date range
+            </Typography>
+          </Box>
+          <Stack direction="row" spacing={2}>
             <Button
-              onClick={() => onClickExport()}
-              variant="contained"
-              className="mx-3"
-            >
-              Export
-            </Button>
-            <Chip
-              label="Ex-Employee"
-              onClick={() => handleFilterChange("exEmployee")}
-              className="me-3"
-              color={!filterValue.exEmployee ? "primary" : "success"}
-            />
-            <Chip
-              label="Permanent"
-              onClick={() => handleFilterChange("permanent")}
-              className="me-3"
-              color={!filterValue.permanent ? "primary" : "success"}
-            />
-            <Chip
-              label="Probation"
-              onClick={() => handleFilterChange("probation")}
-              color={!filterValue.probation ? "primary" : "success"}
-            />
-            <Chip
-              label="Clear Filter"
+              variant="outlined"
+              startIcon={<Refresh />}
               onClick={() => {
-                setStartData(null);
-                setEnddate(null);
-                setFilterValue((prevState) => {
-                  return {
-                    ...prevState,
-                    exEmployee: false,
-                    permanent: false,
-                    probation: false,
-                  };
-                });
+                onGetWorkDetails();
+                onGetUserData();
               }}
-              color={"warning"}
-              className="ms-3"
-            />
-          </div>
-          <div className="d-flex">
-            <div className="me-3">
-              <label>Start date</label>
-              <Box sx={{}}>
-                <LocalizationProvider dateAdapter={AdapterDayjs}>
-                  <DatePicker
-                    placeholder="Date Of Join"
-                    value={dayjs(startDate)}
-                    renderInput={(props) => <TextField {...props} fullWidth />}
-                    defaultValue={null}
-                    onChange={(newValue) => {
-                      // Convert the selected date to the desired format (YYYY-MM-DD) and update the state using setValue
-                      const formattedDate =
-                        dayjs(newValue).format("YYYY-MM-DD");
-                      setStartData(formattedDate);
-                    }}
-                    format="YYYY-MM-DD"
-                  />
-                </LocalizationProvider>
-              </Box>
-            </div>
-            <div>
-              <label>End date</label>
-              <Box sx={{}}>
-                <LocalizationProvider dateAdapter={AdapterDayjs}>
-                  <DatePicker
-                    placeholder="Date Of Join"
-                    value={dayjs(endDate)}
-                    renderInput={(props) => <TextField {...props} fullWidth />}
-                    defaultValue={null}
-                    onChange={(newValue) => {
-                      // Convert the selected date to the desired format (YYYY-MM-DD) and update the state using setValue
-                      const formattedDate =
-                        dayjs(newValue).format("YYYY-MM-DD");
-                      setEnddate(formattedDate);
-                    }}
-                    format="YYYY-MM-DD"
-                  />
-                </LocalizationProvider>
-              </Box>
-            </div>
-          </div>
-        </div>
+            >
+              Refresh
+            </Button>
+            <Button
+              onClick={onClickExport}
+              variant="contained"
+              startIcon={<FileDownload />}
+              sx={{
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                "&:hover": {
+                  background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                },
+              }}
+            >
+              Export CSV
+            </Button>
+          </Stack>
+        </Box>
+      </Box>
 
-        <div style={gridStyle} className="ag-theme-alpine leavetable">
-          <AgGridReact
-            rowData={workDetails}
-            columnDefs={columnDefs}
-            // autoGroupColumnDef={autoGroupColumnDef}
-            defaultColDef={defaultColDef}
-            suppressRowClickSelection={true}
-            groupSelectsChildren={true}
-            // rowSelection={"single"}
-            rowGroupPanelShow={"always"}
-            pivotPanelShow={"always"}
-            pagination={true}
-            onGridReady={(value) => onGetUserData(value)}
-            onSelectionChanged={(event) => onSelectionChanged(event)}
-          />
-        </div>
-      </div>
-    </>
+      {/* Filters Card */}
+      <Card sx={{ mb: 3, borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
+        <CardContent>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
+            <FilterList color="primary" />
+            <Typography variant="h6" fontWeight="bold">
+              Filters
+            </Typography>
+          </Box>
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={6}>
+              <Box>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Employee Status
+                </Typography>
+                <Stack direction="row" spacing={1} flexWrap="wrap">
+                  <Chip
+                    label="Ex-Employee"
+                    onClick={() => handleFilterChange("exEmployee")}
+                    color={filterValue.exEmployee ? "success" : "default"}
+                    variant={filterValue.exEmployee ? "filled" : "outlined"}
+                    clickable
+                  />
+                  <Chip
+                    label="Permanent"
+                    onClick={() => handleFilterChange("permanent")}
+                    color={filterValue.permanent ? "success" : "default"}
+                    variant={filterValue.permanent ? "filled" : "outlined"}
+                    clickable
+                  />
+                  <Chip
+                    label="Probation"
+                    onClick={() => handleFilterChange("probation")}
+                    color={filterValue.probation ? "success" : "default"}
+                    variant={filterValue.probation ? "filled" : "outlined"}
+                    clickable
+                  />
+                  <Chip
+                    label="Clear Filter"
+                    onClick={handleClearFilter}
+                    color="warning"
+                    variant="outlined"
+                    icon={<Clear />}
+                    clickable
+                  />
+                </Stack>
+              </Box>
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <DatePicker
+                  label="Start Date"
+                  value={startDate ? dayjs(startDate) : null}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      InputProps: {
+                        startAdornment: <CalendarToday sx={{ mr: 1, color: "text.secondary" }} />,
+                      },
+                    },
+                  }}
+                  onChange={(newValue) => {
+                    const formattedDate = dayjs(newValue).format("YYYY-MM-DD");
+                    setStartData(formattedDate);
+                  }}
+                  format="YYYY-MM-DD"
+                />
+              </LocalizationProvider>
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <DatePicker
+                  label="End Date"
+                  value={endDate ? dayjs(endDate) : null}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      InputProps: {
+                        startAdornment: <CalendarToday sx={{ mr: 1, color: "text.secondary" }} />,
+                      },
+                    },
+                  }}
+                  onChange={(newValue) => {
+                    const formattedDate = dayjs(newValue).format("YYYY-MM-DD");
+                    setEnddate(formattedDate);
+                  }}
+                  format="YYYY-MM-DD"
+                />
+              </LocalizationProvider>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
+
+      {/* Grid Card */}
+      <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
+        <CardContent>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
+            <People color="primary" />
+            <Typography variant="h6" fontWeight="bold">
+              Employee Details
+            </Typography>
+          </Box>
+          <Box sx={{ width: "100%", height: "600px" }}>
+            <div style={gridStyle} className="ag-theme-alpine">
+              <AgGridReact
+                rowData={workDetails}
+                columnDefs={columnDefs}
+                defaultColDef={defaultColDef}
+                suppressRowClickSelection={true}
+                groupSelectsChildren={true}
+                rowGroupPanelShow={"always"}
+                pivotPanelShow={"always"}
+                pagination={true}
+                onGridReady={(value) => onGetUserData(value)}
+                onSelectionChanged={onSelectionChanged}
+              />
+            </div>
+          </Box>
+        </CardContent>
+      </Card>
+    </Box>
   );
 };
 

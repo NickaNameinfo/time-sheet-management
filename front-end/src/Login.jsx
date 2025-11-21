@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./style.css";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { Box, Button, TextField } from "@mui/material";
 import { Controller, useForm } from "react-hook-form";
-import commonData from "../common.json";
+import { useAuth } from "./context/AuthContext";
+import ErrorMessage from "./components/ErrorMessage";
+
 function Login() {
   const {
     handleSubmit,
@@ -12,115 +13,115 @@ function Login() {
     formState: { errors },
   } = useForm();
   const navigate = useNavigate();
-  axios.defaults.withCredentials = true;
+  const { login, isAuthenticated, roles } = useAuth();
   const [error, setError] = useState("");
-  const [roles, setRoles] = React.useState(null);
+  const [loading, setLoading] = useState(false);
 
-  console.log(commonData, "data1223423");
-  const Submit = (data) => {
-    console.log(commonData, "data1223423");
+  const Submit = async (data) => {
+    setError("");
+    setLoading(true);
+    const result = await login(data, "employee");
+    setLoading(false);
 
-    axios
-      .post(`${commonData?.APIKEY}/employeelogin`, data, {
-        withCredentials: true,
-      })
-      .then((res) => {
-        localStorage.setItem("token", res?.data.tokensss);
-        if (res.status === 200) {
-          axios
-            .post(`${commonData?.APIKEY}/dashboard`, res?.data)
-            .then((ress) => {
-              console.log(ress, "ressressress");
-              setRoles(ress.data.role?.split(","));
-            });
-        } else {
-          setError(res.data.Error);
-        }
-      })
-      .catch((err) => {
-        if (err.response?.status === 401) {
-          setError("User Name or Password is incorrect.");
-        }
-      });
+    console.log(result);
+
+    if (!result.success) {
+      setError(result.error || "Login failed. Please try again.");
+    }
   };
 
-  React.useEffect(() => {
-    if (roles?.includes("Admin")) {
-      navigate("/Dashboard/EmployeeHome");
-    } else if (roles?.includes("TL")) {
-      navigate("/Dashboard/EmployeeHome");
-    } else if (roles?.includes("Employee")) {
-      navigate("/Dashboard/EmployeeHome");
-    } else if (roles?.includes("HR")) {
+  useEffect(() => {
+    if (isAuthenticated && roles) {
+      // All roles navigate to the same dashboard initially
       navigate("/Dashboard/EmployeeHome");
     }
-  }, [roles]);
+  }, [isAuthenticated, roles, navigate]);
 
   return (
-    <div className="d-flex justify-content-center align-items-center loginPage">
-      <div>
-        <h2 className="d-flex justify-content-center align-items-center my-3 text-white">
-          Login
-        </h2>
-        <form onSubmit={handleSubmit(Submit)} className="loginform">
-          <div className="mb-3">
-            <Controller
-              control={control}
-              name="userName"
-              rules={{ required: "UserName is required." }}
-              render={({ field }) => (
-                <Box>
-                  <TextField
-                    fullWidth
-                    id="outlined-basic fullWidth"
-                    placeholder="User Name"
-                    variant="outlined"
-                    className="form-control rounded-1"
-                    type="text"
-                    {...field}
-                    error={Boolean(errors.userName)}
-                    helperText={errors.userName && errors.userName.message}
-                  />
-                </Box>
-              )}
-            />
-          </div>
-          <div className="mb-3">
-            <Controller
-              control={control}
-              name="password"
-              rules={{ required: "password is Reqiured." }}
-              render={({ field }) => (
-                <Box sx={{}}>
-                  <TextField
-                    fullWidth
-                    id="outlined-basic fullWidth"
-                    placeholder="Enter password "
-                    variant="outlined"
-                    className="form-control rounded-1"
-                    type="password"
-                    {...field}
-                    error={Boolean(errors.password)}
-                    helperText={errors.password && errors.password.message}
-                  />
-                </Box>
-              )}
-            />
-          </div>
-          <small className="text-danger mb-2 d-flex justify-content-center align-items-center">
-            {error && error}
-          </small>
+    <Box sx={{ width: "100%" }}>
+      <form onSubmit={handleSubmit(Submit)}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <Controller
+            control={control}
+            name="userName"
+            rules={{ required: "User Name is required" }}
+            render={({ field }) => (
+              <TextField
+                fullWidth
+                label="User Name"
+                placeholder="Enter your user name"
+                variant="outlined"
+                type="text"
+                {...field}
+                error={Boolean(errors.userName)}
+                helperText={errors.userName && errors.userName.message}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: 2,
+                    "&:hover fieldset": {
+                      borderColor: "primary.main",
+                    },
+                  },
+                }}
+              />
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="password"
+            rules={{ required: "Password is required" }}
+            render={({ field }) => (
+              <TextField
+                fullWidth
+                label="Password"
+                placeholder="Enter your password"
+                variant="outlined"
+                type="password"
+                {...field}
+                error={Boolean(errors.password)}
+                helperText={errors.password && errors.password.message}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: 2,
+                    "&:hover fieldset": {
+                      borderColor: "primary.main",
+                    },
+                  },
+                }}
+              />
+            )}
+          />
+
+          <ErrorMessage error={error} onClose={() => setError("")} />
 
           <Button
             variant="contained"
             type="submit"
-            className="btn btn-success w-100 rounded-1"
+            fullWidth
+            size="large"
+            disabled={loading}
+            sx={{
+              mt: 1,
+              py: 1.5,
+              borderRadius: 2,
+              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              fontWeight: "bold",
+              textTransform: "none",
+              fontSize: "1rem",
+              "&:hover": {
+                background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                transform: "translateY(-2px)",
+                boxShadow: 4,
+              },
+              transition: "all 0.3s ease",
+            }}
           >
-            Log in
+            {loading ? "Logging in..." : "Sign In"}
           </Button>
-        </form>
-      </div>
-    </div>
+        </Box>
+      </form>
+    </Box>
   );
 }
 

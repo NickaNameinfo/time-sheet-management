@@ -1,26 +1,47 @@
-import React, { useState } from "react";
-import axios from "axios";
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  Button,
+  Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormHelperText,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
+  Chip,
+  Paper,
+  Alert,
+  CircularProgress,
+  IconButton,
+} from "@mui/material";
+import {
+  Person,
+  Email,
+  Badge,
+  Work,
+  CalendarToday,
+  CloudUpload,
+  ArrowBack,
+  Save,
+} from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
-import dayjs from "dayjs";
-import Box from "@mui/material/Box";
-import TextField from "@mui/material/TextField";
-import {
-  Checkbox,
-  FormControl,
-  FormControlLabel,
-  FormGroup,
-  FormHelperText,
-  InputLabel,
-  MenuItem,
-  Radio,
-  RadioGroup,
-  Select,
-} from "@mui/material";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
-
-import commonData from "../../common.json";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
+import { apiService } from "../services/api";
+import { useApi } from "../hooks/useApi";
+import { useMutation } from "../hooks/useMutation";
+import ErrorMessage from "../components/ErrorMessage";
+import Loading from "../components/Loading";
+import { getImageUrl } from "../utils/helpers";
 
 function AddEmployee() {
   const {
@@ -33,510 +54,578 @@ function AddEmployee() {
     defaultValues: {
       relievingDate: null,
       permanentDate: null,
-      date: null
-    }
+      date: null,
+      employeeStatus: "",
+      discipline: "",
+      designation: "",
+      tempRole: "Employee",
+    },
   });
-  let formDatas = watch();
+
   const navigate = useNavigate();
   const { id } = useParams();
-  const [tempRole, setTempRole] = useState("Employee"); // Initialize tempRole state
-  const [discipline, setDiscipline] = React.useState(null);
-  const [designation, setdesignation] = React.useState(null);
+  const [tempRole, setTempRole] = useState("Employee");
+  const [employeeImage, setEmployeeImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [error, setError] = useState("");
 
-  console.log(formDatas, "formDatasformDatas1212", discipline, designation);
-  React.useEffect(() => {
-    if (id) {
-      getEmployeeDetails(id);
+  const { data: disciplines, loading: disciplinesLoading } = useApi(
+    () => apiService.getDisciplines(),
+    [],
+    true
+  );
+  const { data: designations, loading: designationsLoading } = useApi(
+    () => apiService.getDesignations(),
+    [],
+    true
+  );
+  
+  // Only fetch employee data if id exists
+  const { data: employeeData, loading: employeeLoading } = useApi(
+    () => apiService.getEmployee(id),
+    [id],
+    !!id
+  );
+
+  const { mutate: createEmployee, loading: creating } = useMutation(apiService.createEmployee);
+  const { mutate: updateEmployee, loading: updating } = useMutation((data) =>
+    apiService.updateEmployee(id, data)
+  );
+
+  // Track if form has been populated to prevent re-population
+  const formPopulatedRef = useRef(false);
+  
+  useEffect(() => {
+    if (employeeData && id && !formPopulatedRef.current) {
+      // Check if employeeData is an array or object
+      const emp = Array.isArray(employeeData) ? employeeData[0] : employeeData;
+      if (emp && emp.id) {
+        setValue("employeeName", emp.employeeName || "");
+        setValue("EMPID", emp.EMPID || "");
+        setValue("employeeEmail", emp.employeeEmail || "");
+        setValue("userName", emp.userName || "");
+        setValue("discipline", emp.discipline || "");
+        setValue("designation", emp.designation || "");
+        setValue("employeeStatus", emp.employeeStatus || "");
+        setValue("date", emp.date ? dayjs(emp.date) : null);
+        setValue("relievingDate", emp.relievingDate ? dayjs(emp.relievingDate) : null);
+        setValue("permanentDate", emp.permanentDate ? dayjs(emp.permanentDate) : null);
+        setTempRole(emp.role || "Employee");
+        if (emp.employeeImage) {
+          // Convert image filename to full URL
+          const imageUrl = getImageUrl(emp.employeeImage);
+          setImagePreview(imageUrl);
+        }
+        formPopulatedRef.current = true; // Mark as populated
+      }
     }
-  }, [id]);
+    
+    // Reset when id changes
+    if (!id) {
+      formPopulatedRef.current = false;
+    }
+  }, [employeeData, id, setValue]);
 
-  React.useEffect(() => {
-    getDiscipline();
-    getdesignation();
-  }, []);
-
-  const getDiscipline = () => {
-    axios.get(`${commonData?.APIKEY}/discipline`).then((res) => {
-      setDiscipline(res.data.Result);
-    });
-  };
-
-  const getdesignation = () => {
-    axios.get(`${commonData?.APIKEY}/designation`).then((res) => {
-      setdesignation(res.data.Result);
-    });
-  };
-
-  const getEmployeeDetails = async (id) => {
-    await axios.get(`${commonData?.APIKEY}/get/${id}`).then((res) => {
-      let tempData = {
-        employeeName: res?.data?.Result[0]?.employeeName,
-        EMPID: res?.data?.Result[0]?.EMPID,
-        employeeEmail: res?.data?.Result[0]?.employeeEmail,
-        userName: res?.data?.Result[0]?.userName,
-        // password: res?.data?.Result[0]?.password,
-        discipline: res?.data?.Result[0]?.discipline,
-        designation: res?.data?.Result[0]?.designation,
-        employeeStatus: res?.data?.Result[0]?.employeeStatus,
-        date: res?.data?.Result[0]?.date,
-        tempRole: res?.data?.Result[0]?.role,
-        relievingDate: res?.data?.Result[0]?.relievingDate,
-        permanentDate: res?.data?.Result[0]?.permanentDate,
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setEmployeeImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
       };
-      setTempRole(res?.data?.Result[0]?.role);
-      Object.keys(tempData).forEach((key) => {
-        setValue(key, tempData[key]);
-      });
-    });
+      reader.readAsDataURL(file);
+    }
   };
 
-  const onSubmit = (data) => {
-    const formdata = new FormData();
-    // Append all fields except for the file input
+  const onSubmit = async (data) => {
+    setError("");
+    const formData = new FormData();
+
+    // Append all form fields
     Object.keys(data).forEach((key) => {
-      if (key !== "employeeImage") {
-        const value = data[key];
-        formdata.append(key, value);
+      if (key !== "employeeImage" && data[key] !== null && data[key] !== undefined) {
+        if (dayjs.isDayjs(data[key])) {
+          formData.append(key, data[key].format("YYYY-MM-DD"));
+        } else {
+          formData.append(key, data[key]);
+        }
       }
     });
-    // Append the file input separately
-    formdata.append("employeeImage", data.employeeImage);
-    formdata.append("role", tempRole);
-    axios
-      .post(`${commonData?.APIKEY}/create`, formdata)
-      .then((res) => {
-        if (res.data.Error) {
-          alert(res.data.Error);
-        } else {
-          navigate("/Dashboard/employee");
-        }
-      })
-      .catch((err) => console.log(err));
-  };
 
-  const handleOnChange = (name, value) => {
-    console.log(name, value, "changesings");
-    let updatedRoles; // Create a copy of the tempRole array
-    if (name === "TL") {
-      updatedRoles = "TL"; // Add "Tl" role
+    // Append image if selected
+    if (employeeImage) {
+      formData.append("employeeImage", employeeImage);
     }
-    if (name === "Admin") {
-      updatedRoles = "Admin"; // Add "Admin" role
-    }
-    if (name === "Employee") {
-      updatedRoles = "Employee";
-    }
-    if (name === "HR") {
-      updatedRoles = "HR";
-    }
-    setTempRole(updatedRoles); // Update the state with the new roles array
-    console.log(updatedRoles, "updatedRoles");
-  };
 
-  const updateUser = (data) => {
-    const formdata = new FormData();
-    // Append all fields except for the file input
-    Object.keys(data).forEach((key) => {
-      if (key !== "employeeImage") {
-        const value = data[key];
-        formdata.append(key, value);
+    formData.append("role", tempRole);
+
+    try {
+      const result = id
+        ? await updateEmployee(formData)
+        : await createEmployee(formData);
+
+      if (result.success) {
+        navigate("/Dashboard/employee");
+      } else {
+        setError(result.error || "Failed to save employee");
       }
-    });
-    if (data.employeeImage) {
-      console.log(data.employeeImage, "data.employeeImage");
-      // Append the file input separately
-      formdata.append("employeeImage", data.employeeImage);
+    } catch (err) {
+      setError(err.message || "An error occurred");
     }
-
-    formdata.append("role", tempRole);
-    console.log(formdata, "formdataformdata");
-    axios
-      .put(`${commonData?.APIKEY}/update/${id}`, formdata)
-      .then((res) => {
-        if (res.data.Error) {
-          alert(res.data.Error);
-        } else {
-          navigate("/Dashboard/employee");
-        }
-      })
-      .catch((err) => console.log(err));
   };
+
+  const handleRoleChange = (role) => {
+    setTempRole(role);
+  };
+
+  if (employeeLoading) {
+    return <Loading message="Loading employee data..." />;
+  }
 
   return (
-    <div className="mainBody">
-      <div className="mt-4">
-        <h2 className="heading">Manage Employee</h2>
+    <Box sx={{ p: 3 }}>
+      {/* Header */}
+      <Box sx={{ display: "flex", alignItems: "center", mb: 3, gap: 2 }}>
+        <IconButton onClick={() => navigate("/Dashboard/employee")} color="primary">
+          <ArrowBack />
+        </IconButton>
+        <Box>
+          <Typography variant="h4" fontWeight="bold">
+            {id ? "Edit Employee" : "Add New Employee"}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {id ? "Update employee information" : "Create a new employee profile"}
+          </Typography>
+        </Box>
+      </Box>
 
-        <form onSubmit={handleSubmit(id ? updateUser : onSubmit)}>
-          <div className="gy-3 row">
-            <div className="col-sm-12">
-              <Controller
-                control={control}
-                name="employeeName"
-                rules={{ required: "Name is required." }}
-                render={({ field }) => (
-                  <Box>
-                    <TextField
-                      fullWidth
-                      id="outlined-basic fullWidth"
-                      placeholder="Enter Name"
-                      variant="outlined"
-                      type="text"
-                      {...field}
-                      error={Boolean(errors.employeeName)}
-                      helperText={
-                        errors.employeeName && errors.employeeName.message
-                      }
-                    />
-                  </Box>
-                )}
-              />
-            </div>
-            <div className="col-sm-12">
-              <Controller
-                control={control}
-                name="EMPID"
-                rules={{ required: "EMPID is required." }}
-                render={({ field }) => (
-                  <Box>
-                    <TextField
-                      fullWidth
-                      id="outlined-basic fullWidth"
-                      placeholder="Employee ID"
-                      variant="outlined"
-                      type="text"
-                      {...field}
-                      error={Boolean(errors.EMPID)}
-                      helperText={errors.EMPID && errors.EMPID.message}
-                    />
-                  </Box>
-                )}
-              />
-            </div>
-            <div className="col-sm-12">
-              <Controller
-                control={control}
-                name="employeeEmail"
-                render={({ field }) => (
-                  <Box sx={{}}>
-                    <TextField
-                      fullWidth
-                      id="outlined-basic fullWidth"
-                      placeholder="Enter Email"
-                      type="email"
-                      variant="outlined"
-                      {...field}
-                      error={Boolean(errors.employeeEmail)}
-                      helperText={
-                        errors.employeeEmail && errors.employeeEmail.message
-                      }
-                    />
-                  </Box>
-                )}
-              />
-            </div>
+      <ErrorMessage error={error} onClose={() => setError("")} />
 
-            <div className="col-sm-12">
-              <Controller
-                control={control}
-                name="userName"
-                rules={{ required: "Username is required." }}
-                render={({ field }) => (
-                  <Box>
-                    <TextField
-                      fullWidth
-                      id="outlined-basic fullWidth"
-                      placeholder="Enter Username"
-                      variant="outlined"
-                      type="text"
-                      {...field}
-                      error={Boolean(errors.userName)}
-                      helperText={errors.userName && errors.userName.message}
-                    />
-                  </Box>
-                )}
-              />
-            </div>
-            <div className="col-sm-12">
-              <Controller
-                control={control}
-                name="password"
-                rules={{ required: "Password is required." }}
-                render={({ field }) => (
-                  <Box sx={{}}>
-                    <TextField
-                      fullWidth
-                      id="outlined-basic fullWidth"
-                      placeholder="Enter password "
-                      variant="outlined"
-                      type="password"
-                      {...field}
-                      error={Boolean(errors.password)}
-                      helperText={errors.password && errors.password.message}
-                    />
-                  </Box>
-                )}
-              />
-            </div>
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <Grid container spacing={3}>
+          {/* Basic Information Card */}
+          <Grid item xs={12} md={8}>
+            <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 3 }}>
+                  Basic Information
+                </Typography>
 
-            <div className="col-sm-12">
-              <Box sx={{}}>
-                <FormControl fullWidth>
-                  <InputLabel id="demo-simple-select-label">
-                    Select Discipline
-                  </InputLabel>
-                  <Controller
-                    name="discipline" // Make sure the name matches the field name in your form
-                    control={control}
-                    rules={{ required: "Discipline is Required." }}
-                    defaultValue="" // Set the default value here if needed
-                    render={({ field }) => (
-                      <Select
-                        labelId="demo-simple-select-label"
-                        id="demo-simple-select"
-                        placeholder="Select Designation"
-                        {...field}
-                        error={Boolean(errors.discipline)}
-                      >
-                        {discipline?.map((res) => {
-                          return (
-                            <MenuItem value={res?.discipline}>
-                              {res?.discipline}
-                            </MenuItem>
-                          );
-                        })}
-                      </Select>
-                    )}
-                  />
-                  <FormHelperText>
-                    {errors.discipline && errors.discipline.message}
-                  </FormHelperText>
-                </FormControl>
-              </Box>
-            </div>
-            <div className="col-sm-12">
-              <Box sx={{}}>
-                <FormControl fullWidth>
-                  <InputLabel id="demo-simple-select-label">
-                    Select Designation
-                  </InputLabel>
-                  <Controller
-                    name="designation" // Make sure the name matches the field name in your form
-                    control={control}
-                    rules={{ required: "Designation is Required." }}
-                    defaultValue="" // Set the default value here if needed
-                    render={({ field }) => (
-                      <Select
-                        labelId="demo-simple-select-label"
-                        id="demo-simple-select"
-                        placeholder="Select Designation"
-                        {...field}
-                        error={Boolean(errors.designation)}
-                      >
-                        {designation?.map((res) => {
-                          return (
-                            <MenuItem value={res?.designation}>
-                              {res?.designation}
-                            </MenuItem>
-                          );
-                        })}
-                      </Select>
-                    )}
-                  />
-                  <FormHelperText>
-                    {errors.designation && errors.designation.message}
-                  </FormHelperText>
-                </FormControl>
-              </Box>
-            </div>
-            <div className="col-sm-12">
-              <Box sx={{}}>
-                <FormControl fullWidth>
-                  <InputLabel id="demo-simple-select-label">
-                    Select Status
-                  </InputLabel>
-                  <Controller
-                    name="employeeStatus" // Make sure the name matches the field name in your form
-                    control={control}
-                    rules={{ required: "Employee Status is Required." }}
-                    defaultValue="" // Set the default value here if needed
-                    render={({ field }) => (
-                      <Select
-                        labelId="demo-simple-select-label"
-                        id="demo-simple-select"
-                        placeholder="Select Status"
-                        {...field}
-                        error={Boolean(errors.designation)}
-                      >
-                        <MenuItem value={"Probation"}>Probation</MenuItem>
-                        <MenuItem value={"Contract"}>Contract</MenuItem>
-                        <MenuItem value={"Traning"}>Traning</MenuItem>
-                        <MenuItem value={"Permanent"}>Permanent</MenuItem>
-                        <MenuItem value={"Ex-Employee"}>Ex-Employee</MenuItem>
-                      </Select>
-                    )}
-                  />
-                  <FormHelperText>
-                    {errors.employeeStatus && errors.employeeStatus.message}
-                  </FormHelperText>
-                </FormControl>
-              </Box>
-            </div>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <Controller
+                      name="employeeName"
+                      control={control}
+                      rules={{ required: "Employee name is required" }}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth
+                          label="Employee Name"
+                          placeholder="Enter full name"
+                          error={Boolean(errors.employeeName)}
+                          helperText={errors.employeeName?.message}
+                          InputProps={{
+                            startAdornment: <Person sx={{ mr: 1, color: "text.secondary" }} />,
+                          }}
+                        />
+                      )}
+                    />
+                  </Grid>
 
-            <div className="col-sm-3">
-              <label>Join Date</label>
-              <Box sx={{}}>
-                <LocalizationProvider dateAdapter={AdapterDayjs}>
-                  <Controller
-                    name="date"
-                    control={control}
-                    rules={{ required: "Join date Status is Required." }}
-                    render={({ field }) => (
-                      <DatePicker
-                        placeholder="Date Of Join"
-                        value={dayjs(formDatas?.date)}
-                        renderInput={(props) => (
-                          <TextField {...props} fullWidth />
-                        )}
-                        onChange={(newValue) => {
-                          // Convert the selected date to the desired format (YYYY-MM-DD) and update the state using setValue
-                          const formattedDate =
-                            dayjs(newValue).format("YYYY-MM-DD");
-                          setValue("date", formattedDate);
+                  <Grid item xs={12} sm={6}>
+                    <Controller
+                      name="EMPID"
+                      control={control}
+                      rules={{ required: "Employee ID is required" }}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth
+                          label="Employee ID"
+                          placeholder="Enter employee ID"
+                          error={Boolean(errors.EMPID)}
+                          helperText={errors.EMPID?.message}
+                          InputProps={{
+                            startAdornment: <Badge sx={{ mr: 1, color: "text.secondary" }} />,
+                          }}
+                        />
+                      )}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <Controller
+                      name="employeeEmail"
+                      control={control}
+                      rules={{
+                        required: "Email is required",
+                        pattern: {
+                          value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                          message: "Invalid email address",
+                        },
+                      }}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth
+                          label="Email Address"
+                          type="email"
+                          placeholder="employee@example.com"
+                          error={Boolean(errors.employeeEmail)}
+                          helperText={errors.employeeEmail?.message}
+                          InputProps={{
+                            startAdornment: <Email sx={{ mr: 1, color: "text.secondary" }} />,
+                          }}
+                        />
+                      )}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <Controller
+                      name="userName"
+                      control={control}
+                      rules={{ required: "Username is required" }}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth
+                          label="Username"
+                          placeholder="Enter username"
+                          error={Boolean(errors.userName)}
+                          helperText={errors.userName?.message}
+                        />
+                      )}
+                    />
+                  </Grid>
+
+                  {!id && (
+                    <Grid item xs={12} sm={6}>
+                      <Controller
+                        name="password"
+                        control={control}
+                        rules={{
+                          required: !id ? "Password is required" : false,
+                          minLength: {
+                            value: 6,
+                            message: "Password must be at least 6 characters",
+                          },
                         }}
-                        format="YYYY-MM-DD"
-                      />
-                    )}
-                  />
-                </LocalizationProvider>
-                <p style={{color: "red"}}>{errors.date && "Join date required"}</p>
-              </Box>
-            </div>
-            <div className="col-sm-3">
-              <label>Relieving date</label>
-              <Box sx={{}}>
-                <LocalizationProvider dateAdapter={AdapterDayjs}>
-                  <Controller
-                    name="relievingDate"
-                    control={control}
-                    render={({ field }) => (
-                      <DatePicker
-                        placeholder="Reliving date"
-                        value={dayjs(formDatas?.relievingDate)}
-                        renderInput={(props) => (
-                          <TextField {...props} fullWidth />
+                        render={({ field }) => (
+                          <TextField
+                            {...field}
+                            fullWidth
+                            label="Password"
+                            type="password"
+                            placeholder="Enter password"
+                            error={Boolean(errors.password)}
+                            helperText={errors.password?.message}
+                          />
                         )}
-                        defaultValue={null}
-                        onChange={(newValue) => {
-                          // Convert the selected date to the desired format (YYYY-MM-DD) and update the state using setValue
-                          const formattedDate =
-                            dayjs(newValue).format("YYYY-MM-DD");
-                          setValue("relievingDate", formattedDate);
-                        }}
-                        format="YYYY-MM-DD"
                       />
-                    )}
-                  />
-                </LocalizationProvider>
-              </Box>
-            </div>
-            <div className="col-sm-3">
-              <label>Permanent date</label>
-              <Box sx={{}}>
-                <LocalizationProvider dateAdapter={AdapterDayjs}>
-                  <Controller
-                    name="permanentDate"
-                    control={control}
-                    render={({ field }) => (
-                      <DatePicker
-                        placeholder="Date Of Permanent"
-                        value={dayjs(formDatas?.permanentDate)}
-                        renderInput={(props) => (
-                          <TextField {...props} fullWidth />
+                    </Grid>
+                  )}
+
+                  <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth error={Boolean(errors.discipline)}>
+                      <InputLabel>Discipline</InputLabel>
+                      <Controller
+                        name="discipline"
+                        control={control}
+                        rules={{ required: "Discipline is required" }}
+                        render={({ field }) => (
+                          <Select {...field} label="Discipline" disabled={disciplinesLoading}>
+                            {disciplinesLoading ? (
+                              <MenuItem>Loading...</MenuItem>
+                            ) : (
+                              disciplines?.map((item) => (
+                                <MenuItem key={item.id} value={item.discipline}>
+                                  {item.discipline}
+                                </MenuItem>
+                              ))
+                            )}
+                          </Select>
                         )}
-                        defaultValue={null}
-                        onChange={(newValue) => {
-                          // Convert the selected date to the desired format (YYYY-MM-DD) and update the state using setValue
-                          const formattedDate =
-                            dayjs(newValue).format("YYYY-MM-DD");
-                          setValue("permanentDate", formattedDate);
-                        }}
-                        format="YYYY-MM-DD"
                       />
-                    )}
-                  />
-                </LocalizationProvider>
-              </Box>
-            </div>
-            <div className="col-sm-3 d-flex align-items-center">
-              <Box sx={{}}>
-                <FormControl fullWidth>
+                      <FormHelperText>{errors.discipline?.message}</FormHelperText>
+                    </FormControl>
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth error={Boolean(errors.designation)}>
+                      <InputLabel>Designation</InputLabel>
+                      <Controller
+                        name="designation"
+                        control={control}
+                        rules={{ required: "Designation is required" }}
+                        render={({ field }) => (
+                          <Select {...field} label="Designation" disabled={designationsLoading}>
+                            {designationsLoading ? (
+                              <MenuItem>Loading...</MenuItem>
+                            ) : (
+                              designations?.map((item) => (
+                                <MenuItem key={item.id} value={item.designation}>
+                                  {item.designation}
+                                </MenuItem>
+                              ))
+                            )}
+                          </Select>
+                        )}
+                      />
+                      <FormHelperText>{errors.designation?.message}</FormHelperText>
+                    </FormControl>
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth error={Boolean(errors.employeeStatus)}>
+                      <InputLabel>Employee Status</InputLabel>
+                      <Controller
+                        name="employeeStatus"
+                        control={control}
+                        rules={{ required: "Status is required" }}
+                        render={({ field }) => (
+                          <Select {...field} label="Employee Status">
+                            <MenuItem value="Probation">Probation</MenuItem>
+                            <MenuItem value="Contract">Contract</MenuItem>
+                            <MenuItem value="Training">Training</MenuItem>
+                            <MenuItem value="Permanent">Permanent</MenuItem>
+                            <MenuItem value="Ex-Employee">Ex-Employee</MenuItem>
+                          </Select>
+                        )}
+                      />
+                      <FormHelperText>{errors.employeeStatus?.message}</FormHelperText>
+                    </FormControl>
+                  </Grid>
+                </Grid>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Image Upload Card */}
+          <Grid item xs={12} md={4}>
+            <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 2 }}>
+                  Employee Photo
+                </Typography>
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 2,
+                  }}
+                >
+                  {imagePreview ? (
+                    <Box
+                      component="img"
+                      src={imagePreview}
+                      alt="Employee"
+                      onError={(e) => {
+                        console.error("Image failed to load:", imagePreview);
+                        e.target.style.display = "none";
+                        setImagePreview(null);
+                      }}
+                      sx={{
+                        width: 200,
+                        height: 200,
+                        borderRadius: 2,
+                        objectFit: "cover",
+                        border: "2px solid",
+                        borderColor: "primary.main",
+                      }}
+                    />
+                  ) : (
+                    <Box
+                      sx={{
+                        width: 200,
+                        height: 200,
+                        borderRadius: 2,
+                        bgcolor: "grey.100",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        border: "2px dashed",
+                        borderColor: "grey.300",
+                      }}
+                    >
+                      <Person sx={{ fontSize: 80, color: "grey.400" }} />
+                    </Box>
+                  )}
+                  <Button
+                    variant="outlined"
+                    component="label"
+                    startIcon={<CloudUpload />}
+                    fullWidth
+                  >
+                    Upload Photo
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/*"
+                      onChange={handleImageChange}
+                    />
+                  </Button>
+                  {employeeImage && (
+                    <Typography variant="caption" color="text.secondary">
+                      {employeeImage.name}
+                    </Typography>
+                  )}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Dates Card */}
+          <Grid item xs={12}>
+            <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 3 }}>
+                  Important Dates
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={4}>
+                    <LocalizationProvider dateAdapter={AdapterDayjs}>
+                      <Controller
+                        name="date"
+                        control={control}
+                        rules={{ required: "Join date is required" }}
+                        render={({ field }) => (
+                          <DatePicker
+                            {...field}
+                            label="Join Date"
+                            slotProps={{
+                              textField: {
+                                fullWidth: true,
+                                error: Boolean(errors.date),
+                                helperText: errors.date?.message,
+                                InputProps: {
+                                  startAdornment: (
+                                    <CalendarToday sx={{ mr: 1, color: "text.secondary" }} />
+                                  ),
+                                },
+                              },
+                            }}
+                          />
+                        )}
+                      />
+                    </LocalizationProvider>
+                  </Grid>
+
+                  <Grid item xs={12} sm={4}>
+                    <LocalizationProvider dateAdapter={AdapterDayjs}>
+                      <Controller
+                        name="relievingDate"
+                        control={control}
+                        render={({ field }) => (
+                          <DatePicker
+                            {...field}
+                            label="Relieving Date"
+                            slotProps={{
+                              textField: {
+                                fullWidth: true,
+                              },
+                            }}
+                          />
+                        )}
+                      />
+                    </LocalizationProvider>
+                  </Grid>
+
+                  <Grid item xs={12} sm={4}>
+                    <LocalizationProvider dateAdapter={AdapterDayjs}>
+                      <Controller
+                        name="permanentDate"
+                        control={control}
+                        render={({ field }) => (
+                          <DatePicker
+                            {...field}
+                            label="Permanent Date"
+                            slotProps={{
+                              textField: {
+                                fullWidth: true,
+                              },
+                            }}
+                          />
+                        )}
+                      />
+                    </LocalizationProvider>
+                  </Grid>
+                </Grid>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Role Selection Card */}
+          <Grid item xs={12}>
+            <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 2 }}>
+                  Employee Role
+                </Typography>
+                <FormControl component="fieldset">
                   <RadioGroup
                     row
                     value={tempRole}
-                    aria-labelledby="demo-row-radio-buttons-group-label"
-                    name="row-radio-buttons-group"
-                    onChange={(e) =>
-                      handleOnChange(e.target.value, e.target.checked)
-                    }
+                    onChange={(e) => handleRoleChange(e.target.value)}
                   >
+                    <FormControlLabel
+                      value="Employee"
+                      control={<Radio />}
+                      label={<Chip label="Employee" color="default" />}
+                    />
                     <FormControlLabel
                       value="TL"
                       control={<Radio />}
-                      label="TL"
-                    />
-                    <FormControlLabel
-                      value="Admin"
-                      control={<Radio />}
-                      label="Admin"
+                      label={<Chip label="Team Lead" color="info" />}
                     />
                     <FormControlLabel
                       value="HR"
                       control={<Radio />}
-                      label="HR"
+                      label={<Chip label="HR" color="warning" />}
                     />
                     <FormControlLabel
-                      value="Employee"
+                      value="Admin"
                       control={<Radio />}
-                      label="Employee"
+                      label={<Chip label="Admin" color="error" />}
                     />
                   </RadioGroup>
-                  <FormGroup
-                    style={{
-                      display: "flex",
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                    }}
-                  ></FormGroup>
                 </FormControl>
-              </Box>
-            </div>
-            <div className="col-sm-12">
-              <Controller
-                control={control}
-                name="employeeImage"
-                render={({ field }) => (
-                  <Box>
-                    <input
-                      label="Employee Image"
-                      variant="outlined"
-                      accept=".jpg, .png, .jpeg"
-                      onChange={(e) =>
-                        setValue("employeeImage", e.target.files[0])
-                      }
-                      type="file"
-                    />
-                  </Box>
-                )}
-              />
-            </div>
-          </div>
-          <button type="submit" className="btn btn-primary button">
-            Submit
-          </button>
-        </form>
-      </div>
-    </div>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Action Buttons */}
+          <Grid item xs={12}>
+            <Box sx={{ display: "flex", gap: 2, justifyContent: "flex-end" }}>
+              <Button
+                variant="outlined"
+                onClick={() => navigate("/Dashboard/employee")}
+                disabled={creating || updating}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                startIcon={creating || updating ? <CircularProgress size={20} /> : <Save />}
+                disabled={creating || updating}
+                sx={{
+                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  "&:hover": {
+                    background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                  },
+                }}
+              >
+                {creating || updating ? "Saving..." : id ? "Update Employee" : "Create Employee"}
+              </Button>
+            </Box>
+          </Grid>
+        </Grid>
+      </form>
+    </Box>
   );
 }
 
