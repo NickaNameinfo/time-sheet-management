@@ -138,8 +138,8 @@ function addLeaveDetails() {
     axios
       .post(`${commonData?.APIKEY}/dashboard`, { tokensss: token })
       .then((result) => {
-        setValue("employeeName", result?.data?.employeeName);
-        setValue("employeeId", result?.data?.employeeId);
+        setValue("employeeName", result?.data?.Result?.employeeName);
+        setValue("employeeId", result?.data?.Result?.employeeId);
       });
     getLeaves();
   }, [refresh]);
@@ -153,7 +153,7 @@ function addLeaveDetails() {
             .post(`${commonData?.APIKEY}/dashboard`, { tokensss: token })
             .then((result) => {
               let tempFinalResult = res?.data?.Result?.filter(
-                (item) => item.employeeId === result?.data?.employeeId
+                (item) => Number(item.employeeId) === Number(result?.data?.Result?.employeeId)
               );
               setRowData(tempFinalResult);
             });

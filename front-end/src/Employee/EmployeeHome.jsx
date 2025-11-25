@@ -272,6 +272,7 @@ function EmployeeHome() {
       })
       .catch((err) => console.log(err));
   };
+  
   const formatDate = (inputDate) => {
     const date = new Date(inputDate);
     const month = String(date.getMonth() + 1).padStart(2, "0"); // Month is zero-based, so add 1 and pad with leading zero if needed
