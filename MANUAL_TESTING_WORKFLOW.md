@@ -8,19 +8,19 @@ This document provides a comprehensive manual testing workflow for all Phase 1 &
 ## Prerequisites
 
 ### 1. Environment Setup
-- [ ] Backend server running on `http://localhost:8000`
-- [ ] Frontend server running (typically `http://localhost:5173` or similar)
-- [ ] Database connection established
-- [ ] All migrations executed
-- [ ] Test user accounts created (Admin, HR, Team Lead, Employee)
+- [ ] Backend server running on `http://localhost:8000` (done)
+- [ ] Frontend server running (typically `http://localhost:5173` or similar) (done)
+- [ ] Database connection established (done)
+- [ ] All migrations executed (done)
+- [ ] Test user accounts created (Admin, HR, Team Lead, Employee) (done)
 
 ### 2. Test Data Preparation
 Create test data for:
-- [ ] At least 3 employees with different roles
-- [ ] At least 2 projects
-- [ ] At least 1 client
-- [ ] Sample work hours/timesheets
-- [ ] Sample leave requests
+- [ ] At least 3 employees with different roles (done)
+- [ ] At least 2 projects (done) (reference need to show in project list)
+- [ ] At least 1 client (this option not there)
+- [ ] Sample work hours/timesheets (not able to submit) (error noted) (employee details not showing)
+- [ ] Sample leave requests (employee leave update option not there)
 
 ### 3. Testing Tools
 - [ ] Postman/Insomnia for API testing

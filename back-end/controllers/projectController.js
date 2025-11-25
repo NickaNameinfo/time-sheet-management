@@ -111,11 +111,35 @@ export const deleteProject = asyncHandler(async (req, res) => {
 });
 
 export const addWorkDetails = asyncHandler(async (req, res) => {
+  // Validate required fields
+  if (!req.body.userName) {
+    return sendError(res, "userName is required", 400);
+  }
+  
+  // Get employeeName if not provided
+  let employeeName = req.body.employeeName;
+  if (!employeeName && req.body.userName) {
+    try {
+      const employeeSql = "SELECT employeeName FROM employee WHERE userName = ? LIMIT 1";
+      const employee = await query(employeeSql, [req.body.userName]);
+      if (employee.length > 0) {
+        employeeName = employee[0].employeeName;
+      }
+    } catch (e) {
+      // Continue without employeeName
+    }
+  }
+  
+  // employeeName is required, return error if still missing
+  if (!employeeName) {
+    return sendError(res, "employeeName is required. Please provide it in the request or ensure userName is valid.", 400);
+  }
+  
   const baseSql =
     "INSERT INTO workdetails (`employeeName`,`userName`,`referenceNo`,`projectName`,`tlName`, `taskNo`,`areaofWork`,`variation`, `subDivision`, `totalHours`, `weekNumber`,`projectNo`,`employeeNo`,`designation`";
   let sql = baseSql;
   const values = [
-    req.body.employeeName,
+    employeeName, // Use the resolved employeeName
     req.body.userName,
     req.body.referenceNo,
     req.body.projectName,

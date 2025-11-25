@@ -40,6 +40,13 @@ function EmployeeHome() {
 
   const token = localStorage.getItem("token");
 
+
+  useEffect(() => {
+    axios.post(`${commonData?.APIKEY}/dashboard`, { tokensss: token }).then((res) => {
+      setUserDetails(res?.data?.Result);
+    });
+  }, []);
+
   React.useEffect(() => {
     if (userDetails) {
       getUserInfo();
@@ -84,6 +91,7 @@ function EmployeeHome() {
         getInOutTime(weekData);
       }
     }, [weekData]);
+    
 
   const getWorkMonth = (startDateString, endDateString) => {
     const currentDate = new Date();
@@ -120,24 +128,18 @@ function EmployeeHome() {
   };
 
   const getUserInfo = async () => {
-    let useResult = await axios.get(
-      `${commonData?.APIKEY}/get/${userDetails?.id}`
-    );
     let calculateDate =
-      useResult?.data?.Result[0]?.employeeStatus === "Probation"
-        ? useResult?.data?.Result[0]?.date
-        : useResult?.data?.Result[0]?.permanentDate;
-
+      userDetails?.employeeStatus === "Probation"
+        ? userDetails?.dateOfJoining
+        : userDetails?.permanentDate;
     let monthData = getWorkMonth(calculateDate, getCurrentDateInFormat());
-
     const annualLeaves =
-      useResult?.data?.Result[0]?.employeeStatus === "Probation" ? 6 : 18; // Total annual leave allocation
+      userDetails?.employeeStatus === "Probation" ? 6 : 18; // Total annual leave allocation
     const availableLeaves = calculateAvailableLeaves(
       monthData,
       annualLeaves,
-      useResult?.data?.Result[0]?.employeeStatus
+      userDetails?.employeeStatus
     );
-
     axios
       .get(`${commonData?.APIKEY}/getcompOffDetails`)
       .then((res) => {
@@ -172,9 +174,8 @@ function EmployeeHome() {
             .post(`${commonData?.APIKEY}/dashboard`, { tokensss: token })
             .then((result) => {
               let tempFinalResult = res?.data?.Result?.filter(
-                (res) => res?.leaveStatus === "approved" && res.employeeId === result?.data?.employeeId
+                (res) => res?.leaveStatus === "approved" && res.employeeId === result?.data?.Result?.employeeId
               );
-              console.log(tempFinalResult, "tempFinalResult")
               const totalLeaveHoursByType = {};
 
               tempFinalResult?.forEach((leave) => {
@@ -456,13 +457,6 @@ function EmployeeHome() {
 
   const getInOutTime = async (dates) => {
     try {
-      // Fetch user details
-      const userDetailsResponse = await axios.post(
-        `${commonData?.APIKEY}/dashboard`,
-        { tokensss: token }
-      );
-      const userDetails = userDetailsResponse.data;
-
       // Convert dates to the "YYYY-MM-DD" format
       const convertedDates = dates?.map((date) => {
         const parts = date.split("/");
@@ -475,7 +469,7 @@ function EmployeeHome() {
 
       // Prepare data for filtering
       const data = {
-        userId: Number(userDetails?.employeeId?.replace(/[A-Za-z]/g, "")),
+        userId: Number(userDetails?.employeeId),
         logDates: convertedDates,
       };
 
@@ -484,28 +478,24 @@ function EmployeeHome() {
         `${commonData?.APIKEY}/filterTimeSheet`,
         data
       );
-      const timeSheetData = timeSheetResponse.data;
-
-      // Update state with user details and time sheet data
-      setUserDetails(userDetails);
-
+      const timeSheetData = timeSheetResponse?.data?.Result;
       // Group data by date
       const dateWiseData = {};
 
-      timeSheetData.forEach((item) => {
-        const formattedLogDate = item.FormattedLogDate.slice(0, 10); // Extract date portion only
-        const time = item.FormattedLogDate.slice(11, 16); // Extract time portion only
+      // timeSheetData?.forEach((item) => {
+      //   const formattedLogDate = item.FormattedLogDate.slice(0, 10); // Extract date portion only
+      //   const time = item.FormattedLogDate.slice(11, 16); // Extract time portion only
 
-        if (!dateWiseData[formattedLogDate]) {
-          dateWiseData[formattedLogDate] = { IN: [], OUT: [] };
-        }
+      //   if (!dateWiseData[formattedLogDate]) {
+      //     dateWiseData[formattedLogDate] = { IN: [], OUT: [] };
+      //   }
 
-        if (parseInt(time.split(":")[0]) < 12) {
-          dateWiseData[formattedLogDate]["IN"].push(time);
-        } else {
-          dateWiseData[formattedLogDate]["OUT"].push(time);
-        }
-      });
+      //   if (parseInt(time.split(":")[0]) < 12) {
+      //     dateWiseData[formattedLogDate]["IN"].push(time);
+      //   } else {
+      //     dateWiseData[formattedLogDate]["OUT"].push(time);
+      //   }
+      // });
 
       // Prepare rowData with "IN" and "OUT" items
       const rowData = [

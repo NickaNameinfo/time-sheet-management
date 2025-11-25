@@ -90,9 +90,8 @@ const TimeManagement = () => {
       let tempFormData = [...formData];
       tempFormData[currentIndex] = {
         ...formData[currentIndex],
-        totalHours: `${
-          calculateTotalHours(tempFormData[currentIndex]) + hours
-        }.${remainingMinutes}`,
+        totalHours: `${calculateTotalHours(tempFormData[currentIndex]) + hours
+          }.${remainingMinutes}`,
       };
       setFormData(tempFormData);
     }
@@ -135,7 +134,6 @@ const TimeManagement = () => {
           id: result?.id,
           status: result?.status,
         });
-        console.log(tempObj, "tempObjtempObj");
         setFormData(tempObj);
       });
     } else {
@@ -201,7 +199,7 @@ const TimeManagement = () => {
 
   const initData = (weekNumber) => {
     axios
-      .get(`${commonData?.APIKEY}/getWrokDetails`)
+      .get(`${commonData?.APIKEY}/getWorkDetails`)
       .then(async (res) => {
         let userDetails = await axios.post(`${commonData?.APIKEY}/dashboard`, {
           tokensss: token,
@@ -214,24 +212,23 @@ const TimeManagement = () => {
             setLeaveList(tempLeaveResult);
           }
         });
-        let employeeDetails = await axios.get(
-          `${commonData?.APIKEY}/getEmployee`
-        );
         if (res.data.Status === "Success") {
           let filterProjectData = res.data.Result.filter(
             (items) =>
-              items.employeeNo === userDetails.data.employeeId &&
-              items.weekNumber === String(weekNumber) &&
+              Number(items.employeeNo) === Number(userDetails.data?.Result?.employeeId) &&
+              Number(items.weekNumber) === Number(weekNumber) &&
               new Date(items.sentDate).getFullYear() ===
-                new Date().getFullYear()
+              new Date().getFullYear()
           );
-          let filterUserData = employeeDetails.data?.Result?.filter(
-            (items) => items.EMPID === userDetails.data.employeeId
-          );
-          setEmployeeName(filterUserData?.[0]?.employeeName);
-          setUserName(userDetails.data.employeeId);
+
+          console.log(filterProjectData, "filterProjectDatafilterProjectData", res.data.Result);
+          // let filterUserData = employeeDetails.data?.Result?.filter(
+          //   (items) => items.EMPID === userDetails.data.employeeId
+          // );
+          setEmployeeName(userDetails?.data?.Result?.employeeName);
+          setUserName(userDetails?.data?.Result?.employeeId);
           setProjectWorkList(filterProjectData);
-          setUserDetails(filterUserData);
+          setUserDetails(userDetails?.data?.Result);
         } else {
           alert("Error");
         }
@@ -268,16 +265,11 @@ const TimeManagement = () => {
       errorMessages["TotalWrok"] = "This fiedl is required";
       alert("Total work hours should not 0");
     }
-    console.log(
-      errorMessages,
-      "errorMessageerrorMessage",
-      errorMessage,
-      formData?.[index]?.totalHours
-    );
+
     setErrorMessage(() => ({
       [index]: errorMessages,
     }));
-    console.log(getUserDetails, "getUserDetails2453", data);
+
     if (Object.keys(errorMessages).length === 0) {
       setErrorMessage([]);
       let tempObjec = {
@@ -287,8 +279,8 @@ const TimeManagement = () => {
         weekNumber: selectedWeek
           ? selectedWeek
           : String(getCurrentWeekNumber()),
-        discipline: getUserDetails?.[0]?.discipline,
-        designation: getUserDetails?.[0]?.designation,
+        discipline: getUserDetails?.discipline,
+        designation: getUserDetails?.designation,
       };
       let submitData = { ...data, ...tempObjec };
       delete submitData.id;
@@ -320,8 +312,8 @@ const TimeManagement = () => {
       employeeNo: userName,
       sentDate: new Date(),
       weekNumber: selectedWeek ? selectedWeek : String(getCurrentWeekNumber()),
-      discipline: getUserDetails?.[0]?.discipline,
-      designation: getUserDetails?.[0]?.designation,
+      discipline: getUserDetails?.discipline,
+      designation: getUserDetails?.designation,
     };
     let submitData = { ...params, ...tempObjec };
     axios
@@ -381,8 +373,8 @@ const TimeManagement = () => {
         formData?.[day]?.includes(".")
           ? sum + Number(formData?.[day]?.split(".")[0] || 0)
           : !formData?.[day]?.includes(".")
-          ? sum + Number(formData?.[day]?.split(".")[0] || 0)
-          : sum,
+            ? sum + Number(formData?.[day]?.split(".")[0] || 0)
+            : sum,
       0
     );
     return tempWorkHours;
@@ -460,7 +452,7 @@ const TimeManagement = () => {
                 Name
               </Typography>
               <Typography variant="h6" fontWeight="bold">
-                {getUserDetails?.[0]?.employeeName || "N/A"}
+                {getUserDetails?.employeeName || "N/A"}
               </Typography>
             </Grid>
             <Grid item xs={12} md={4}>
@@ -468,7 +460,7 @@ const TimeManagement = () => {
                 Employee ID
               </Typography>
               <Typography variant="h6" fontWeight="bold">
-                {getUserDetails?.[0]?.EMPID || "N/A"}
+                {getUserDetails?.employeeId || "N/A"}
               </Typography>
             </Grid>
             <Grid item xs={12} md={4}>
@@ -476,7 +468,7 @@ const TimeManagement = () => {
                 Month & Year
               </Typography>
               <Typography variant="h6" fontWeight="bold">
-                {getUserDetails?.[0]?.date || "N/A"}
+                {getUserDetails?.dateOfJoining || "N/A"}
               </Typography>
             </Grid>
             <Grid item xs={12} md={4}>
@@ -484,7 +476,7 @@ const TimeManagement = () => {
                 Designation
               </Typography>
               <Typography variant="h6" fontWeight="bold">
-                {getUserDetails?.[0]?.designation || "N/A"}
+                {getUserDetails?.designation || "N/A"}
               </Typography>
             </Grid>
             <Grid item xs={12} md={4}>
@@ -492,7 +484,7 @@ const TimeManagement = () => {
                 Discipline
               </Typography>
               <Typography variant="h6" fontWeight="bold">
-                {getUserDetails?.[0]?.discipline || "N/A"}
+                {getUserDetails?.discipline || "N/A"}
               </Typography>
             </Grid>
             <Grid item xs={12} md={4}>
@@ -525,122 +517,93 @@ const TimeManagement = () => {
           <Box sx={{ overflowX: "auto" }}>
             <Paper sx={{ width: "100%", overflow: "auto" }}>
               <table className="table-responsive tablesss table align-middle" style={{ width: "100%" }}>
-              <thead>
-                <tr>
-                  <th scope="col" className="text-center">
-                    S. No
-                  </th>
-                  <th scope="col" className="tableHead">
-                    Reference No
-                  </th>
-                  <th scope="col" className="tableHead">
-                    Project Name
-                  </th>
-                  {/* <th scope="col" className="tableHead">Tl Name</th> */}
-                  <th scope="col" className="tableHead">
-                    Task No
-                  </th>
-                  <th scope="col" className="tableHead">
-                    Area of Work
-                  </th>
-                  <th scope="col" className="tableHead">
-                    Variation
-                  </th>
-                  <th scope="col" className="tableHead">
-                    Sub Division
-                  </th>
-                  <th scope="col" className="days">
-                    {weekData?.[0]} <br />
-                    <hr />
-                    Monday
-                  </th>
-                  <th scope="col" className="days">
-                    {" "}
-                    {weekData?.[1]} <br />
-                    <hr />
-                    Tuesday
-                  </th>
-                  <th scope="col" className="days">
-                    {" "}
-                    {weekData?.[2]} <br />
-                    <hr />
-                    Wednesday
-                  </th>
-                  <th scope="col" className="days">
-                    {" "}
-                    {weekData?.[3]} <br />
-                    <hr />
-                    Thursday
-                  </th>
-                  <th scope="col" className="days">
-                    {" "}
-                    {weekData?.[4]} <br />
-                    <hr />
-                    Friday
-                  </th>
-                  <th scope="col" className="days">
-                    {" "}
-                    {weekData?.[5]} <br />
-                    <hr />
-                    Saturday
-                  </th>
-                  <th scope="col" className="days">
-                    {" "}
-                    {weekData?.[6]} <br />
-                    <hr />
-                    Sunday
-                  </th>
-                  <th scope="col" className="days">
-                    Total Hours
-                  </th>
-                  <th scope="col" className="days">
-                    Status
-                  </th>
-                  <th scope="col" className="tableHead">
-                    Sent Date
-                  </th>
-                  <th scope="col" className="tableHead">
-                    Approved Date
-                  </th>
-                  <th className="fixedColumn">Action</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {formData === null && (
+                <thead>
                   <tr>
-                    <td colSpan="20" style={{ textAlign: "center", padding: "20px" }}>
-                      <IconButton
-                        onClick={() => handleClickOpen()}
-                        sx={{
-                          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                          color: "white",
-                          "&:hover": {
-                            background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
-                          },
-                        }}
-                      >
-                        <Add />
-                      </IconButton>
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                        Click to add work details
-                      </Typography>
-                    </td>
+                    <th scope="col" className="text-center">
+                      S. No
+                    </th>
+                    <th scope="col" className="tableHead">
+                      Reference No
+                    </th>
+                    <th scope="col" className="tableHead">
+                      Project Name
+                    </th>
+                    {/* <th scope="col" className="tableHead">Tl Name</th> */}
+                    <th scope="col" className="tableHead">
+                      Task No
+                    </th>
+                    <th scope="col" className="tableHead">
+                      Area of Work
+                    </th>
+                    <th scope="col" className="tableHead">
+                      Variation
+                    </th>
+                    <th scope="col" className="tableHead">
+                      Sub Division
+                    </th>
+                    <th scope="col" className="days">
+                      {weekData?.[0]} <br />
+                      <hr />
+                      Monday
+                    </th>
+                    <th scope="col" className="days">
+                      {" "}
+                      {weekData?.[1]} <br />
+                      <hr />
+                      Tuesday
+                    </th>
+                    <th scope="col" className="days">
+                      {" "}
+                      {weekData?.[2]} <br />
+                      <hr />
+                      Wednesday
+                    </th>
+                    <th scope="col" className="days">
+                      {" "}
+                      {weekData?.[3]} <br />
+                      <hr />
+                      Thursday
+                    </th>
+                    <th scope="col" className="days">
+                      {" "}
+                      {weekData?.[4]} <br />
+                      <hr />
+                      Friday
+                    </th>
+                    <th scope="col" className="days">
+                      {" "}
+                      {weekData?.[5]} <br />
+                      <hr />
+                      Saturday
+                    </th>
+                    <th scope="col" className="days">
+                      {" "}
+                      {weekData?.[6]} <br />
+                      <hr />
+                      Sunday
+                    </th>
+                    <th scope="col" className="days">
+                      Total Hours
+                    </th>
+                    <th scope="col" className="days">
+                      Status
+                    </th>
+                    <th scope="col" className="tableHead">
+                      Sent Date
+                    </th>
+                    <th scope="col" className="tableHead">
+                      Approved Date
+                    </th>
+                    <th className="fixedColumn">Action</th>
                   </tr>
-                )}
-                {console.log(formData, "formDataformData")}
-                {formData?.map((res, index) => (
-                  <tr>
-                    <td>
-                      {index !== formData.length - 1 && (
-                        <Typography variant="body2" fontWeight="bold">
-                          {index + 1}
-                        </Typography>
-                      )}
-                      {index === formData.length - 1 && (
+                </thead>
+
+                <tbody>
+                  {formData === null && (
+                    <tr>
+                      <td colSpan="20" style={{ textAlign: "center", padding: "20px" }}>
                         <IconButton
                           onClick={() => handleClickOpen()}
-                          size="small"
                           sx={{
                             background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                             color: "white",
@@ -651,35 +614,63 @@ const TimeManagement = () => {
                         >
                           <Add />
                         </IconButton>
-                      )}
-                    </td>
-                    <td>
-                      <FormControl fullWidth>
-                        <Autocomplete
-                          id="combo-box-demo"
-                          options={referenceNoList || []}
-                          sx={{ width: 200 }}
-                          className={"inputTextStyle"}
-                          value={formData?.[index]?.referenceNo || null}
-                          error={errorMessage?.[index]?.referenceNo}
-                          disabled={
-                            isDisable?.[index]?.disable === false
-                              ? false
-                              : !formData[index]?.id
-                              ? false
-                              : true
-                          }
-                          onChange={(e, value) =>
-                            handleOnChange("referenceNo", value, index)
-                          }
-                          renderInput={(params) => (
-                            <TextField
-                              {...params}
-                              error={errorMessage?.[index]?.referenceNo}
-                            />
-                          )}
-                        />
-                        {/* <Select
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                          Click to add work details
+                        </Typography>
+                      </td>
+                    </tr>
+                  )}
+                  {formData?.map((res, index) => (
+                    <tr>
+                      <td>
+                        {index !== formData.length - 1 && (
+                          <Typography variant="body2" fontWeight="bold">
+                            {index + 1}
+                          </Typography>
+                        )}
+                        {index === formData.length - 1 && (
+                          <IconButton
+                            onClick={() => handleClickOpen()}
+                            size="small"
+                            sx={{
+                              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                              color: "white",
+                              "&:hover": {
+                                background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                              },
+                            }}
+                          >
+                            <Add />
+                          </IconButton>
+                        )}
+                      </td>
+                      <td>
+                        <FormControl fullWidth>
+                          <Autocomplete
+                            id="combo-box-demo"
+                            options={referenceNoList || []}
+                            sx={{ width: 200 }}
+                            className={"inputTextStyle"}
+                            value={formData?.[index]?.referenceNo || null}
+                            error={errorMessage?.[index]?.referenceNo}
+                            disabled={
+                              isDisable?.[index]?.disable === false
+                                ? false
+                                : !formData[index]?.id
+                                  ? false
+                                  : true
+                            }
+                            onChange={(e, value) =>
+                              handleOnChange("referenceNo", value, index)
+                            }
+                            renderInput={(params) => (
+                              <TextField
+                                {...params}
+                                error={errorMessage?.[index]?.referenceNo}
+                              />
+                            )}
+                          />
+                          {/* <Select
                           className={"inputTextStyle"}
                           value={formData?.[index]?.referenceNo}
                           defaultValue={formData?.[index]?.referenceNo}
@@ -703,23 +694,23 @@ const TimeManagement = () => {
                             <MenuItem value={res}>{res}</MenuItem>
                           ))}
                         </Select> */}
-                        <FormHelperText>
-                          {errorMessage?.[index]?.referenceNo}
-                        </FormHelperText>
-                      </FormControl>
-                    </td>
-                    <td>
-                      <FormControl fullWidth>
-                        <TextField
-                          className={"inputTextStyle"}
-                          fullWidth
-                          variant="outlined"
-                          disabled={true}
-                          value={formData?.[index]?.projectName}
-                        />
-                      </FormControl>
-                    </td>
-                    {/* <td>
+                          <FormHelperText>
+                            {errorMessage?.[index]?.referenceNo}
+                          </FormHelperText>
+                        </FormControl>
+                      </td>
+                      <td>
+                        <FormControl fullWidth>
+                          <TextField
+                            className={"inputTextStyle"}
+                            fullWidth
+                            variant="outlined"
+                            disabled={true}
+                            value={formData?.[index]?.projectName}
+                          />
+                        </FormControl>
+                      </td>
+                      {/* <td>
                       <TextField
                         fullWidth
                         variant="outlined"
@@ -727,391 +718,391 @@ const TimeManagement = () => {
                         value={formData?.[index]?.tlName}
                       />
                     </td> */}
-                    <td>
-                      <TextField
-                        className={"inputTextStyle"}
-                        fullWidth
-                        variant="outlined"
-                        disabled={true}
-                        value={formData?.[index]?.taskNo}
-                      />
-                    </td>
-                    <td>
-                      <FormControl fullWidth>
-                        <Select
+                      <td>
+                        <TextField
                           className={"inputTextStyle"}
-                          value={formData?.[index]?.areaofWork}
-                          defaultValue={formData?.[index]?.areaofWork}
-                          error={errorMessage?.[index]?.areaofWork}
-                          disabled={
-                            isDisable?.[index]?.disable === false
-                              ? false
-                              : !formData[index]?.id
-                              ? false
-                              : true
-                          }
-                          onChange={(e, value) =>
-                            handleOnChange(
-                              "areaofWork",
-                              value.props?.value,
-                              index
-                            )
-                          }
-                        >
-                          {(areaofWork || []).map((res) => {
-                            return (
-                              <MenuItem key={res?.areaofwork} value={res?.areaofwork}>
-                                {res?.areaofwork}
-                              </MenuItem>
-                            );
-                          })}
-                        </Select>
-                        <FormHelperText>
-                          {errorMessage?.[index]?.areaofWork}
-                        </FormHelperText>
-                      </FormControl>
-                    </td>
-                    <td>
-                      <FormControl fullWidth>
-                        <Select
-                          className={"inputTextStyle"}
-                          value={formData?.[index]?.variation}
-                          defaultValue={formData?.[index]?.variation}
-                          error={errorMessage?.[index]?.variation}
-                          disabled={
-                            isDisable?.[index]?.disable === false
-                              ? false
-                              : !formData[index]?.id
-                              ? false
-                              : true
-                          }
-                          onChange={(e, value) =>
-                            handleOnChange(
-                              "variation",
-                              value.props?.value,
-                              index
-                            )
-                          }
-                        >
-                          {(variation || []).map((res) => {
-                            return (
-                              <MenuItem key={res?.variation} value={res?.variation}>
-                                {res?.variation}
-                              </MenuItem>
-                            );
-                          })}
-                        </Select>
-                        <FormHelperText>
-                          {errorMessage?.[index]?.variation}
-                        </FormHelperText>
-                      </FormControl>
-                    </td>
-                    <td>
-                      <FormControl fullWidth>
-                        <Select
-                          className={"inputTextStyle"}
-                          value={formData?.[index]?.subDivision}
-                          defaultValue={formData?.[index]?.subDivision}
-                          // helperText={errorMessage?.[index]?.subDivision}
-                          // error={errorMessage?.[index]?.subDivision}
-                          disabled={
-                            isDisable?.[index]?.disable === false
-                              ? false
-                              : !formData[index]?.id
-                              ? false
-                              : true
-                          }
-                          onChange={(e, value) =>
-                            handleOnChange(
-                              "subDivision",
-                              value.props?.value,
-                              index
-                            )
-                          }
-                        >
-                          {(formData?.[index]?.subDivisionList
-                            ?.split(",") || []).map((res, idx) => (
-                              <MenuItem key={`${res}-${idx}`} value={res}>{res}</MenuItem>
-                            ))}
-                        </Select>
-                        {/* <FormHelperText>
+                          fullWidth
+                          variant="outlined"
+                          disabled={true}
+                          value={formData?.[index]?.taskNo}
+                        />
+                      </td>
+                      <td>
+                        <FormControl fullWidth>
+                          <Select
+                            className={"inputTextStyle"}
+                            value={formData?.[index]?.areaofWork}
+                            defaultValue={formData?.[index]?.areaofWork}
+                            error={errorMessage?.[index]?.areaofWork}
+                            disabled={
+                              isDisable?.[index]?.disable === false
+                                ? false
+                                : !formData[index]?.id
+                                  ? false
+                                  : true
+                            }
+                            onChange={(e, value) =>
+                              handleOnChange(
+                                "areaofWork",
+                                value.props?.value,
+                                index
+                              )
+                            }
+                          >
+                            {(areaofWork || []).map((res) => {
+                              return (
+                                <MenuItem key={res?.areaofwork} value={res?.areaofwork}>
+                                  {res?.areaofwork}
+                                </MenuItem>
+                              );
+                            })}
+                          </Select>
+                          <FormHelperText>
+                            {errorMessage?.[index]?.areaofWork}
+                          </FormHelperText>
+                        </FormControl>
+                      </td>
+                      <td>
+                        <FormControl fullWidth>
+                          <Select
+                            className={"inputTextStyle"}
+                            value={formData?.[index]?.variation}
+                            defaultValue={formData?.[index]?.variation}
+                            error={errorMessage?.[index]?.variation}
+                            disabled={
+                              isDisable?.[index]?.disable === false
+                                ? false
+                                : !formData[index]?.id
+                                  ? false
+                                  : true
+                            }
+                            onChange={(e, value) =>
+                              handleOnChange(
+                                "variation",
+                                value.props?.value,
+                                index
+                              )
+                            }
+                          >
+                            {(variation || []).map((res) => {
+                              return (
+                                <MenuItem key={res?.variation} value={res?.variation}>
+                                  {res?.variation}
+                                </MenuItem>
+                              );
+                            })}
+                          </Select>
+                          <FormHelperText>
+                            {errorMessage?.[index]?.variation}
+                          </FormHelperText>
+                        </FormControl>
+                      </td>
+                      <td>
+                        <FormControl fullWidth>
+                          <Select
+                            className={"inputTextStyle"}
+                            value={formData?.[index]?.subDivision}
+                            defaultValue={formData?.[index]?.subDivision}
+                            // helperText={errorMessage?.[index]?.subDivision}
+                            // error={errorMessage?.[index]?.subDivision}
+                            disabled={
+                              isDisable?.[index]?.disable === false
+                                ? false
+                                : !formData[index]?.id
+                                  ? false
+                                  : true
+                            }
+                            onChange={(e, value) =>
+                              handleOnChange(
+                                "subDivision",
+                                value.props?.value,
+                                index
+                              )
+                            }
+                          >
+                            {(formData?.[index]?.subDivisionList
+                              ?.split(",") || []).map((res, idx) => (
+                                <MenuItem key={`${res}-${idx}`} value={res}>{res}</MenuItem>
+                              ))}
+                          </Select>
+                          {/* <FormHelperText>
                           {errorMessage?.[index]?.subDivision}
                         </FormHelperText> */}
-                      </FormControl>
-                    </td>
-                    <td>
-                      {console.log(isDateInclude(weekData?.[0]), "dateone")}
-                      <TextField
-                        className={"inputTextStyle"}
-                        fullWidth
-                        variant="outlined"
-                        value={formData?.[index]?.monday}
-                        helperText={errorMessage?.[index]?.monday}
-                        error={errorMessage?.[index]?.monday}
-                        type="number"
-                        onChange={(e) =>
-                          handleOnChange("monday", e.target.value, index)
-                        }
-                        disabled={
-                          isDateInclude(weekData?.[0])
-                            ? true
-                            : isDisable?.[index]?.disable === false
-                            ? false
-                            : formData[index]?.id
-                            ? true
-                            : false
-                        }
-                      />
-                    </td>
-                    <td>
-                      <TextField
-                        className={"inputTextStyle"}
-                        fullWidth
-                        variant="outlined"
-                        value={formData?.[index]?.tuesday}
-                        type="number"
-                        onChange={(e, value) =>
-                          handleOnChange("tuesday", e.target.value, index)
-                        }
-                        disabled={
-                          isDateInclude(weekData?.[1])
-                            ? true
-                            : isDisable?.[index]?.disable === false
-                            ? false
-                            : formData[index]?.id
-                            ? true
-                            : false
-                        }
-                      />
-                    </td>
-                    <td>
-                      <TextField
-                        className={"inputTextStyle"}
-                        fullWidth
-                        variant="outlined"
-                        value={formData?.[index]?.wednesday}
-                        type="number"
-                        onChange={(e, value) =>
-                          handleOnChange("wednesday", e.target.value, index)
-                        }
-                        disabled={
-                          isDateInclude(weekData?.[2])
-                            ? true
-                            : isDisable?.[index]?.disable === false
-                            ? false
-                            : formData[index]?.id
-                            ? true
-                            : false
-                        }
-                      />
-                    </td>
-                    <td>
-                      <TextField
-                        className={"inputTextStyle"}
-                        fullWidth
-                        variant="outlined"
-                        value={formData?.[index]?.thursday}
-                        type="number"
-                        onChange={(e, value) =>
-                          handleOnChange("thursday", e.target.value, index)
-                        }
-                        disabled={
-                          isDateInclude(weekData?.[3])
-                            ? true
-                            : isDisable?.[index]?.disable === false
-                            ? false
-                            : formData[index]?.id
-                            ? true
-                            : false
-                        }
-                      />
-                    </td>
-                    <td>
-                      <TextField
-                        className={"inputTextStyle"}
-                        fullWidth
-                        variant="outlined"
-                        value={formData?.[index]?.friday}
-                        type="number"
-                        onChange={(e, value) =>
-                          handleOnChange("friday", e.target.value, index)
-                        }
-                        disabled={
-                          isDateInclude(weekData?.[4])
-                            ? true
-                            : isDisable?.[index]?.disable === false
-                            ? false
-                            : formData[index]?.id
-                            ? true
-                            : false
-                        }
-                      />
-                    </td>
-                    <td>
-                      <TextField
-                        className={"inputTextStyle"}
-                        fullWidth
-                        variant="outlined"
-                        value={formData?.[index]?.saturday}
-                        type="number"
-                        onChange={(e, value) =>
-                          handleOnChange("saturday", e.target.value, index)
-                        }
-                        disabled={
-                          isDateInclude(weekData?.[5])
-                            ? true
-                            : isDisable?.[index]?.disable === false
-                            ? false
-                            : formData[index]?.id
-                            ? true
-                            : false
-                        }
-                      />
-                    </td>
-                    <td>
-                      {console.log(
-                        isDateInclude(weekData?.[6]),
-                        "dateonesunday"
-                      )}
-                      <TextField
-                        className={"inputTextStyle"}
-                        fullWidth
-                        variant="outlined"
-                        value={formData?.[index]?.sunday}
-                        type="number"
-                        onChange={(e, value) =>
-                          handleOnChange("sunday", e.target.value, index)
-                        }
-                        disabled={
-                          isDateInclude(weekData?.[6])
-                            ? true
-                            : isDisable?.[index]?.disable === false
-                            ? false
-                            : formData[index]?.id
-                            ? true
-                            : false
-                        }
-                      />
-                    </td>
-                    <td>
-                      <TextField
-                        className={"inputTextStyle"}
-                        fullWidth
-                        variant="outlined"
-                        value={formData?.[index]?.totalHours}
-                        type="number"
-                        onChange={(e, value) =>
-                          handleOnChange("totalHours", e.target.value, index)
-                        }
-                        disabled={true}
-                      />
-                    </td>
-                    <td>
-                      <Box sx={{ display: "flex", justifyContent: "center" }}>
-                        {formData?.[index]?.status?.toLowerCase() === "approved" ? (
-                          <Chip
-                            icon={<CheckCircle />}
-                            label="Approved"
-                            color="success"
-                            size="small"
-                          />
-                        ) : formData?.[index]?.status?.toLowerCase() === "rejected" ? (
-                          <Chip
-                            icon={<Cancel />}
-                            label="Rejected"
-                            color="error"
-                            size="small"
-                          />
-                        ) : (
-                          <Chip
-                            label="Pending"
-                            color="warning"
-                            size="small"
-                          />
+                        </FormControl>
+                      </td>
+                      <td>
+                        {console.log(isDateInclude(weekData?.[0]), "dateone")}
+                        <TextField
+                          className={"inputTextStyle"}
+                          fullWidth
+                          variant="outlined"
+                          value={formData?.[index]?.monday}
+                          helperText={errorMessage?.[index]?.monday}
+                          error={errorMessage?.[index]?.monday}
+                          type="number"
+                          onChange={(e) =>
+                            handleOnChange("monday", e.target.value, index)
+                          }
+                          disabled={
+                            isDateInclude(weekData?.[0])
+                              ? true
+                              : isDisable?.[index]?.disable === false
+                                ? false
+                                : formData[index]?.id
+                                  ? true
+                                  : false
+                          }
+                        />
+                      </td>
+                      <td>
+                        <TextField
+                          className={"inputTextStyle"}
+                          fullWidth
+                          variant="outlined"
+                          value={formData?.[index]?.tuesday}
+                          type="number"
+                          onChange={(e, value) =>
+                            handleOnChange("tuesday", e.target.value, index)
+                          }
+                          disabled={
+                            isDateInclude(weekData?.[1])
+                              ? true
+                              : isDisable?.[index]?.disable === false
+                                ? false
+                                : formData[index]?.id
+                                  ? true
+                                  : false
+                          }
+                        />
+                      </td>
+                      <td>
+                        <TextField
+                          className={"inputTextStyle"}
+                          fullWidth
+                          variant="outlined"
+                          value={formData?.[index]?.wednesday}
+                          type="number"
+                          onChange={(e, value) =>
+                            handleOnChange("wednesday", e.target.value, index)
+                          }
+                          disabled={
+                            isDateInclude(weekData?.[2])
+                              ? true
+                              : isDisable?.[index]?.disable === false
+                                ? false
+                                : formData[index]?.id
+                                  ? true
+                                  : false
+                          }
+                        />
+                      </td>
+                      <td>
+                        <TextField
+                          className={"inputTextStyle"}
+                          fullWidth
+                          variant="outlined"
+                          value={formData?.[index]?.thursday}
+                          type="number"
+                          onChange={(e, value) =>
+                            handleOnChange("thursday", e.target.value, index)
+                          }
+                          disabled={
+                            isDateInclude(weekData?.[3])
+                              ? true
+                              : isDisable?.[index]?.disable === false
+                                ? false
+                                : formData[index]?.id
+                                  ? true
+                                  : false
+                          }
+                        />
+                      </td>
+                      <td>
+                        <TextField
+                          className={"inputTextStyle"}
+                          fullWidth
+                          variant="outlined"
+                          value={formData?.[index]?.friday}
+                          type="number"
+                          onChange={(e, value) =>
+                            handleOnChange("friday", e.target.value, index)
+                          }
+                          disabled={
+                            isDateInclude(weekData?.[4])
+                              ? true
+                              : isDisable?.[index]?.disable === false
+                                ? false
+                                : formData[index]?.id
+                                  ? true
+                                  : false
+                          }
+                        />
+                      </td>
+                      <td>
+                        <TextField
+                          className={"inputTextStyle"}
+                          fullWidth
+                          variant="outlined"
+                          value={formData?.[index]?.saturday}
+                          type="number"
+                          onChange={(e, value) =>
+                            handleOnChange("saturday", e.target.value, index)
+                          }
+                          disabled={
+                            isDateInclude(weekData?.[5])
+                              ? true
+                              : isDisable?.[index]?.disable === false
+                                ? false
+                                : formData[index]?.id
+                                  ? true
+                                  : false
+                          }
+                        />
+                      </td>
+                      <td>
+                        {console.log(
+                          isDateInclude(weekData?.[6]),
+                          "dateonesunday"
                         )}
-                      </Box>
-                    </td>
-                    <td>
-                      {formData?.[index]?.sentDate
-                        ? getDateYear(formData?.[index]?.sentDate)
-                        : null}
-                    </td>
-                    <td>
-                      {formData?.[index]?.approvedDate
-                        ? getDateYear(formData?.[index]?.approvedDate)
-                        : null}
-                    </td>
-                    <td style={{ height: "70px" }}>
-                      <Stack direction="row" spacing={1} justifyContent="center">
-                        {!formData[index]?.id ? (
-                          <>
-                            <IconButton
-                              onClick={() => onSubmit(formData[index], index)}
+                        <TextField
+                          className={"inputTextStyle"}
+                          fullWidth
+                          variant="outlined"
+                          value={formData?.[index]?.sunday}
+                          type="number"
+                          onChange={(e, value) =>
+                            handleOnChange("sunday", e.target.value, index)
+                          }
+                          disabled={
+                            isDateInclude(weekData?.[6])
+                              ? true
+                              : isDisable?.[index]?.disable === false
+                                ? false
+                                : formData[index]?.id
+                                  ? true
+                                  : false
+                          }
+                        />
+                      </td>
+                      <td>
+                        <TextField
+                          className={"inputTextStyle"}
+                          fullWidth
+                          variant="outlined"
+                          value={formData?.[index]?.totalHours}
+                          type="number"
+                          onChange={(e, value) =>
+                            handleOnChange("totalHours", e.target.value, index)
+                          }
+                          disabled={true}
+                        />
+                      </td>
+                      <td>
+                        <Box sx={{ display: "flex", justifyContent: "center" }}>
+                          {formData?.[index]?.status?.toLowerCase() === "approved" ? (
+                            <Chip
+                              icon={<CheckCircle />}
+                              label="Approved"
+                              color="success"
                               size="small"
-                              sx={{
-                                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                                color: "white",
-                                "&:hover": {
-                                  background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
-                                },
-                              }}
-                            >
-                              <Send fontSize="small" />
-                            </IconButton>
-                            <IconButton
-                              onClick={() => onDeleteIndex(index)}
-                              size="small"
+                            />
+                          ) : formData?.[index]?.status?.toLowerCase() === "rejected" ? (
+                            <Chip
+                              icon={<Cancel />}
+                              label="Rejected"
                               color="error"
-                            >
-                              <Delete fontSize="small" />
-                            </IconButton>
-                          </>
-                        ) : formData?.[index]?.status?.toLowerCase() === "approved" ? null : (
-                          <>
-                            <IconButton
-                              onClick={() => {
-                                setIsDisable((prev) => ({
-                                  ...prev,
-                                  [index]: {
-                                    disable: false,
+                              size="small"
+                            />
+                          ) : (
+                            <Chip
+                              label="Pending"
+                              color="warning"
+                              size="small"
+                            />
+                          )}
+                        </Box>
+                      </td>
+                      <td>
+                        {formData?.[index]?.sentDate
+                          ? getDateYear(formData?.[index]?.sentDate)
+                          : null}
+                      </td>
+                      <td>
+                        {formData?.[index]?.approvedDate
+                          ? getDateYear(formData?.[index]?.approvedDate)
+                          : null}
+                      </td>
+                      <td style={{ height: "70px" }}>
+                        <Stack direction="row" spacing={1} justifyContent="center">
+                          {!formData[index]?.id ? (
+                            <>
+                              <IconButton
+                                onClick={() => onSubmit(formData[index], index)}
+                                size="small"
+                                sx={{
+                                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                                  color: "white",
+                                  "&:hover": {
+                                    background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
                                   },
-                                }));
-                              }}
-                              size="small"
-                              color="primary"
-                            >
-                              <Edit fontSize="small" />
-                            </IconButton>
-                            <IconButton
-                              onClick={() =>
-                                updateProjectDetails(
-                                  formData[index],
-                                  formData[index]?.id
-                                )
-                              }
-                              size="small"
-                              sx={{
-                                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                                color: "white",
-                                "&:hover": {
-                                  background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
-                                },
-                              }}
-                            >
-                              <Save fontSize="small" />
-                            </IconButton>
-                          </>
-                        )}
-                      </Stack>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Paper>
-        </Box>
-      </CardContent>
-    </Card>
+                                }}
+                              >
+                                <Send fontSize="small" />
+                              </IconButton>
+                              <IconButton
+                                onClick={() => onDeleteIndex(index)}
+                                size="small"
+                                color="error"
+                              >
+                                <Delete fontSize="small" />
+                              </IconButton>
+                            </>
+                          ) : formData?.[index]?.status?.toLowerCase() === "approved" ? null : (
+                            <>
+                              <IconButton
+                                onClick={() => {
+                                  setIsDisable((prev) => ({
+                                    ...prev,
+                                    [index]: {
+                                      disable: false,
+                                    },
+                                  }));
+                                }}
+                                size="small"
+                                color="primary"
+                              >
+                                <Edit fontSize="small" />
+                              </IconButton>
+                              <IconButton
+                                onClick={() =>
+                                  updateProjectDetails(
+                                    formData[index],
+                                    formData[index]?.id
+                                  )
+                                }
+                                size="small"
+                                sx={{
+                                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                                  color: "white",
+                                  "&:hover": {
+                                    background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                                  },
+                                }}
+                              >
+                                <Save fontSize="small" />
+                              </IconButton>
+                            </>
+                          )}
+                        </Stack>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Paper>
+          </Box>
+        </CardContent>
+      </Card>
     </Box>
   );
 };

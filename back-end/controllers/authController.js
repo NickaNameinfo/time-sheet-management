@@ -63,6 +63,10 @@ export const employeeLogin = asyncHandler(async (req, res) => {
       userName: user.userName,
       employeeName: user.employeeName,
       employeeId: user.EMPID,
+      designation: user.designation,
+      dateOfJoining: user.date,
+      discipline: user.discipline,
+      employeeStatus: user.employeeStatus,
     },
     config.jwt.secret,
     { expiresIn: config.jwt.expiresIn }
@@ -167,9 +171,11 @@ export const dashboard = asyncHandler(async (req, res) => {
     id: req.id,
     employeeId: req.employeeId,
     userName: req.userName,
-    employeeName: req?.employeeName,
-    tlName: req?.tlName,
-    hrName: req?.hrName,
+    employeeName: req.employeeName,
+    designation: req.designation,
+    dateOfJoining: req.dateOfJoining,
+    discipline: req.discipline,
+    employeeStatus: req.employeeStatus,
   });
 });
 

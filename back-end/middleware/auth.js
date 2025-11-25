@@ -22,8 +22,10 @@ export const verifyUser = (req, res, next) => {
     req.role = decoded.role;
     req.employeeName = decoded.employeeName;
     req.employeeId = decoded.employeeId;
-    req.tlName = decoded.tlName;
-    req.hrName = decoded.hrName;
+    req.designation = decoded.designation;
+    req.dateOfJoining = decoded.dateOfJoining;
+    req.discipline = decoded.discipline;
+    req.employeeStatus = decoded.employeeStatus;
     next();
   } catch (err) {
     return res.status(401).json({ 
