@@ -27,7 +27,8 @@ import {
   Refresh,
   Person,
 } from "@mui/icons-material";
-import commonData from "../../common.json"
+import commonData from "../../common.json";
+import ClockInOutCard from "../components/ClockInOutCard";
 
 function HrHome() {
   const [totalEmployees, setTotalEmployees] = useState(0);
@@ -61,6 +62,9 @@ function HrHome() {
 
   return (
     <Box sx={{ p: 3 }}>
+      {/* Clock In/Out Card */}
+      <ClockInOutCard />
+
       {/* Header */}
       <Box sx={{ mb: 3 }}>
         <Typography variant="h4" fontWeight="bold" gutterBottom>

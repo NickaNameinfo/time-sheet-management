@@ -140,8 +140,8 @@ export const apiService = {
   // Leave Management
   applyLeave: (data) => api.post("/applyLeave", data),
   applyCompOff: (data) => api.post("/applycompOff", data),
-  getLeaveDetails: () => api.get("/getLeaveDetails"),
-  getCompOffDetails: () => api.get("/getcompOffDetails"),
+  getLeaveDetails: (params) => api.get("/getLeaveDetails", { params }),
+  getCompOffDetails: (params) => api.get("/getcompOffDetails", { params }),
   updateLeave: (id, data) => api.put(`/updateLeave/${id}`, data),
   updateCompOff: (compOffId, data) => api.put(`/updateCompOff/${compOffId}`, data),
   deleteLeave: (id) => api.delete(`/deleteLeave/${id}`),
@@ -157,9 +157,12 @@ export const apiService = {
   deleteProject: (id) => api.delete(`/project/delete/${id}`),
   addWorkDetails: (data) => api.post("/project/addWorkDetails", data),
   updateWorkDetails: (id, data) => api.put(`/project/updateWorkDetails/${id}`, data),
-  getWorkDetails: () => api.get("/getWrokDetails"),
+  getWorkDetails: (params) => api.get("/getWorkDetails", { params }),
   getBioDetails: () => api.get("/getBioDetails"),
   filterTimeSheet: (data) => api.post("/filterTimeSheet", data),
+  clockIn: (data) => api.post("/project/workDetails/clockIn", data),
+  clockOut: (data) => api.post("/project/workDetails/clockOut", data),
+  getTodayClockStatus: (params) => api.get("/getWorkDetails", { params }),
 
   // Team Lead
   createTeamLead: (data) => api.post("/lead/create", data),

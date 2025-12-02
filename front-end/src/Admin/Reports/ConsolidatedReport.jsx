@@ -32,7 +32,7 @@ const ConsolidatedReport = () => {
   const onGetWorkDetails = (params) => {
     setExportApi(params?.api);
     axios
-      .get(`${commonData?.APIKEY}/getWrokDetails`)
+      .get(`${commonData?.APIKEY}/project/getWorkDetails`)
       .then((res) => {
         if (res.data.Status === "Success") {
           let resultData = res.data.Result?.filter(

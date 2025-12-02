@@ -49,73 +49,111 @@ export const approveEntity = asyncHandler(async (req, res) => {
     return sendError(res, "Status must be 'approved' or 'rejected'", 400);
   }
 
-  // Get workflow
+  if (!approverId) {
+    return sendError(res, "approverId is required", 400);
+  }
+
+  // Get workflow (optional - if no workflow exists, proceed without multi-level approval)
   const workflowSql = "SELECT * FROM approval_workflows WHERE entity_type = ? AND is_active = TRUE LIMIT 1";
   const workflows = await query(workflowSql, [entityType]);
   const workflow = workflows[0];
 
-  if (!workflow) {
-    return sendError(res, "Approval workflow not found", 404);
+  let currentLevel = approvalLevel || 1;
+  let approvalLevels = [];
+  let allApproved = true;
+
+  if (workflow) {
+    approvalLevels = JSON.parse(workflow.approval_levels);
+    currentLevel = approvalLevel || 1;
+
+    // Add to approval history
+    try {
+      const historySql = `
+        INSERT INTO approval_history (entity_type, entity_id, approver_id, approval_level, status, comments)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `;
+      await query(historySql, [entityType, entityId, approverId, currentLevel, status, comments || ""]);
+    } catch (error) {
+      // If approval_history table doesn't exist, continue without it
+      console.warn("Approval history table not found, skipping history entry:", error.message);
+    }
+
+    // Check if all levels approved
+    try {
+      const requiredLevels = approvalLevels.length;
+      const approvedLevelsResult = await query(
+        `SELECT COUNT(DISTINCT approval_level) as count 
+         FROM approval_history 
+         WHERE entity_type = ? AND entity_id = ? AND status = 'approved'`,
+        [entityType, entityId]
+      );
+      allApproved = approvedLevelsResult[0].count >= requiredLevels;
+    } catch (error) {
+      // If approval_history table doesn't exist, assume single-level approval
+      allApproved = true;
+    }
+  } else {
+    // No workflow - single level approval, add to history if table exists
+    try {
+      const historySql = `
+        INSERT INTO approval_history (entity_type, entity_id, approver_id, approval_level, status, comments)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `;
+      await query(historySql, [entityType, entityId, approverId, 1, status, comments || ""]);
+    } catch (error) {
+      // If approval_history table doesn't exist, continue without it
+      console.warn("Approval history table not found, skipping history entry:", error.message);
+    }
   }
 
-  const approvalLevels = JSON.parse(workflow.approval_levels);
-  const currentLevel = approvalLevel || 1;
-
-  // Add to approval history
-  const historySql = `
-    INSERT INTO approval_history (entity_type, entity_id, approver_id, approval_level, status, comments)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `;
-  await query(historySql, [entityType, entityId, approverId, currentLevel, status, comments]);
-
-  // Update entity status based on type
+  // Update entity status based on type (with approverId)
   let updateSql = "";
   let updateParams = [];
 
   if (entityType === "leave") {
-    updateSql = "UPDATE leavedetails SET leaveStatus = ?, approvedDate = NOW() WHERE id = ?";
-    updateParams = [status, entityId];
+    // leavedetails table doesn't have approvedDate column, only leaveStatus and approverId
+    updateSql = "UPDATE leavedetails SET leaveStatus = ?, approverId = ? WHERE id = ?";
+    updateParams = [status, approverId, entityId];
   } else if (entityType === "overtime") {
     updateSql = `
       UPDATE ot_records SET 
         approval_status = ?, 
-        approved_by = ?, 
+        approved_by = ?,
+        approverId = ?,
         approved_at = NOW(),
         comments = ?
       WHERE id = ?
     `;
-    updateParams = [status, approverId, comments, entityId];
-  } else if (entityType === "timesheet") {
-    updateSql = "UPDATE workdetails SET status = ? WHERE id = ?";
-    updateParams = [status, entityId];
+    updateParams = [status, approverId, approverId, comments || "", entityId];
+  } else if (entityType === "timesheet" || entityType === "workdetails") {
+    updateSql = "UPDATE workdetails SET status = ?, approverId = ? WHERE id = ?";
+    updateParams = [status, approverId, entityId];
+  } else if (entityType === "compoff") {
+    updateSql = "UPDATE compoff SET leaveStatus = ?, approverId = ? WHERE id = ?";
+    updateParams = [status, approverId, entityId];
+  } else {
+    return sendError(res, `Unsupported entity type: ${entityType}`, 400);
   }
 
   if (updateSql) {
     await query(updateSql, updateParams);
+  } else {
+    return sendError(res, `No update SQL for entity type: ${entityType}`, 400);
   }
-
-  // Check if all levels approved
-  const requiredLevels = approvalLevels.length;
-  const approvedLevels = await query(
-    `SELECT COUNT(DISTINCT approval_level) as count 
-     FROM approval_history 
-     WHERE entity_type = ? AND entity_id = ? AND status = 'approved'`,
-    [entityType, entityId]
-  );
-
-  const allApproved = approvedLevels[0].count >= requiredLevels;
 
   return sendSuccess(res, {
     status,
     approvalLevel: currentLevel,
     allApproved,
-    message: allApproved ? "Fully approved" : `Approved at level ${currentLevel}`,
+    message: workflow 
+      ? (allApproved ? "Fully approved" : `Approved at level ${currentLevel}`)
+      : `${status} successfully`,
   });
 });
 
 // Get Approval History
 export const getApprovalHistory = asyncHandler(async (req, res) => {
-  const { entityType, entityId } = req.query;
+  const { entityType, entityId, status, approverId, startDate, endDate } = req.query;
 
   let sql = `
     SELECT ah.*, e.employeeName, e.EMPID
@@ -133,11 +171,36 @@ export const getApprovalHistory = asyncHandler(async (req, res) => {
     sql += " AND ah.entity_id = ?";
     params.push(entityId);
   }
+  if (status) {
+    sql += " AND ah.status = ?";
+    params.push(status);
+  }
+  if (approverId) {
+    sql += " AND ah.approver_id = ?";
+    params.push(approverId);
+  }
+  if (startDate) {
+    sql += " AND DATE(ah.created_at) >= ?";
+    params.push(startDate);
+  }
+  if (endDate) {
+    sql += " AND DATE(ah.created_at) <= ?";
+    params.push(endDate);
+  }
 
-  sql += " ORDER BY ah.approval_level, ah.created_at DESC";
+  sql += " ORDER BY ah.created_at DESC, ah.approval_level DESC";
 
-  const results = await query(sql, params);
-  return sendSuccess(res, results);
+  try {
+    const results = await query(sql, params);
+    return sendSuccess(res, results);
+  } catch (error) {
+    // If approval_history table doesn't exist, return empty array
+    if (error.code === "ER_NO_SUCH_TABLE" || error.message.includes("doesn't exist")) {
+      console.warn("Approval history table not found, returning empty array");
+      return sendSuccess(res, []);
+    }
+    throw error;
+  }
 });
 
 // Get Pending Approvals

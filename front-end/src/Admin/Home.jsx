@@ -20,6 +20,7 @@ import {
 import { apiService } from "../services/api";
 import { useApi } from "../hooks/useApi";
 import Loading from "../components/Loading";
+import ClockInOutCard from "../components/ClockInOutCard";
 
 const StatCard = ({ title, value, icon, color, delay = 0 }) => {
   const [displayValue, setDisplayValue] = useState(0);
@@ -163,6 +164,9 @@ function Home() {
 
   return (
     <Box sx={{ p: { xs: 2, md: 3 } }}>
+      {/* Clock In/Out Card */}
+      <ClockInOutCard />
+
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" fontWeight="bold" gutterBottom>
           Dashboard Overview

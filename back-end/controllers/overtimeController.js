@@ -277,12 +277,13 @@ export const approveOT = asyncHandler(async (req, res) => {
     UPDATE ot_records SET
       approval_status = ?,
       approved_by = ?,
+      approverId = ?,
       approved_at = NOW(),
       comments = ?
     WHERE id = ?
   `;
 
-  await query(updateSql, [status, approverId, comments, id]);
+  await query(updateSql, [status, approverId, approverId, comments, id]);
 
   // Add to approval history
   const otRecord = await query("SELECT * FROM ot_records WHERE id = ?", [id]);
@@ -308,7 +309,7 @@ export const bulkInsertOTRecords = asyncHandler(async (req, res) => {
   const insertSql = `
     INSERT INTO ot_records (
       employee_id, work_detail_id, attendance_date,
-      regular_hours, ot_hours, ot_type, ot_rate, ot_amount, approval_status
+      regular_hours, ot_hours, ot_type, ot_rate, ot_amount, approval_status, approverId
     ) VALUES ?
   `;
 
@@ -322,6 +323,7 @@ export const bulkInsertOTRecords = asyncHandler(async (req, res) => {
     record.ot_rate,
     record.ot_amount,
     record.approval_status || "pending",
+    record.approverId || null,
   ]);
 
   await query(insertSql, [values]);

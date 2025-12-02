@@ -420,5 +420,589 @@ class ApiService {
       rethrow;
     }
   }
+
+  // HR Login
+  Future<Map<String, dynamic>> hrLogin(String userName, String password) async {
+    try {
+      final response = await _dio.post(
+        '/hrLogin',
+        data: {'userName': userName, 'password': password},
+      );
+      if (response.data['Status'] == 'Success') {
+        final result = response.data['Result'];
+        if (result['tokensss'] != null) {
+          result['token'] = result['tokensss'];
+        }
+        return result;
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Login failed');
+      }
+    } catch (e) {
+      _logger.e('HR Login error: $e');
+      rethrow;
+    }
+  }
+
+  // Team Lead Login
+  Future<Map<String, dynamic>> teamLeadLogin(String userName, String password) async {
+    try {
+      final response = await _dio.post(
+        '/teamLeadlogin',
+        data: {'userName': userName, 'password': password},
+      );
+      if (response.data['Status'] == 'Success') {
+        final result = response.data['Result'];
+        if (result['token'] != null) {
+          result['tokensss'] = result['token'];
+        }
+        result['role'] = 'teamLead';
+        return result;
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Login failed');
+      }
+    } catch (e) {
+      _logger.e('Team Lead Login error: $e');
+      rethrow;
+    }
+  }
+
+  // Get Leave Details
+  Future<List<dynamic>> getLeaveDetails({String? employeeId}) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (employeeId != null) queryParams['employeeId'] = employeeId;
+      final response = await _dio.get('/getLeaveDetails', queryParameters: queryParams);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? [];
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch leave details');
+      }
+    } catch (e) {
+      _logger.e('Get leave details error: $e');
+      rethrow;
+    }
+  }
+
+  // Get Comp Off Details
+  Future<List<dynamic>> getCompOffDetails({String? employeeId}) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (employeeId != null) queryParams['employeeId'] = employeeId;
+      final response = await _dio.get('/getcompOffDetails', queryParameters: queryParams);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? [];
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch comp-off details');
+      }
+    } catch (e) {
+      _logger.e('Get comp-off details error: $e');
+      rethrow;
+    }
+  }
+
+  // Apply Comp Off
+  Future<Map<String, dynamic>> applyCompOff(Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.post('/applycompOff', data: data);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Comp-off application failed');
+      }
+    } catch (e) {
+      _logger.e('Apply comp-off error: $e');
+      rethrow;
+    }
+  }
+
+  // Delete Leave
+  Future<void> deleteLeave(int id) async {
+    try {
+      final response = await _dio.delete('/deleteLeave/$id');
+      if (response.data['Status'] != 'Success') {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to delete leave');
+      }
+    } catch (e) {
+      _logger.e('Delete leave error: $e');
+      rethrow;
+    }
+  }
+
+  // Delete Comp Off
+  Future<void> deleteCompOff(int id) async {
+    try {
+      final response = await _dio.delete('/deletecompOff/$id');
+      if (response.data['Status'] != 'Success') {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to delete comp-off');
+      }
+    } catch (e) {
+      _logger.e('Delete comp-off error: $e');
+      rethrow;
+    }
+  }
+
+  // Get Leave Balance
+  Future<List<dynamic>> getLeaveBalance({String? employeeId, int? year}) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (employeeId != null) queryParams['employeeId'] = employeeId;
+      if (year != null) queryParams['year'] = year;
+      final response = await _dio.get('/leave/balance', queryParameters: queryParams);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? [];
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch leave balance');
+      }
+    } catch (e) {
+      _logger.e('Get leave balance error: $e');
+      rethrow;
+    }
+  }
+
+  // Initialize Leave Balance
+  Future<Map<String, dynamic>> initializeLeaveBalance(Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.post('/leave/balance/initialize', data: data);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to initialize leave balance');
+      }
+    } catch (e) {
+      _logger.e('Initialize leave balance error: $e');
+      rethrow;
+    }
+  }
+
+  // Accrue Leave
+  Future<Map<String, dynamic>> accrueLeave(Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.post('/leave/accrue', data: data);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to accrue leave');
+      }
+    } catch (e) {
+      _logger.e('Accrue leave error: $e');
+      rethrow;
+    }
+  }
+
+  // Get Employees
+  Future<List<dynamic>> getEmployees() async {
+    try {
+      final response = await _dio.get('/getEmployee');
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? [];
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch employees');
+      }
+    } catch (e) {
+      _logger.e('Get employees error: $e');
+      rethrow;
+    }
+  }
+
+  // Get Employee by ID
+  Future<Map<String, dynamic>> getEmployee(int id) async {
+    try {
+      final response = await _dio.get('/get/$id');
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch employee');
+      }
+    } catch (e) {
+      _logger.e('Get employee error: $e');
+      rethrow;
+    }
+  }
+
+  // Create Employee
+  Future<Map<String, dynamic>> createEmployee(Map<String, dynamic> data) async {
+    try {
+      final formData = FormData.fromMap(data);
+      final response = await _dio.post('/create', data: formData);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to create employee');
+      }
+    } catch (e) {
+      _logger.e('Create employee error: $e');
+      rethrow;
+    }
+  }
+
+  // Update Employee
+  Future<Map<String, dynamic>> updateEmployee(int id, Map<String, dynamic> data) async {
+    try {
+      final formData = FormData.fromMap(data);
+      final response = await _dio.put('/update/$id', data: formData);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to update employee');
+      }
+    } catch (e) {
+      _logger.e('Update employee error: $e');
+      rethrow;
+    }
+  }
+
+  // Delete Employee
+  Future<void> deleteEmployee(int id) async {
+    try {
+      final response = await _dio.delete('/delete/$id');
+      if (response.data['Status'] != 'Success') {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to delete employee');
+      }
+    } catch (e) {
+      _logger.e('Delete employee error: $e');
+      rethrow;
+    }
+  }
+
+  // Approve/Reject Entity (Leave, Comp-Off, Timesheet, etc.)
+  Future<Map<String, dynamic>> approveEntity({
+    required String entityType,
+    required int entityId,
+    required String status,
+    required String approverId,
+    String? comments,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/approvals/$entityType/$entityId',
+        data: {
+          'status': status,
+          'approverId': approverId,
+          if (comments != null) 'comments': comments,
+        },
+      );
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to approve/reject');
+      }
+    } catch (e) {
+      _logger.e('Approve entity error: $e');
+      rethrow;
+    }
+  }
+
+  // Get Pending Approvals
+  Future<List<dynamic>> getPendingApprovals({String? approverId}) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (approverId != null) queryParams['approverId'] = approverId;
+      final response = await _dio.get('/approvals/pending', queryParameters: queryParams);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? [];
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch pending approvals');
+      }
+    } catch (e) {
+      _logger.e('Get pending approvals error: $e');
+      rethrow;
+    }
+  }
+
+  // Get Projects
+  Future<List<dynamic>> getProjects() async {
+    try {
+      final response = await _dio.get('/getProject');
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? [];
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch projects');
+      }
+    } catch (e) {
+      _logger.e('Get projects error: $e');
+      rethrow;
+    }
+  }
+
+  // Get Work Details
+  Future<List<dynamic>> getWorkDetails({String? employeeId}) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (employeeId != null) queryParams['employeeId'] = employeeId;
+      final response = await _dio.get('/getWorkDetails', queryParameters: queryParams);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? [];
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch work details');
+      }
+    } catch (e) {
+      _logger.e('Get work details error: $e');
+      rethrow;
+    }
+  }
+
+  // Filter Time Sheet
+  Future<List<dynamic>> filterTimeSheet(Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.post('/filterTimeSheet', data: data);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? [];
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to filter timesheet');
+      }
+    } catch (e) {
+      _logger.e('Filter timesheet error: $e');
+      rethrow;
+    }
+  }
+
+  // Get Shifts
+  Future<List<dynamic>> getShifts({bool? isActive}) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (isActive != null) queryParams['isActive'] = isActive;
+      final response = await _dio.get('/shifts', queryParameters: queryParams);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? [];
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch shifts');
+      }
+    } catch (e) {
+      _logger.e('Get shifts error: $e');
+      rethrow;
+    }
+  }
+
+  // Get Settings
+  Future<Map<String, dynamic>> getSettings() async {
+    try {
+      final response = await _dio.get('/settings');
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch settings');
+      }
+    } catch (e) {
+      _logger.e('Get settings error: $e');
+      rethrow;
+    }
+  }
+
+  // Get Area of Work
+  Future<List<dynamic>> getAreaOfWork() async {
+    try {
+      final response = await _dio.get('/areaofwork');
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? [];
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch area of work');
+      }
+    } catch (e) {
+      _logger.e('Get area of work error: $e');
+      rethrow;
+    }
+  }
+
+  // Get Variations
+  Future<List<dynamic>> getVariations() async {
+    try {
+      final response = await _dio.get('/variation');
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? [];
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch variations');
+      }
+    } catch (e) {
+      _logger.e('Get variations error: $e');
+      rethrow;
+    }
+  }
+
+  // Get Disciplines
+  Future<List<dynamic>> getDisciplines() async {
+    try {
+      final response = await _dio.get('/discipline');
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? [];
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch disciplines');
+      }
+    } catch (e) {
+      _logger.e('Get disciplines error: $e');
+      rethrow;
+    }
+  }
+
+  // Create Discipline
+  Future<Map<String, dynamic>> createDiscipline(Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.post('/create/discipline', data: data);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to create discipline');
+      }
+    } catch (e) {
+      _logger.e('Create discipline error: $e');
+      rethrow;
+    }
+  }
+
+  // Delete Discipline
+  Future<void> deleteDiscipline(int id) async {
+    try {
+      final response = await _dio.delete('/discipline/delete/$id');
+      if (response.data['Status'] != 'Success') {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to delete discipline');
+      }
+    } catch (e) {
+      _logger.e('Delete discipline error: $e');
+      rethrow;
+    }
+  }
+
+  // Get Designations
+  Future<List<dynamic>> getDesignations() async {
+    try {
+      final response = await _dio.get('/designation');
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? [];
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch designations');
+      }
+    } catch (e) {
+      _logger.e('Get designations error: $e');
+      rethrow;
+    }
+  }
+
+  // Create Designation
+  Future<Map<String, dynamic>> createDesignation(Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.post('/create/designation', data: data);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to create designation');
+      }
+    } catch (e) {
+      _logger.e('Create designation error: $e');
+      rethrow;
+    }
+  }
+
+  // Delete Designation
+  Future<void> deleteDesignation(int id) async {
+    try {
+      final response = await _dio.delete('/designation/delete/$id');
+      if (response.data['Status'] != 'Success') {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to delete designation');
+      }
+    } catch (e) {
+      _logger.e('Delete designation error: $e');
+      rethrow;
+    }
+  }
+
+  // Create Area of Work
+  Future<Map<String, dynamic>> createAreaOfWork(Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.post('/create/areaofwork', data: data);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to create area of work');
+      }
+    } catch (e) {
+      _logger.e('Create area of work error: $e');
+      rethrow;
+    }
+  }
+
+  // Delete Area of Work
+  Future<void> deleteAreaOfWork(int id) async {
+    try {
+      final response = await _dio.delete('/areaofwork/delete/$id');
+      if (response.data['Status'] != 'Success') {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to delete area of work');
+      }
+    } catch (e) {
+      _logger.e('Delete area of work error: $e');
+      rethrow;
+    }
+  }
+
+  // Create Variation
+  Future<Map<String, dynamic>> createVariation(Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.post('/create/variation', data: data);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to create variation');
+      }
+    } catch (e) {
+      _logger.e('Create variation error: $e');
+      rethrow;
+    }
+  }
+
+  // Delete Variation
+  Future<void> deleteVariation(int id) async {
+    try {
+      final response = await _dio.delete('/variation/delete/$id');
+      if (response.data['Status'] != 'Success') {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to delete variation');
+      }
+    } catch (e) {
+      _logger.e('Delete variation error: $e');
+      rethrow;
+    }
+  }
+
+  // Create Update/Announcement
+  Future<Map<String, dynamic>> createUpdate(Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.post('/create/updates', data: data);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to create update');
+      }
+    } catch (e) {
+      _logger.e('Create update error: $e');
+      rethrow;
+    }
+  }
+
+  // Add Work Details
+  Future<Map<String, dynamic>> addWorkDetails(Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.post('/project/addWorkDetails', data: data);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to add work details');
+      }
+    } catch (e) {
+      _logger.e('Add work details error: $e');
+      rethrow;
+    }
+  }
+
+  // Update Work Details
+  Future<Map<String, dynamic>> updateWorkDetails(int id, Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.put('/project/updateWorkDetails/$id', data: data);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to update work details');
+      }
+    } catch (e) {
+      _logger.e('Update work details error: $e');
+      rethrow;
+    }
+  }
 }
 

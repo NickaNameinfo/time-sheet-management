@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Box,
   Drawer,
@@ -18,40 +18,28 @@ import {
 import {
   Dashboard as DashboardIcon,
   AccessTime,
-  Folder,
-  Notifications,
   EventAvailable,
   Logout,
   Menu,
+  Person,
+  Assignment,
+  Schedule,
 } from "@mui/icons-material";
 import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
-import axios from "axios";
+import { useAuth } from "../context/AuthContext";
 import commonData from "../../common.json";
 
 const drawerWidth = 280;
 
 function EmployeeDashboard() {
-  const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [mobileOpen, setMobileOpen] = useState(false);
-  axios.defaults.withCredentials = true;
-  const token = localStorage.getItem("token");
-
-  useEffect(() => {
-    axios.post(`${commonData?.APIKEY}/dashboard`, { tokensss: token }).then((res) => {
-      console.log(res, "resresresres");
-    });
-  }, []);
+  const { logout } = useAuth();
 
   const handleLogout = () => {
-    axios
-      .get(`${commonData?.APIKEY}/logout`)
-      .then((res) => {
-        navigate("/");
-      })
-      .catch((err) => console.log(err));
+    logout();
   };
 
   const handleDrawerToggle = () => {
@@ -60,29 +48,34 @@ function EmployeeDashboard() {
 
   const menuItems = [
     {
-      title: "Dashboard",
+      title: "Employee Home",
       icon: <DashboardIcon />,
-      path: "/Employee",
+      path: "/Employee/EmployeeHome",
     },
     {
       title: "Time Management",
       icon: <AccessTime />,
-      path: "/employee/TimeManagement",
-    },
-    {
-      title: "Projects",
-      icon: <Folder />,
-      path: "/employee/Projects",
-    },
-    {
-      title: "Notifications",
-      icon: <Notifications />,
-      path: "#",
+      path: "/Employee/TimeManagement",
     },
     {
       title: "Apply Leave",
       icon: <EventAvailable />,
-      path: "/employee/Leaves",
+      path: "/Employee/AddLeaves",
+    },
+    {
+      title: "Comp-Off",
+      icon: <Assignment />,
+      path: "/Employee/CompOff",
+    },
+    {
+      title: "Profile",
+      icon: <Person />,
+      path: "/Employee/Profile",
+    },
+    {
+      title: "Shift Details",
+      icon: <Schedule />,
+      path: "/Employee/ShiftDetails",
     },
   ];
 

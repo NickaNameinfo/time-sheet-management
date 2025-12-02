@@ -3,33 +3,93 @@ import { sendSuccess, sendError } from "../utils/response.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
 export const createProject = asyncHandler(async (req, res) => {
-  const sql =
-    "INSERT INTO project (`tlName`,`orderId`,`positionNumber`, `subPositionNumber`,`projectNo`,`taskJobNo`, `referenceNo`,`desciplineCode`, `projectName`,`subDivision`,`startDate`,`targetDate`,`allotatedHours`, `tlID`) VALUES (?)";
-  const values = [
-    req.body.tlName,
-    req.body.orderId,
-    req.body.positionNumber,
-    req.body.subPositionNumber,
-    req.body.projectNo,
-    req.body.taskJobNo,
-    req.body.referenceNo,
-    req.body.desciplineCode,
-    req.body.projectName,
-    req.body.subDivision,
-    req.body.startDate,
-    req.body.targetDate,
-    req.body.allotatedHours,
-    req.body.tlID,
-  ];
+  // Convert employeeIds array to JSON string for storage
+  const assignedEmployeesJson = req.body.employeeIds && Array.isArray(req.body.employeeIds) 
+    ? JSON.stringify(req.body.employeeIds) 
+    : null;
 
-  await query(sql, [values]);
-  return sendSuccess(res, null, "Project created successfully");
+  // Check if assignedEmployees column exists
+  let includeAssignedEmployees = false;
+  try {
+    const columnCheckSql = `
+      SELECT COUNT(*) as count 
+      FROM information_schema.COLUMNS 
+      WHERE table_schema = DATABASE() 
+      AND table_name = 'project' 
+      AND column_name = 'assignedEmployees'
+    `;
+    const columnCheck = await query(columnCheckSql);
+    includeAssignedEmployees = columnCheck.length > 0 && columnCheck[0].count > 0;
+  } catch (error) {
+    console.warn("Could not check for assignedEmployees column:", error.message);
+  }
+
+  let sql, values;
+  if (includeAssignedEmployees) {
+    sql = "INSERT INTO project (`tlName`,`orderId`,`positionNumber`, `subPositionNumber`,`projectNo`,`taskJobNo`, `referenceNo`,`desciplineCode`, `projectName`,`subDivision`,`startDate`,`targetDate`,`allotatedHours`, `tlID`, `assignedEmployees`) VALUES (?)";
+    values = [
+      req.body.tlName,
+      req.body.orderId,
+      req.body.positionNumber,
+      req.body.subPositionNumber,
+      req.body.projectNo,
+      req.body.taskJobNo,
+      req.body.referenceNo,
+      req.body.desciplineCode,
+      req.body.projectName,
+      req.body.subDivision,
+      req.body.startDate,
+      req.body.targetDate,
+      req.body.allotatedHours,
+      req.body.tlID,
+      assignedEmployeesJson,
+    ];
+  } else {
+    sql = "INSERT INTO project (`tlName`,`orderId`,`positionNumber`, `subPositionNumber`,`projectNo`,`taskJobNo`, `referenceNo`,`desciplineCode`, `projectName`,`subDivision`,`startDate`,`targetDate`,`allotatedHours`, `tlID`) VALUES (?)";
+    values = [
+      req.body.tlName,
+      req.body.orderId,
+      req.body.positionNumber,
+      req.body.subPositionNumber,
+      req.body.projectNo,
+      req.body.taskJobNo,
+      req.body.referenceNo,
+      req.body.desciplineCode,
+      req.body.projectName,
+      req.body.subDivision,
+      req.body.startDate,
+      req.body.targetDate,
+      req.body.allotatedHours,
+      req.body.tlID,
+    ];
+  }
+
+  const result = await query(sql, [values]);
+  const projectId = result.insertId;
+
+  return sendSuccess(res, { projectId }, "Project created successfully");
 });
 
 export const getProjects = asyncHandler(async (req, res) => {
   const sql = "SELECT * FROM project";
   const results = await query(sql);
-  return sendSuccess(res, results);
+  
+  // Parse assignedEmployees from JSON string to array for each project
+  const projects = results.map((project) => {
+    if (project.assignedEmployees) {
+      try {
+        project.assignedEmployees = JSON.parse(project.assignedEmployees);
+      } catch (error) {
+        console.error("Error parsing assignedEmployees for project:", project.id, error.message);
+        project.assignedEmployees = [];
+      }
+    } else {
+      project.assignedEmployees = [];
+    }
+    return project;
+  });
+  
+  return sendSuccess(res, projects);
 });
 
 export const getProjectById = asyncHandler(async (req, res) => {
@@ -41,47 +101,151 @@ export const getProjectById = asyncHandler(async (req, res) => {
     return sendError(res, "Project not found", 404);
   }
 
-  return sendSuccess(res, results[0]);
+  const project = results[0];
+
+  // Parse assignedEmployees from JSON string to array
+  if (project.assignedEmployees) {
+    try {
+      project.assignedEmployees = JSON.parse(project.assignedEmployees);
+    } catch (error) {
+      // If parsing fails, set to empty array
+      console.error("Error parsing assignedEmployees:", error.message);
+      project.assignedEmployees = [];
+    }
+  } else {
+    project.assignedEmployees = [];
+  }
+
+  return sendSuccess(res, project);
 });
 
 export const updateProject = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
-  const sql = `
-    UPDATE project 
-    SET 
-      tlName = ?,
-      orderId = ?,
-      positionNumber = ?,
-      subPositionNumber = ?,
-      projectNo = ?,
-      taskJobNo = ?,
-      referenceNo = ?,
-      desciplineCode = ?,
-      projectName = ?,
-      subDivision = ?,
-      startDate = ?,
-      targetDate = ?,
-      allotatedHours = ?,
-      tlID = ?
-    WHERE id = ?
-  `;
-  const values = [
-    req.body.tlName,
-    req.body.orderId,
-    req.body.positionNumber,
-    req.body.subPositionNumber,
-    req.body.projectNo,
-    req.body.taskJobNo,
-    req.body.referenceNo,
-    req.body.desciplineCode,
-    req.body.projectName,
-    req.body.subDivision,
-    req.body.startDate,
-    req.body.targetDate,
-    req.body.allotatedHours,
-    req.body.tlID,
-    projectId,
-  ];
+  
+  // Convert employeeIds array to JSON string for storage
+  // Use employeeIds from request body if provided, otherwise use assignedEmployees
+  const employeeIds = req.body.employeeIds || req.body.assignedEmployees;
+  console.log(employeeIds, "employeeIds");
+  const assignedEmployeesJson = employeeIds && Array.isArray(employeeIds) 
+    ? JSON.stringify(employeeIds) 
+    : (req.body.assignedEmployees ? JSON.stringify(req.body.assignedEmployees) : null);
+
+  // Check if assignedEmployees column exists
+  let includeAssignedEmployees = false;
+  try {
+    const columnCheckSql = `
+      SELECT COUNT(*) as count 
+      FROM information_schema.COLUMNS 
+      WHERE table_schema = DATABASE() 
+      AND table_name = 'project' 
+      AND column_name = 'assignedEmployees'
+    `;
+    const columnCheck = await query(columnCheckSql);
+    includeAssignedEmployees = columnCheck.length > 0 && columnCheck[0].count > 0;
+    console.log("Column check result:", columnCheck, "includeAssignedEmployees:", includeAssignedEmployees);
+  } catch (error) {
+    console.warn("Could not check for assignedEmployees column:", error.message);
+    // If check fails, try to use the column anyway (will fail gracefully if it doesn't exist)
+    includeAssignedEmployees = true;
+  }
+  
+  // If column doesn't exist but we have employeeIds, try to add it dynamically
+  if (!includeAssignedEmployees && employeeIds && Array.isArray(employeeIds) && employeeIds.length > 0) {
+    try {
+      console.log("Attempting to add assignedEmployees column...");
+      await query("ALTER TABLE project ADD COLUMN assignedEmployees TEXT NULL");
+      includeAssignedEmployees = true;
+      console.log("Successfully added assignedEmployees column");
+    } catch (alterError) {
+      // Column might already exist or there's a permission issue
+      if (alterError.code === 'ER_DUP_FIELDNAME') {
+        console.log("Column already exists, will use it");
+        includeAssignedEmployees = true;
+      } else {
+        console.error("Could not add assignedEmployees column:", alterError.message);
+      }
+    }
+  }
+  
+  console.log("Final includeAssignedEmployees:", includeAssignedEmployees);
+  let sql, values;
+  if (includeAssignedEmployees) {
+    sql = `
+      UPDATE project 
+      SET 
+        tlName = ?,
+        orderId = ?,
+        positionNumber = ?,
+        subPositionNumber = ?,
+        projectNo = ?,
+        taskJobNo = ?,
+        referenceNo = ?,
+        desciplineCode = ?,
+        projectName = ?,
+        subDivision = ?,
+        startDate = ?,
+        targetDate = ?,
+        allotatedHours = ?,
+        assignedEmployees = ?,
+        tlID = ?
+      WHERE id = ?
+    `;
+    values = [
+      req.body.tlName,
+      req.body.orderId,
+      req.body.positionNumber,
+      req.body.subPositionNumber,
+      req.body.projectNo,
+      req.body.taskJobNo,
+      req.body.referenceNo,
+      req.body.desciplineCode,
+      req.body.projectName,
+      req.body.subDivision,
+      req.body.startDate,
+      req.body.targetDate,
+      req.body.allotatedHours,
+      assignedEmployeesJson,
+      req.body.tlID,
+      projectId,
+    ];
+  } else {
+    sql = `
+      UPDATE project 
+      SET 
+        tlName = ?,
+        orderId = ?,
+        positionNumber = ?,
+        subPositionNumber = ?,
+        projectNo = ?,
+        taskJobNo = ?,
+        referenceNo = ?,
+        desciplineCode = ?,
+        projectName = ?,
+        subDivision = ?,
+        startDate = ?,
+        targetDate = ?,
+        allotatedHours = ?,
+        tlID = ?
+      WHERE id = ?
+    `;
+    values = [
+      req.body.tlName,
+      req.body.orderId,
+      req.body.positionNumber,
+      req.body.subPositionNumber,
+      req.body.projectNo,
+      req.body.taskJobNo,
+      req.body.referenceNo,
+      req.body.desciplineCode,
+      req.body.projectName,
+      req.body.subDivision,
+      req.body.startDate,
+      req.body.targetDate,
+      req.body.allotatedHours,
+      req.body.tlID,
+      projectId,
+    ];
+  }
 
   await query(sql, values);
   return sendSuccess(res, null, "Project updated successfully");
@@ -221,6 +385,7 @@ export const updateWorkDetails = asyncHandler(async (req, res) => {
     "approvedDate",
     "allotatedHours",
     "desciplineCode",
+    "approverId",
   ];
 
   optionalFields.forEach((field) => {
@@ -237,7 +402,7 @@ export const updateWorkDetails = asyncHandler(async (req, res) => {
 });
 
 export const getWorkDetails = asyncHandler(async (req, res) => {
-  const { employeeId, startDate, endDate } = req.query;
+  const { employeeId, startDate, endDate, tlId } = req.query;
   
   let sql = "SELECT * FROM workdetails WHERE 1=1";
   const params = [];
@@ -254,6 +419,12 @@ export const getWorkDetails = asyncHandler(async (req, res) => {
       // If employee not found, return empty result
       return sendSuccess(res, []);
     }
+  }
+  
+  if (tlId) {
+    // Filter by tlName matching tlId directly (tlName stores the ID)
+    sql += " AND tlName = ?";
+    params.push(tlId.toString());
   }
   
   if (startDate) {
@@ -356,19 +527,20 @@ export const clockIn = asyncHandler(async (req, res) => {
   }
   
   // Insert work detail record with clock in
-  // workdetails table requires tlName, uses sentDate instead of date, and userName instead of employeeNo
+  // workdetails table requires tlName and taskNo, uses sentDate instead of date, and userName instead of employeeNo
   const sql = `
     INSERT INTO workdetails (
-      employeeName, userName, tlName,
+      employeeName, userName, tlName, taskNo,
       projectName, referenceNo, areaofWork,
       sentDate, status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'active')
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')
   `;
   
   const values = [
     employeeName,
     userName,
     tlName || '', // Required field, use empty string if not found
+    '', // taskNo is required but not provided during clock-in, use empty string
     projectName || null,
     referenceNo || null,
     areaOfWork || null,
@@ -431,18 +603,48 @@ export const clockOut = asyncHandler(async (req, res) => {
   const clockOut = new Date(clockOutTime || new Date());
   const totalHours = Math.max(0, (clockOut - clockInDate) / (1000 * 60 * 60)); // Convert to hours
   
-  // Update work detail - set status to completed and calculate hours
+  // Determine which day of the week (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+  const dayOfWeek = clockOut.getDay();
+  const dayFields = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const dayField = dayFields[dayOfWeek];
+  
+  // Get current week number
+  const startOfYear = new Date(clockOut.getFullYear(), 0, 1);
+  const daysSinceStart = Math.floor((clockOut - startOfYear) / (1000 * 60 * 60 * 24));
+  const weekNumber = Math.ceil((daysSinceStart + startOfYear.getDay() + 1) / 7);
+  
+  // Update work detail - set status to completed, calculate hours, and update day field
+  // Build dynamic SQL for day field update - use backticks for column names
+  const dayFieldMap = {
+    'sunday': 'sunday',
+    'monday': 'monday',
+    'tuesday': 'tuesday',
+    'wednesday': 'wednesday',
+    'thursday': 'thursday',
+    'friday': 'friday',
+    'saturday': 'saturday'
+  };
+  
+  // Validate day field exists in map
+  if (!dayFieldMap[dayField]) {
+    return sendError(res, "Invalid day field", 400);
+  }
+  
+  // Use backticks for column name to handle reserved words
+  // Note: description column doesn't exist in workdetails table, so it's removed
   const sql = `
     UPDATE workdetails 
     SET totalHours = ?,
         status = 'completed',
-        description = ?
+        weekNumber = ?,
+        \`${dayField}\` = ?
     WHERE id = ?
   `;
   
   await query(sql, [
     totalHours.toFixed(2),
-    description || null,
+    String(weekNumber),
+    totalHours.toFixed(2),
     workDetailId
   ]);
   

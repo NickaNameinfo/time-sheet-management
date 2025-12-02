@@ -95,12 +95,12 @@ function Dashboard() {
       path: "/Dashboard/employee",
       roles: ["Admin", "HR"],
     },
-    {
-      title: "Manage TL",
-      icon: <PersonAdd />,
-      path: "/Dashboard/lead",
-      roles: ["Admin"],
-    },
+    // {
+    //   title: "Manage TL",
+    //   icon: <PersonAdd />,
+    //   path: "/Dashboard/lead",
+    //   roles: ["Admin"],
+    // },
     {
       title: "Manage Projects",
       icon: <Business />,
@@ -402,7 +402,7 @@ function Dashboard() {
             </>
           )}
 
-            {(isTL() || isAdmin()) && (
+            {/* {(isTL() || isAdmin()) && (
               <>
                 <Typography variant="overline" sx={{ px: 2, py: 1, color: "text.secondary", fontSize: "0.75rem" }}>
                   Team Lead
@@ -411,7 +411,7 @@ function Dashboard() {
                   .filter((item) => !item.roles || hasRole(item.roles))
                   .map((item) => renderMenuItem(item))}
               </>
-            )}
+            )} */}
 
             <Divider sx={{ my: 1 }} />
 

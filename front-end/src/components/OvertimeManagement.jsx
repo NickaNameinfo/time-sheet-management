@@ -85,7 +85,7 @@ const OvertimeManagement = () => {
   };
 
   const handleApprove = async (otId, status) => {
-    const approverId = user?.id || user?.employeeId || 1;
+    const approverId = user?.employeeId || user?.employeeId || 1;
     const result = await approveOT({
       id: otId,
       status,

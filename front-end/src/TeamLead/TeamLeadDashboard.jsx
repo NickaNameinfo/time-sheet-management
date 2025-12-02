@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Box,
   Drawer,
@@ -20,35 +20,30 @@ import {
   Work,
   Logout,
   Menu,
+  AccessTime,
+  EventAvailable,
+  Assignment,
+  Person,
+  CheckCircle,
+  TrendingUp,
+  Schedule,
+  WorkHistory,
 } from "@mui/icons-material";
-import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
-import axios from "axios";
+import { Link, Outlet, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import commonData from "../../common.json";
 
 const drawerWidth = 280;
 
 function TeamLeadDashboard() {
-  const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [mobileOpen, setMobileOpen] = useState(false);
-  const token = localStorage.getItem("token");
-  axios.defaults.withCredentials = true;
-
-  useEffect(() => {
-    axios.post(`${commonData?.APIKEY}/dashboard`, { tokensss: token }).then((res) => {
-      console.log(res, "resresresres");
-    });
-  }, []);
+  const { logout } = useAuth();
 
   const handleLogout = () => {
-    axios
-      .get(`${commonData?.APIKEY}/logout`)
-      .then((res) => {
-        navigate("/");
-      })
-      .catch((err) => console.log(err));
+    logout();
   };
 
   const handleDrawerToggle = () => {
@@ -57,14 +52,59 @@ function TeamLeadDashboard() {
 
   const menuItems = [
     {
-      title: "Dashboard",
+      title: "Lead Dashboard",
       icon: <DashboardIcon />,
       path: "/TeamLead",
+    },
+    // {
+    //   title: "Lead Home",
+    //   icon: <DashboardIcon />,
+    //   path: "/TeamLead/LeadHome",
+    // },
+    {
+      title: "Time Management",
+      icon: <AccessTime />,
+      path: "/TeamLead/TimeManagement",
+    },
+    {
+      title: "Apply Leave",
+      icon: <EventAvailable />,
+      path: "/TeamLead/AddLeaves",
+    },
+    {
+      title: "Comp-Off",
+      icon: <Assignment />,
+      path: "/TeamLead/CompOff",
+    },
+    {
+      title: "Profile",
+      icon: <Person />,
+      path: "/TeamLead/Profile",
     },
     {
       title: "Project Work Details",
       icon: <Work />,
       path: "/TeamLead/ProjectWorkDetails",
+    },
+    {
+      title: "Approvals",
+      icon: <CheckCircle />,
+      path: "/TeamLead/Approvals",
+    },
+    {
+      title: "Productivity",
+      icon: <TrendingUp />,
+      path: "/TeamLead/Productivity",
+    },
+    {
+      title: "Shift Management",
+      icon: <WorkHistory />,
+      path: "/TeamLead/ShiftManagement",
+    },
+    {
+      title: "Overtime Management",
+      icon: <Schedule />,
+      path: "/TeamLead/OvertimeManagement",
     },
   ];
 

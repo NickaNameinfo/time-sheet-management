@@ -28,8 +28,8 @@ router.put("/project/updateWorkDetails/:id", updateWorkDetails);
 router.get("/getWorkDetails", getWorkDetails);
 router.get("/getBioDetails", getBioDetails);
 router.post("/filterTimeSheet", filterTimeSheet);
-router.post("/workDetails/clockIn", clockIn);
-router.post("/workDetails/clockOut", clockOut);
+router.post("/project/workDetails/clockIn", clockIn);
+router.post("/project/workDetails/clockOut", clockOut);
 
 export default router;
 

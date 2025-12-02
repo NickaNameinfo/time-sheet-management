@@ -122,7 +122,7 @@ const YearlyReport = () => {
 
   const onGetWorkDetails = (params) => {
     axios
-      .get(`${commonData?.APIKEY}/getWrokDetails`)
+      .get(`${commonData?.APIKEY}/getWorkDetails`)
       .then((res) => {
         if (res.data.Status === "Success") {
           let resultData = res.data.Result?.filter(

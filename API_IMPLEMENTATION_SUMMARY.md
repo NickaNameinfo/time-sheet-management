@@ -4,7 +4,7 @@
 
 ### 1. ✅ Fixed Route Typo
 - **File**: `back-end/routes/projectRoutes.js`
-- **Changed**: `/getWrokDetails` → `/getWorkDetails`
+- **Changed**: `/getWorkDetails` → `/getWorkDetails`
 - **Status**: Fixed
 
 ### 2. ✅ Created POST `/workDetails/clockIn`

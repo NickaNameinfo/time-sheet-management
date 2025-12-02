@@ -24,6 +24,10 @@ export const applyLeave = asyncHandler(async (req, res) => {
     sql += ", `totalLeaves`";
     values.push(req.body.totalLeaves);
   }
+  if (req.body.approverId !== undefined) {
+    sql += ", `approverId`";
+    values.push(req.body.approverId);
+  }
   sql += ") VALUES (?)";
 
   const result = await query(sql, [values]);
@@ -31,12 +35,24 @@ export const applyLeave = asyncHandler(async (req, res) => {
 });
 
 export const applyCompOff = asyncHandler(async (req, res) => {
+  // Format leaveFrom date - extract date part if it's a datetime string
+  let leaveFrom = req.body.leaveFrom;
+  if (leaveFrom) {
+    // If it's a datetime string (ISO format), extract just the date part
+    if (typeof leaveFrom === 'string' && leaveFrom.includes('T')) {
+      leaveFrom = leaveFrom.split('T')[0];
+    } else if (leaveFrom instanceof Date) {
+      // If it's a Date object, format it as YYYY-MM-DD
+      leaveFrom = leaveFrom.toISOString().split('T')[0];
+    }
+  }
+  
   const baseSql =
     "INSERT INTO compoff (`leaveType`,`leaveFrom`,`reason`, `employeeName`, `employeeId`, `workHours`";
   let sql = baseSql;
   const values = [
     req.body.leaveType,
-    req.body.leaveFrom,
+    leaveFrom,
     req.body.reason,
     req.body.employeeName,
     req.body.employeeId,
@@ -47,6 +63,10 @@ export const applyCompOff = asyncHandler(async (req, res) => {
     sql += ", `leaveStatus`";
     values.push(req.body.leaveStatus);
   }
+  if (req.body.approverId !== undefined) {
+    sql += ", `approverId`";
+    values.push(req.body.approverId);
+  }
   sql += ") VALUES (?)";
 
   const result = await query(sql, [values]);
@@ -54,14 +74,36 @@ export const applyCompOff = asyncHandler(async (req, res) => {
 });
 
 export const getLeaveDetails = asyncHandler(async (req, res) => {
-  const sql = "SELECT * FROM leavedetails";
-  const results = await query(sql);
+  const { employeeId } = req.query;
+  
+  let sql = "SELECT * FROM leavedetails WHERE 1=1";
+  const params = [];
+  
+  if (employeeId) {
+    sql += " AND employeeId = ?";
+    params.push(employeeId);
+  }
+  
+  sql += " ORDER BY leaveFrom DESC, id DESC";
+  
+  const results = await query(sql, params);
   return sendSuccess(res, results);
 });
 
 export const getCompOffDetails = asyncHandler(async (req, res) => {
-  const sql = "SELECT * FROM compoff";
-  const results = await query(sql);
+  const { employeeId } = req.query;
+  
+  let sql = "SELECT * FROM compoff WHERE 1=1";
+  const params = [];
+  
+  if (employeeId) {
+    sql += " AND employeeId = ?";
+    params.push(employeeId);
+  }
+  
+  sql += " ORDER BY leaveFrom DESC, id DESC";
+  
+  const results = await query(sql, params);
   return sendSuccess(res, results);
 });
 
@@ -77,6 +119,7 @@ export const updateLeave = asyncHandler(async (req, res) => {
     employeeId,
     leaveStatus,
     totalLeaves,
+    approverId,
   } = req.body;
 
   const sql = `
@@ -90,7 +133,8 @@ export const updateLeave = asyncHandler(async (req, res) => {
       employeeName = ?,
       employeeId = ?,
       leaveStatus = ?,
-      totalLeaves = ?
+      totalLeaves = ?,
+      approverId = ?
     WHERE id = ?
   `;
 
@@ -104,6 +148,7 @@ export const updateLeave = asyncHandler(async (req, res) => {
     employeeId,
     leaveStatus,
     totalLeaves,
+    approverId || null,
     id,
   ];
 
@@ -113,6 +158,19 @@ export const updateLeave = asyncHandler(async (req, res) => {
 
 export const updateCompOff = asyncHandler(async (req, res) => {
   const { compOffId } = req.params;
+  
+  // Format leaveFrom date - extract date part if it's a datetime string
+  let leaveFrom = req.body.leaveFrom;
+  if (leaveFrom) {
+    // If it's a datetime string (ISO format), extract just the date part
+    if (typeof leaveFrom === 'string' && leaveFrom.includes('T')) {
+      leaveFrom = leaveFrom.split('T')[0];
+    } else if (leaveFrom instanceof Date) {
+      // If it's a Date object, format it as YYYY-MM-DD
+      leaveFrom = leaveFrom.toISOString().split('T')[0];
+    }
+  }
+  
   const sql = `
     UPDATE compoff 
     SET 
@@ -123,18 +181,20 @@ export const updateCompOff = asyncHandler(async (req, res) => {
       employeeId = ?,
       workHours = ?,
       eligibility = ?,
-      leaveStatus = ?
+      leaveStatus = ?,
+      approverId = ?
     WHERE id = ?
   `;
   const values = [
     req.body.leaveType,
-    req.body.leaveFrom,
+    leaveFrom,
     req.body.reason,
     req.body.employeeName,
     req.body.employeeId,
     req.body.workHours,
     req.body.eligibility,
     req.body.leaveStatus,
+    req.body.approverId || null,
     compOffId,
   ];
 

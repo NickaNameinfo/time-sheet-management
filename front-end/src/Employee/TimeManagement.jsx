@@ -1,4 +1,3 @@
-import axios from "axios";
 import React, {
   useCallback,
   useEffect,
@@ -23,6 +22,15 @@ import {
   IconButton,
   Chip,
   Stack,
+  Snackbar,
+  Alert,
+  CircularProgress,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
 } from "@mui/material";
 import {
   Add,
@@ -34,150 +42,320 @@ import {
   Cancel,
   Schedule,
 } from "@mui/icons-material";
-import commonData from "../../common.json";
+import { apiService } from "../services/api";
+import { useApi } from "../hooks/useApi";
+import { useMutation } from "../hooks/useMutation";
+import { useAuth } from "../context/AuthContext";
+import ErrorMessage from "../components/ErrorMessage";
+import Loading from "../components/Loading";
 
 const TimeManagement = () => {
-  const [projectList, setProjectList] = useState(null);
-  const [projectWorkList, setProjectWorkList] = useState(null);
-  const [formData, setFormData] = React.useState(null);
-  const [referenceNoList, setReferenceNoList] = React.useState(null);
-  const [getUserDetails, setUserDetails] = React.useState(null);
-  const [weekData, setWeekDate] = React.useState(null);
-  const [employeeName, setEmployeeName] = React.useState(null);
-  const [userName, setUserName] = React.useState(null);
-  const [isDisable, setIsDisable] = React.useState(null);
-  const [errorMessage, setErrorMessage] = React.useState(null);
-  const [currentIndex, setCurrentIndex] = React.useState(null);
-  const [leaveList, setLeaveList] = React.useState(null);
-  const [selectedWeek, setSelectedWeek] = React.useState(null);
-  const [weekNumberList, setWeekNumberList] = React.useState(null);
-  const [refresh, setRefresh] = React.useState(false);
-  const [areaofWork, setAreaofWork] = React.useState(null);
-  const [variation, setVariation] = React.useState(null);
-  const [totalMinit, setTotalMinit] = React.useState(null);
-  const token = localStorage.getItem("token");
+  const { user } = useAuth();
+  const [formData, setFormData] = useState([]);
+  const [selectedWeek, setSelectedWeek] = useState(null);
+  const [weekData, setWeekData] = useState(null);
+  const [isDisable, setIsDisable] = useState({});
+  const [errorMessage, setErrorMessage] = useState({});
+  const [currentIndex, setCurrentIndex] = useState(null);
+  const [totalMinutes, setTotalMinutes] = useState(0);
+  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
-  useEffect(() => {
-    initData(selectedWeek ? selectedWeek : getCurrentWeekNumber());
-    getCurrentWeekNumber();
-    getProjectList();
-    const currentYear = new Date().getFullYear();
-    let datesss = getWeekDates(
-      selectedWeek ? selectedWeek : getCurrentWeekNumber(),
-      currentYear
-    );
-    setWeekDate(datesss);
-    let tempList = [
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
-      40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
-    ];
-    setWeekNumberList(tempList);
-    getAreaofWorkDeails();
-    getVariation();
-  }, [selectedWeek, refresh]);
+  // Generate week numbers (1-52)
+  const weekNumberList = useMemo(() => Array.from({ length: 52 }, (_, i) => i + 1), []);
 
-  useEffect(() => {
-    if (projectList?.length > 0) {
-      setReferenceNoList(projectList?.map((item) => item.referenceNo));
-    }
-  }, [projectList]);
-
-  React.useEffect(() => {
-    if (formData) {
-      let hours = Math.floor(totalMinit / 60);
-      let remainingMinutes = totalMinit % 60;
-      let tempFormData = [...formData];
-      tempFormData[currentIndex] = {
-        ...formData[currentIndex],
-        totalHours: `${calculateTotalHours(tempFormData[currentIndex]) + hours
-          }.${remainingMinutes}`,
-      };
-      setFormData(tempFormData);
-    }
-  }, [
-    formData?.[currentIndex]?.monday,
-    formData?.[currentIndex]?.tuesday,
-    formData?.[currentIndex]?.wednesday,
-    formData?.[currentIndex]?.thursday,
-    formData?.[currentIndex]?.friday,
-    formData?.[currentIndex]?.saturday,
-    formData?.[currentIndex]?.sunday,
-    currentIndex,
-    totalMinit,
-  ]);
-
-  React.useEffect(() => {
-    if (projectWorkList?.length > 0) {
-      let tempObj = [];
-      projectWorkList?.map((result, index) => {
-        tempObj.push({
-          employeeName: result?.employeeName,
-          referenceNo: result?.referenceNo,
-          projectName: result?.projectName,
-          tlName: result?.tlName,
-          taskNo: result?.taskNo,
-          subDivisionList: result?.subDivisionList,
-          areaofWork: result?.areaofWork,
-          variation: result?.variation,
-          subDivision: result?.subDivision,
-          monday: result?.monday,
-          tuesday: result?.tuesday,
-          wednesday: result?.wednesday,
-          thursday: result?.thursday,
-          friday: result?.friday,
-          saturday: result?.saturday,
-          sunday: result?.sunday,
-          totalHours: result?.totalHours,
-          sentDate: result?.sentDate,
-          approvedDate: result?.approvedDate,
-          id: result?.id,
-          status: result?.status,
-        });
-        setFormData(tempObj);
-      });
-    } else {
-      setFormData(null);
-    }
-  }, [projectWorkList]);
-
-  const getCurrentWeekNumber = () => {
+  // Get current week number
+  const getCurrentWeekNumber = useCallback(() => {
     const now = new Date();
-    const startOfYear = new Date(now.getFullYear(), 0, 1); // Changed day from 0 to 1
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
     const diff = now - startOfYear;
     const oneWeekInMilliseconds = 7 * 24 * 60 * 60 * 1000;
-    const weekNumber = Math.floor(diff / oneWeekInMilliseconds) + 1; // Added 1 to account for week 0
-    return weekNumber;
-  };
+    return Math.floor(diff / oneWeekInMilliseconds) + 1;
+  }, []);
 
-  const startOfWeek = (date) => {
-    const day = date.getDay();
-    const diff = date.getDate() - day + (day === 0 ? 1 : 1); // Adjust for Sunday as start of week
-    return new Date(date.setDate(diff));
-  };
-
-  const addDays = (date, days) => {
-    const result = new Date(date);
-    result.setDate(result.getDate() + days);
-    return result;
-  };
-
-  const getWeekDates = (weekNumber, year) => {
-    const startDate = startOfWeek(new Date(year, 0, 1)); // January 1st of the year
-    const daysToAdd = (weekNumber - 1) * 7; // Adjust for the selected week number
+  // Calculate week dates
+  const getWeekDates = useCallback((weekNumber, year) => {
+    const startDate = new Date(year, 0, 1);
+    const day = startDate.getDay();
+    const diff = startDate.getDate() - day + (day === 0 ? 1 : 1);
+    const weekStart = new Date(startDate.setDate(diff));
+    const daysToAdd = (weekNumber - 1) * 7;
     const dates = [];
     for (let i = 0; i < 7; i++) {
-      const date = addDays(startDate, daysToAdd + i);
+      const date = new Date(weekStart);
+      date.setDate(date.getDate() + daysToAdd + i);
       dates.push(date.toLocaleDateString());
     }
     return dates;
-  };
+  }, []);
 
-  const columns = useMemo(
-    () => ({
+  // Fetch data using hooks
+  const { data: projects, loading: projectsLoading, refetch: refetchProjects } = useApi(
+    apiService.getProjects,
+    []
+  );
+
+  const { data: workDetails, loading: workDetailsLoading, refetch: refetchWorkDetails } = useApi(
+    () => apiService.getWorkDetails({ employeeId: user?.id }),
+    [user?.id],
+    !!user?.id
+  );
+
+  // Auto-refresh work details when clock-in/clock-out happens
+  useEffect(() => {
+    if (!user?.id) return;
+    
+    const handleWorkDetailsUpdate = () => {
+      refetchWorkDetails();
+    };
+
+    // Listen for custom event from EmployeeHome when clock-out happens
+    window.addEventListener('workDetailsUpdated', handleWorkDetailsUpdate);
+    
+    // Also auto-refresh every 30 seconds to catch any updates
+    const interval = setInterval(() => {
+      refetchWorkDetails();
+    }, 30000);
+
+    return () => {
+      window.removeEventListener('workDetailsUpdated', handleWorkDetailsUpdate);
+      clearInterval(interval);
+    };
+  }, [user?.id, refetchWorkDetails]);
+
+  const { data: leaveDetails, loading: leaveLoading } = useApi(
+    () => apiService.getLeaveDetails({ employeeId: user?.id }),
+    [user?.id],
+    !!user?.id
+  );
+
+  const { data: areaOfWork, loading: areaLoading } = useApi(
+    apiService.getAreaOfWork,
+    []
+  );
+
+  const { data: variations, loading: variationsLoading } = useApi(
+    apiService.getVariations,
+    []
+  );
+
+  const { mutate: addWorkDetails, loading: addingWork } = useMutation(apiService.addWorkDetails);
+  const { mutate: updateWorkDetails, loading: updatingWork } = useMutation(
+    (params) => apiService.updateWorkDetails(params.id, params.data)
+  );
+
+  // Get reference numbers from projects
+  const referenceNoList = useMemo(
+    () => (projects || []).map((item) => item.referenceNo),
+    [projects]
+  );
+
+  // Use leave list directly (already filtered by backend)
+  const leaveList = useMemo(() => {
+    if (!leaveDetails) return [];
+    // Handle both array and object with Result property
+    return Array.isArray(leaveDetails) 
+      ? leaveDetails 
+      : leaveDetails?.Result || leaveDetails?.data?.Result || [];
+  }, [leaveDetails]);
+
+  // Initialize week data
+  useEffect(() => {
+    const currentWeek = selectedWeek || getCurrentWeekNumber();
+    const currentYear = new Date().getFullYear();
+    const dates = getWeekDates(currentWeek, currentYear);
+    setWeekData(dates);
+  }, [selectedWeek, getCurrentWeekNumber, getWeekDates]);
+
+  // Load work details for selected week
+  // Note: Backend already filters by employeeId, so we only need to filter by week and year
+  useEffect(() => {
+    if (!workDetails || !user?.id) return;
+
+    const currentWeek = selectedWeek || getCurrentWeekNumber();
+    const currentYear = new Date().getFullYear();
+
+    const filteredData = workDetails.filter(
+      (item) =>
+        Number(item.weekNumber) === Number(currentWeek) &&
+        new Date(item.sentDate).getFullYear() === currentYear
+    );
+
+    if (filteredData.length > 0) {
+      const formattedData = filteredData.map((result) => ({
+        employeeName: result?.employeeName,
+        referenceNo: result?.referenceNo,
+        projectName: result?.projectName,
+        projectNo: result?.projectNo,
+        tlName: result?.tlName,
+        taskNo: result?.taskNo,
+        subDivisionList: result?.subDivisionList,
+        areaofWork: result?.areaofWork,
+        variation: result?.variation,
+        subDivision: result?.subDivision,
+        monday: result?.monday || "",
+        tuesday: result?.tuesday || "",
+        wednesday: result?.wednesday || "",
+        thursday: result?.thursday || "",
+        friday: result?.friday || "",
+        saturday: result?.saturday || "",
+        sunday: result?.sunday || "",
+        totalHours: result?.totalHours || "0.0",
+        sentDate: result?.sentDate,
+        approvedDate: result?.approvedDate,
+        id: result?.id,
+        status: result?.status,
+      }));
+      setFormData(formattedData);
+    } else {
+      setFormData([]);
+    }
+  }, [workDetails, user?.id, selectedWeek, getCurrentWeekNumber]);
+
+  // Calculate total hours when day values change
+  useEffect(() => {
+    if (formData.length === 0 || currentIndex === null) return;
+
+    const currentRow = formData[currentIndex];
+    if (!currentRow) return;
+
+    const hours = Math.floor(totalMinutes / 60);
+    const remainingMinutes = totalMinutes % 60;
+    const calculatedHours = calculateTotalHours(currentRow);
+
+    const updatedData = [...formData];
+    updatedData[currentIndex] = {
+      ...currentRow,
+      totalHours: `${calculatedHours + hours}.${remainingMinutes}`,
+    };
+    setFormData(updatedData);
+  }, [
+    formData[currentIndex]?.monday,
+    formData[currentIndex]?.tuesday,
+    formData[currentIndex]?.wednesday,
+    formData[currentIndex]?.thursday,
+    formData[currentIndex]?.friday,
+    formData[currentIndex]?.saturday,
+    formData[currentIndex]?.sunday,
+    currentIndex,
+    totalMinutes,
+  ]);
+
+  // Calculate total hours from form data
+  const calculateTotalHours = useCallback((rowData) => {
+    const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+    
+    let totalMinutes = 0;
+    let totalHours = 0;
+
+    days.forEach((day) => {
+      const value = rowData?.[day];
+      if (!value || value === "") return;
+      
+      // Parse the value - handle both formats:
+      // 1. Decimal hours format: "8.5" = 8.5 hours = 8 hours 30 minutes (from clock-out)
+      // 2. Hours.minutes format: "8.30" = 8 hours 30 minutes (manual entry)
+      if (value.includes(".")) {
+        const numValue = Number(value);
+        
+        // Check if it's likely decimal hours (e.g., 8.5, 8.25) vs hours.minutes (e.g., 8.30, 8.45)
+        // If the decimal part when converted to minutes is > 59, it's likely hours.minutes format
+        const decimalPart = value.split(".")[1] || "";
+        const decimalAsNumber = Number("0." + decimalPart);
+        const minutesFromDecimal = Math.round(decimalAsNumber * 60);
+        
+        if (decimalPart.length === 2 && Number(decimalPart) <= 59 && minutesFromDecimal !== Number(decimalPart)) {
+          // Likely hours.minutes format (e.g., "8.30" = 8 hours 30 minutes)
+          const wholeHours = Number(value.split(".")[0] || 0);
+          const minutes = Number(decimalPart);
+          totalHours += wholeHours;
+          totalMinutes += minutes;
+        } else {
+          // Decimal hours format (e.g., "8.5" = 8.5 hours = 8 hours 30 minutes)
+          const wholeHours = Math.floor(numValue);
+          const decimalHours = numValue - wholeHours;
+          const minutes = Math.round(decimalHours * 60);
+          totalHours += wholeHours;
+          totalMinutes += minutes;
+        }
+      } else {
+        // Whole number of hours only
+        totalHours += Number(value || 0);
+      }
+    });
+    
+    // Convert accumulated minutes to hours and remaining minutes
+    const additionalHours = Math.floor(totalMinutes / 60);
+    const remainingMinutes = totalMinutes % 60;
+    
+    setTotalMinutes(remainingMinutes);
+    
+    return totalHours + additionalHours;
+  }, []);
+
+  // Check if date is in leave list
+  const isDateInLeave = useCallback(
+    (date) => {
+      if (!leaveList || leaveList.length === 0) return false;
+      const dateStr = new Date(date).toLocaleDateString();
+      return leaveList.some((item) => {
+        const leaveDate = new Date(item.leaveFrom).toLocaleDateString();
+        return leaveDate === dateStr;
+      });
+    },
+    [leaveList]
+  );
+
+  // Format date for display
+  const formatDate = useCallback((date) => {
+    if (!date) return null;
+    const dateObj = new Date(date);
+    const year = dateObj.getFullYear();
+    const month = dateObj.getMonth() + 1;
+    const day = dateObj.getDate();
+    return `${year}-${month}-${day}`;
+  }, []);
+
+  // Handle form field changes
+  const handleOnChange = useCallback(
+    (name, value, index) => {
+      setCurrentIndex(index);
+      const updatedData = [...formData];
+
+      if (name === "referenceNo") {
+        const project = projects?.find((item) => item.referenceNo === value);
+        console.log(project, "project4223")
+        if (project) {
+          updatedData[index] = {
+            ...formData[index],
+            referenceNo: value,
+            projectName: project.projectName,
+            tlName: project.tlID,
+            userName: user?.id,
+            taskNo: project.taskJobNo,
+            subDivisionList: project.subDivision,
+            allotatedHours: project.allotatedHours,
+            desciplineCode: project.desciplineCode,
+            projectNo: project.projectNo,
+          };
+        }
+      } else {
+        updatedData[index] = {
+          ...formData[index],
+          [name]: value,
+        };
+      }
+
+      setFormData(updatedData);
+    },
+    [formData, projects]
+  );
+
+  // Add new row
+  const handleAddRow = useCallback(() => {
+    const newRow = {
       referenceNo: "",
       projectName: "",
-      // tlName: "",
+      projectNo: "",
       taskNo: "",
       areaofWork: "",
       variation: "",
@@ -189,254 +367,195 @@ const TimeManagement = () => {
       friday: "",
       saturday: "",
       sunday: "",
-      totalHours: "",
+      totalHours: "0.0",
       status: "",
       sentDate: "",
       approvedDate: "",
-    }),
+    };
+    setFormData([...formData, newRow]);
+  }, [formData]);
+
+  // Delete row
+  const handleDeleteRow = useCallback(
+    (index) => {
+      const newData = formData.filter((_, i) => i !== index);
+      setFormData(newData);
+    },
+    [formData]
+  );
+
+  // Validate form
+  const validateForm = useCallback(
+    (index) => {
+      const errors = {};
+      const row = formData[index];
+
+      if (!row.areaofWork) {
+        errors.areaofWork = "This field is required";
+      }
+      if (!row.referenceNo) {
+        errors.referenceNo = "This field is required";
+      }
+      if (!row.totalHours || row.totalHours === "0.0") {
+        errors.totalHours = "Total work hours should not be 0";
+      }
+
+      return errors;
+    },
+    [formData]
+  );
+
+  // Submit work details
+  const handleSubmit = useCallback(
+    async (index) => {
+      const errors = validateForm(index);
+      if (Object.keys(errors).length > 0) {
+        setErrorMessage({ [index]: errors });
+        setSnackbar({
+          open: true,
+          message: "Please fill all required fields",
+          severity: "error",
+        });
+        return;
+      }
+
+      setErrorMessage({});
+      const row = formData[index];
+      const currentWeek = selectedWeek || getCurrentWeekNumber();
+
+      const submitData = {
+        ...row,
+        employeeName: user?.employeeName || user?.name,
+        employeeNo: user?.id,
+        userName: user?.userName,
+        sentDate: new Date(),
+        weekNumber: String(currentWeek),
+        discipline: user?.discipline,
+        designation: user?.designation,
+        approverId: row.approverId || null, // Optional: can be set during submission or approval
+      };
+
+      delete submitData.id;
+
+      const result = await addWorkDetails(submitData);
+      if (result.success) {
+        setIsDisable((prev) => ({ ...prev, [index]: { disable: true } }));
+        setSnackbar({
+          open: true,
+          message: "Work details submitted successfully",
+          severity: "success",
+        });
+        refetchWorkDetails();
+      } else {
+        setSnackbar({
+          open: true,
+          message: result.error || "Failed to submit work details",
+          severity: "error",
+        });
+      }
+    },
+    [formData, selectedWeek, getCurrentWeekNumber, user, addWorkDetails, validateForm, refetchWorkDetails]
+  );
+
+  // Update work details
+  const handleUpdate = useCallback(
+    async (index) => {
+      const row = formData[index];
+      if (!row.id) return;
+
+      const currentWeek = selectedWeek || getCurrentWeekNumber();
+      const updateData = {
+        ...row,
+        employeeName: user?.employeeName || user?.name,
+        employeeNo: user?.id,
+        userName: user?.userName,
+        sentDate: new Date(),
+        weekNumber: String(currentWeek),
+        discipline: user?.discipline,
+        designation: user?.designation,
+      };
+
+      const result = await updateWorkDetails({ id: row.id, data: updateData });
+      if (result.success) {
+        setSnackbar({
+          open: true,
+          message: "Work details updated successfully",
+          severity: "success",
+        });
+        refetchWorkDetails();
+      } else {
+        setSnackbar({
+          open: true,
+          message: result.error || "Failed to update work details",
+          severity: "error",
+        });
+      }
+    },
+    [formData, selectedWeek, getCurrentWeekNumber, user, updateWorkDetails, refetchWorkDetails]
+  );
+
+  // Enable edit mode
+  const handleEdit = useCallback(
+    (index) => {
+      setIsDisable((prev) => ({
+        ...prev,
+        [index]: { disable: false },
+      }));
+    },
     []
   );
 
-  const initData = (weekNumber) => {
-    axios
-      .get(`${commonData?.APIKEY}/getWorkDetails`)
-      .then(async (res) => {
-        let userDetails = await axios.post(`${commonData?.APIKEY}/dashboard`, {
-          tokensss: token,
-        });
-        axios.get(`${commonData?.APIKEY}/getLeaveDetails`).then((leaveRes) => {
-          if (leaveRes.data.Status === "Success") {
-            let tempLeaveResult = leaveRes?.data?.Result?.filter(
-              (item) => item.employeeId === userDetails?.data?.employeeId
-            );
-            setLeaveList(tempLeaveResult);
-          }
-        });
-        if (res.data.Status === "Success") {
-          let filterProjectData = res.data.Result.filter(
-            (items) =>
-              Number(items.employeeNo) === Number(userDetails.data?.Result?.employeeId) &&
-              Number(items.weekNumber) === Number(weekNumber) &&
-              new Date(items.sentDate).getFullYear() ===
-              new Date().getFullYear()
-          );
-
-          console.log(filterProjectData, "filterProjectDatafilterProjectData", res.data.Result);
-          // let filterUserData = employeeDetails.data?.Result?.filter(
-          //   (items) => items.EMPID === userDetails.data.employeeId
-          // );
-          setEmployeeName(userDetails?.data?.Result?.employeeName);
-          setUserName(userDetails?.data?.Result?.employeeId);
-          setProjectWorkList(filterProjectData);
-          setUserDetails(userDetails?.data?.Result);
-        } else {
-          alert("Error");
-        }
-      })
-      .catch((err) => console.log(err));
-  };
-
-  const getAreaofWorkDeails = () => {
-    axios.get(`${commonData?.APIKEY}/areaofwork`).then((res) => {
-      setAreaofWork(res.data.Result);
-    });
-  };
-  const getVariation = () => {
-    axios.get(`${commonData?.APIKEY}/variation`).then((res) => {
-      setVariation(res.data.Result);
-    });
-  };
-
-  const onSubmit = (data, index) => {
-    let errorMessages = {};
-    if (formData[index]?.areaofWork === "") {
-      errorMessages["areaofWork"] = "This fiedl is required";
+  // Get status chip
+  const getStatusChip = useCallback((status) => {
+    const statusLower = status?.toLowerCase();
+    if (statusLower === "approved") {
+      return (
+        <Chip
+          icon={<CheckCircle />}
+          label="Approved"
+          color="success"
+          size="small"
+        />
+      );
+    } else if (statusLower === "rejected") {
+      return (
+        <Chip
+          icon={<Cancel />}
+          label="Rejected"
+          color="error"
+          size="small"
+        />
+      );
     }
-    // if (formData[index]?.subDivision === "") {
-    //   errorMessages["subDivision"] = "This fiedl is required";
-    // }
-    // if (formData[index]?.monday === "") {
-    //   errorMessages["monday"] = "This fiedl is required";
-    // }
-    if (formData[index]?.referenceNo === "") {
-      errorMessages["referenceNo"] = "This fiedl is required";
-    }
-    if (!formData?.[index]?.totalHours || formData?.[index]?.totalHours === '0.0') {
-      errorMessages["TotalWrok"] = "This fiedl is required";
-      alert("Total work hours should not 0");
-    }
+    return <Chip label="Pending" color="warning" size="small" />;
+  }, []);
 
-    setErrorMessage(() => ({
-      [index]: errorMessages,
-    }));
+  // Check if field is disabled
+  const isFieldDisabled = useCallback(
+    (index, hasId) => {
+      if (isDisable?.[index]?.disable === false) return false;
+      return hasId ? true : false;
+    },
+    [isDisable]
+  );
 
-    if (Object.keys(errorMessages).length === 0) {
-      setErrorMessage([]);
-      let tempObjec = {
-        employeeName: employeeName,
-        employeeNo: userName,
-        sentDate: new Date(),
-        weekNumber: selectedWeek
-          ? selectedWeek
-          : String(getCurrentWeekNumber()),
-        discipline: getUserDetails?.discipline,
-        designation: getUserDetails?.designation,
-      };
-      let submitData = { ...data, ...tempObjec };
-      delete submitData.id;
-      axios
-        .post(`${commonData?.APIKEY}/project/addWorkDetails`, submitData)
-        .then((res) => {
-          if (res.data.Error) {
-            alert(res.data.Error);
-          } else {
-            setIsDisable((prev) => ({
-              ...prev,
-              [index]: {
-                disable: true,
-              },
-            }));
-            location.reload();
-            setRefresh(true);
-          }
-        })
-        .catch((err) => console.log(err));
-    } else {
-      alert("Plese fill all required fields");
-    }
-  };
+  // Check if specific day is disabled
+  const isDayDisabled = useCallback(
+    (dayIndex, index, hasId) => {
+      if (isDateInLeave(weekData?.[dayIndex])) return true;
+      return isFieldDisabled(index, hasId);
+    },
+    [isDateInLeave, weekData, isFieldDisabled]
+  );
 
-  const updateProjectDetails = (params, id) => {
-    let tempObjec = {
-      employeeName: employeeName,
-      employeeNo: userName,
-      sentDate: new Date(),
-      weekNumber: selectedWeek ? selectedWeek : String(getCurrentWeekNumber()),
-      discipline: getUserDetails?.discipline,
-      designation: getUserDetails?.designation,
-    };
-    let submitData = { ...params, ...tempObjec };
-    axios
-      .put(`${commonData?.APIKEY}/project/updateWorkDetails/` + id, submitData)
-      .then(async (res) => {
-        location.reload();
-        alert("Update Successfully");
-      });
-  };
+  const loading = projectsLoading || workDetailsLoading || leaveLoading || areaLoading || variationsLoading;
 
-  const handleClickOpen = () => {
-    if (!formData) {
-      setFormData((prev) => [columns]);
-    } else {
-      setFormData((prev) => [...prev, columns]);
-    }
-  };
-
-  const getProjectList = () => {
-    axios
-      .get(`${commonData?.APIKEY}/getProject`)
-      .then((res) => {
-        if (res.data.Status === "Success") {
-          setProjectList(res.data.Result);
-        } else {
-          alert("Error");
-        }
-      })
-      .catch((err) => console.log(err));
-  };
-
-  function calculateTotalHours(formData) {
-    const minit = [
-      "monday",
-      "tuesday",
-      "wednesday",
-      "thursday",
-      "friday",
-      "saturday",
-      "sunday",
-    ].reduce((sum, day) => {
-      return formData?.[day]?.includes(".")
-        ? sum + Number(formData?.[day]?.split(".")[1] || 0)
-        : sum;
-    }, 0);
-    setTotalMinit(minit);
-    let tempWorkHours = [
-      "monday",
-      "tuesday",
-      "wednesday",
-      "thursday",
-      "friday",
-      "saturday",
-      "sunday",
-    ].reduce(
-      (sum, day) =>
-        formData?.[day]?.includes(".")
-          ? sum + Number(formData?.[day]?.split(".")[0] || 0)
-          : !formData?.[day]?.includes(".")
-            ? sum + Number(formData?.[day]?.split(".")[0] || 0)
-            : sum,
-      0
-    );
-    return tempWorkHours;
+  if (loading && !formData.length) {
+    return <Loading message="Loading time management data..." />;
   }
 
-  const handleOnChange = (name, value, index) => {
-    if (value?.match(/[^0-9.]/) && !isNaN(value)) {
-      preventDefault();
-    }
-    setCurrentIndex(index);
-    if (name === "referenceNo") {
-      let tempProject = projectList?.filter(
-        (item) => item?.referenceNo === value
-      );
-      console.log(tempProject, "tempProject123")
-      let tempFormData = [...formData];
-      tempFormData[index] = {
-        ...formData[index],
-        referenceNo: value,
-        projectName: tempProject?.[0]?.projectName,
-        tlName: tempProject?.[0]?.tlName,
-        userName: tempProject?.[0]?.tlID,
-        taskNo: tempProject?.[0]?.taskJobNo,
-        subDivisionList: tempProject?.[0]?.subDivision,
-        allotatedHours: tempProject?.[0]?.allotatedHours,
-        desciplineCode: tempProject?.[0]?.desciplineCode,
-        projectNo: tempProject?.[0]?.projectNo,
-      };
-      setFormData(tempFormData);
-    } else {
-      let tempFormData = [...formData];
-      tempFormData[index] = {
-        ...formData[index],
-        [name]: value,
-      };
-      setFormData(tempFormData);
-    }
-  };
-
-  const getDateYear = (value) => {
-    const dateObject = new Date(value);
-    const year = dateObject.getFullYear();
-    const month = dateObject.getMonth() + 1; // Months are 0-indexed, so adding 1
-    const day = dateObject.getDate();
-    const formattedDate = `${year}-${month}-${day}`;
-    return formattedDate;
-  };
-
-  const onDeleteIndex = (index) => {
-    const newData = formData.filter((item, i) => i !== index);
-    setFormData(newData);
-  };
-
-  const isDateInclude = (date) => {
-    let isDateIncluded = leaveList?.some((item) => {
-      return getDateYear(item.leaveFrom) === getDateYear(date);
-    });
-    return isDateIncluded;
-  };
-
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 3, bgcolor: "grey.50", minHeight: "100vh" }}>
       {/* Header Card */}
       <Card sx={{ mb: 3, borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
         <CardContent>
@@ -452,7 +571,7 @@ const TimeManagement = () => {
                 Name
               </Typography>
               <Typography variant="h6" fontWeight="bold">
-                {getUserDetails?.employeeName || "N/A"}
+                {user?.employeeName || user?.name || "N/A"}
               </Typography>
             </Grid>
             <Grid item xs={12} md={4}>
@@ -460,15 +579,7 @@ const TimeManagement = () => {
                 Employee ID
               </Typography>
               <Typography variant="h6" fontWeight="bold">
-                {getUserDetails?.employeeId || "N/A"}
-              </Typography>
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Month & Year
-              </Typography>
-              <Typography variant="h6" fontWeight="bold">
-                {getUserDetails?.dateOfJoining || "N/A"}
+                {user?.id || "N/A"}
               </Typography>
             </Grid>
             <Grid item xs={12} md={4}>
@@ -476,7 +587,7 @@ const TimeManagement = () => {
                 Designation
               </Typography>
               <Typography variant="h6" fontWeight="bold">
-                {getUserDetails?.designation || "N/A"}
+                {user?.designation || "N/A"}
               </Typography>
             </Grid>
             <Grid item xs={12} md={4}>
@@ -484,7 +595,7 @@ const TimeManagement = () => {
                 Discipline
               </Typography>
               <Typography variant="h6" fontWeight="bold">
-                {getUserDetails?.discipline || "N/A"}
+                {user?.discipline || "N/A"}
               </Typography>
             </Grid>
             <Grid item xs={12} md={4}>
@@ -493,16 +604,12 @@ const TimeManagement = () => {
               </Typography>
               <FormControl fullWidth>
                 <Select
-                  value={
-                    selectedWeek
-                      ? selectedWeek
-                      : String(getCurrentWeekNumber())
-                  }
+                  value={selectedWeek || String(getCurrentWeekNumber())}
                   onChange={(e) => setSelectedWeek(e.target.value)}
                 >
-                  {(weekNumberList || []).map((res) => (
-                    <MenuItem key={res} value={res}>
-                      Week {res}
+                  {weekNumberList.map((week) => (
+                    <MenuItem key={week} value={week}>
+                      Week {week}
                     </MenuItem>
                   ))}
                 </Select>
@@ -511,99 +618,48 @@ const TimeManagement = () => {
           </Grid>
         </CardContent>
       </Card>
+
       {/* Table Card */}
       <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
         <CardContent>
           <Box sx={{ overflowX: "auto" }}>
-            <Paper sx={{ width: "100%", overflow: "auto" }}>
-              <table className="table-responsive tablesss table align-middle" style={{ width: "100%" }}>
-                <thead>
-                  <tr>
-                    <th scope="col" className="text-center">
+            <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
+              <Table sx={{ minWidth: 1400 }}>
+                <TableHead>
+                  <TableRow sx={{ bgcolor: "primary.main" }}>
+                    <TableCell sx={{ color: "white", fontWeight: "bold", textAlign: "center" }}>
                       S. No
-                    </th>
-                    <th scope="col" className="tableHead">
-                      Reference No
-                    </th>
-                    <th scope="col" className="tableHead">
-                      Project Name
-                    </th>
-                    {/* <th scope="col" className="tableHead">Tl Name</th> */}
-                    <th scope="col" className="tableHead">
-                      Task No
-                    </th>
-                    <th scope="col" className="tableHead">
-                      Area of Work
-                    </th>
-                    <th scope="col" className="tableHead">
-                      Variation
-                    </th>
-                    <th scope="col" className="tableHead">
-                      Sub Division
-                    </th>
-                    <th scope="col" className="days">
-                      {weekData?.[0]} <br />
-                      <hr />
-                      Monday
-                    </th>
-                    <th scope="col" className="days">
-                      {" "}
-                      {weekData?.[1]} <br />
-                      <hr />
-                      Tuesday
-                    </th>
-                    <th scope="col" className="days">
-                      {" "}
-                      {weekData?.[2]} <br />
-                      <hr />
-                      Wednesday
-                    </th>
-                    <th scope="col" className="days">
-                      {" "}
-                      {weekData?.[3]} <br />
-                      <hr />
-                      Thursday
-                    </th>
-                    <th scope="col" className="days">
-                      {" "}
-                      {weekData?.[4]} <br />
-                      <hr />
-                      Friday
-                    </th>
-                    <th scope="col" className="days">
-                      {" "}
-                      {weekData?.[5]} <br />
-                      <hr />
-                      Saturday
-                    </th>
-                    <th scope="col" className="days">
-                      {" "}
-                      {weekData?.[6]} <br />
-                      <hr />
-                      Sunday
-                    </th>
-                    <th scope="col" className="days">
-                      Total Hours
-                    </th>
-                    <th scope="col" className="days">
-                      Status
-                    </th>
-                    <th scope="col" className="tableHead">
-                      Sent Date
-                    </th>
-                    <th scope="col" className="tableHead">
-                      Approved Date
-                    </th>
-                    <th className="fixedColumn">Action</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {formData === null && (
-                    <tr>
-                      <td colSpan="20" style={{ textAlign: "center", padding: "20px" }}>
+                    </TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Reference No</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Project Name</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Task No</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Area of Work</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Variation</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Sub Division</TableCell>
+                    {weekData?.map((date, idx) => {
+                      const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+                      return (
+                        <TableCell key={idx} sx={{ color: "white", fontWeight: "bold", textAlign: "center" }}>
+                          {date}
+                          <br />
+                          <hr />
+                          {days[idx]}
+                        </TableCell>
+                      );
+                    })}
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Total Hours</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Status</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Sent Date</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Approved Date</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Action</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {formData.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={20} align="center" sx={{ py: 4 }}>
                         <IconButton
-                          onClick={() => handleClickOpen()}
+                          onClick={handleAddRow}
                           sx={{
                             background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                             color: "white",
@@ -617,20 +673,19 @@ const TimeManagement = () => {
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                           Click to add work details
                         </Typography>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   )}
-                  {formData?.map((res, index) => (
-                    <tr>
-                      <td>
-                        {index !== formData.length - 1 && (
+                  {formData.map((row, index) => (
+                    <TableRow key={index} hover>
+                      <TableCell align="center">
+                        {index !== formData.length - 1 ? (
                           <Typography variant="body2" fontWeight="bold">
                             {index + 1}
                           </Typography>
-                        )}
-                        {index === formData.length - 1 && (
+                        ) : (
                           <IconButton
-                            onClick={() => handleClickOpen()}
+                            onClick={handleAddRow}
                             size="small"
                             sx={{
                               background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
@@ -643,402 +698,131 @@ const TimeManagement = () => {
                             <Add />
                           </IconButton>
                         )}
-                      </td>
-                      <td>
-                        <FormControl fullWidth>
+                      </TableCell>
+                      <TableCell>
+                        <FormControl fullWidth size="small">
                           <Autocomplete
-                            id="combo-box-demo"
                             options={referenceNoList || []}
-                            sx={{ width: 200 }}
-                            className={"inputTextStyle"}
-                            value={formData?.[index]?.referenceNo || null}
-                            error={errorMessage?.[index]?.referenceNo}
-                            disabled={
-                              isDisable?.[index]?.disable === false
-                                ? false
-                                : !formData[index]?.id
-                                  ? false
-                                  : true
-                            }
-                            onChange={(e, value) =>
-                              handleOnChange("referenceNo", value, index)
-                            }
+                            value={row.referenceNo || null}
+                            disabled={isFieldDisabled(index, !!row.id)}
+                            onChange={(e, value) => handleOnChange("referenceNo", value, index)}
                             renderInput={(params) => (
                               <TextField
                                 {...params}
-                                error={errorMessage?.[index]?.referenceNo}
+                                error={!!errorMessage?.[index]?.referenceNo}
+                                size="small"
                               />
                             )}
                           />
-                          {/* <Select
-                          className={"inputTextStyle"}
-                          value={formData?.[index]?.referenceNo}
-                          defaultValue={formData?.[index]?.referenceNo}
-                          error={errorMessage?.[index]?.referenceNo}
-                          disabled={
-                            isDisable?.[index]?.disable === false
-                              ? false
-                              : !formData[index]?.id
-                              ? false
-                              : true
-                          }
-                          onChange={(e, value) =>
-                            handleOnChange(
-                              "referenceNo",
-                              value.props?.value,
-                              index
-                            )
-                          }
-                        >
-                          {referenceNoList?.map((res) => (
-                            <MenuItem value={res}>{res}</MenuItem>
-                          ))}
-                        </Select> */}
-                          <FormHelperText>
-                            {errorMessage?.[index]?.referenceNo}
-                          </FormHelperText>
-                        </FormControl>
-                      </td>
-                      <td>
-                        <FormControl fullWidth>
-                          <TextField
-                            className={"inputTextStyle"}
-                            fullWidth
-                            variant="outlined"
-                            disabled={true}
-                            value={formData?.[index]?.projectName}
-                          />
-                        </FormControl>
-                      </td>
-                      {/* <td>
-                      <TextField
-                        fullWidth
-                        variant="outlined"
-                        disabled={true}
-                        value={formData?.[index]?.tlName}
-                      />
-                    </td> */}
-                      <td>
-                        <TextField
-                          className={"inputTextStyle"}
-                          fullWidth
-                          variant="outlined"
-                          disabled={true}
-                          value={formData?.[index]?.taskNo}
-                        />
-                      </td>
-                      <td>
-                        <FormControl fullWidth>
-                          <Select
-                            className={"inputTextStyle"}
-                            value={formData?.[index]?.areaofWork}
-                            defaultValue={formData?.[index]?.areaofWork}
-                            error={errorMessage?.[index]?.areaofWork}
-                            disabled={
-                              isDisable?.[index]?.disable === false
-                                ? false
-                                : !formData[index]?.id
-                                  ? false
-                                  : true
-                            }
-                            onChange={(e, value) =>
-                              handleOnChange(
-                                "areaofWork",
-                                value.props?.value,
-                                index
-                              )
-                            }
-                          >
-                            {(areaofWork || []).map((res) => {
-                              return (
-                                <MenuItem key={res?.areaofwork} value={res?.areaofwork}>
-                                  {res?.areaofwork}
-                                </MenuItem>
-                              );
-                            })}
-                          </Select>
-                          <FormHelperText>
-                            {errorMessage?.[index]?.areaofWork}
-                          </FormHelperText>
-                        </FormControl>
-                      </td>
-                      <td>
-                        <FormControl fullWidth>
-                          <Select
-                            className={"inputTextStyle"}
-                            value={formData?.[index]?.variation}
-                            defaultValue={formData?.[index]?.variation}
-                            error={errorMessage?.[index]?.variation}
-                            disabled={
-                              isDisable?.[index]?.disable === false
-                                ? false
-                                : !formData[index]?.id
-                                  ? false
-                                  : true
-                            }
-                            onChange={(e, value) =>
-                              handleOnChange(
-                                "variation",
-                                value.props?.value,
-                                index
-                              )
-                            }
-                          >
-                            {(variation || []).map((res) => {
-                              return (
-                                <MenuItem key={res?.variation} value={res?.variation}>
-                                  {res?.variation}
-                                </MenuItem>
-                              );
-                            })}
-                          </Select>
-                          <FormHelperText>
-                            {errorMessage?.[index]?.variation}
-                          </FormHelperText>
-                        </FormControl>
-                      </td>
-                      <td>
-                        <FormControl fullWidth>
-                          <Select
-                            className={"inputTextStyle"}
-                            value={formData?.[index]?.subDivision}
-                            defaultValue={formData?.[index]?.subDivision}
-                            // helperText={errorMessage?.[index]?.subDivision}
-                            // error={errorMessage?.[index]?.subDivision}
-                            disabled={
-                              isDisable?.[index]?.disable === false
-                                ? false
-                                : !formData[index]?.id
-                                  ? false
-                                  : true
-                            }
-                            onChange={(e, value) =>
-                              handleOnChange(
-                                "subDivision",
-                                value.props?.value,
-                                index
-                              )
-                            }
-                          >
-                            {(formData?.[index]?.subDivisionList
-                              ?.split(",") || []).map((res, idx) => (
-                                <MenuItem key={`${res}-${idx}`} value={res}>{res}</MenuItem>
-                              ))}
-                          </Select>
-                          {/* <FormHelperText>
-                          {errorMessage?.[index]?.subDivision}
-                        </FormHelperText> */}
-                        </FormControl>
-                      </td>
-                      <td>
-                        {console.log(isDateInclude(weekData?.[0]), "dateone")}
-                        <TextField
-                          className={"inputTextStyle"}
-                          fullWidth
-                          variant="outlined"
-                          value={formData?.[index]?.monday}
-                          helperText={errorMessage?.[index]?.monday}
-                          error={errorMessage?.[index]?.monday}
-                          type="number"
-                          onChange={(e) =>
-                            handleOnChange("monday", e.target.value, index)
-                          }
-                          disabled={
-                            isDateInclude(weekData?.[0])
-                              ? true
-                              : isDisable?.[index]?.disable === false
-                                ? false
-                                : formData[index]?.id
-                                  ? true
-                                  : false
-                          }
-                        />
-                      </td>
-                      <td>
-                        <TextField
-                          className={"inputTextStyle"}
-                          fullWidth
-                          variant="outlined"
-                          value={formData?.[index]?.tuesday}
-                          type="number"
-                          onChange={(e, value) =>
-                            handleOnChange("tuesday", e.target.value, index)
-                          }
-                          disabled={
-                            isDateInclude(weekData?.[1])
-                              ? true
-                              : isDisable?.[index]?.disable === false
-                                ? false
-                                : formData[index]?.id
-                                  ? true
-                                  : false
-                          }
-                        />
-                      </td>
-                      <td>
-                        <TextField
-                          className={"inputTextStyle"}
-                          fullWidth
-                          variant="outlined"
-                          value={formData?.[index]?.wednesday}
-                          type="number"
-                          onChange={(e, value) =>
-                            handleOnChange("wednesday", e.target.value, index)
-                          }
-                          disabled={
-                            isDateInclude(weekData?.[2])
-                              ? true
-                              : isDisable?.[index]?.disable === false
-                                ? false
-                                : formData[index]?.id
-                                  ? true
-                                  : false
-                          }
-                        />
-                      </td>
-                      <td>
-                        <TextField
-                          className={"inputTextStyle"}
-                          fullWidth
-                          variant="outlined"
-                          value={formData?.[index]?.thursday}
-                          type="number"
-                          onChange={(e, value) =>
-                            handleOnChange("thursday", e.target.value, index)
-                          }
-                          disabled={
-                            isDateInclude(weekData?.[3])
-                              ? true
-                              : isDisable?.[index]?.disable === false
-                                ? false
-                                : formData[index]?.id
-                                  ? true
-                                  : false
-                          }
-                        />
-                      </td>
-                      <td>
-                        <TextField
-                          className={"inputTextStyle"}
-                          fullWidth
-                          variant="outlined"
-                          value={formData?.[index]?.friday}
-                          type="number"
-                          onChange={(e, value) =>
-                            handleOnChange("friday", e.target.value, index)
-                          }
-                          disabled={
-                            isDateInclude(weekData?.[4])
-                              ? true
-                              : isDisable?.[index]?.disable === false
-                                ? false
-                                : formData[index]?.id
-                                  ? true
-                                  : false
-                          }
-                        />
-                      </td>
-                      <td>
-                        <TextField
-                          className={"inputTextStyle"}
-                          fullWidth
-                          variant="outlined"
-                          value={formData?.[index]?.saturday}
-                          type="number"
-                          onChange={(e, value) =>
-                            handleOnChange("saturday", e.target.value, index)
-                          }
-                          disabled={
-                            isDateInclude(weekData?.[5])
-                              ? true
-                              : isDisable?.[index]?.disable === false
-                                ? false
-                                : formData[index]?.id
-                                  ? true
-                                  : false
-                          }
-                        />
-                      </td>
-                      <td>
-                        {console.log(
-                          isDateInclude(weekData?.[6]),
-                          "dateonesunday"
-                        )}
-                        <TextField
-                          className={"inputTextStyle"}
-                          fullWidth
-                          variant="outlined"
-                          value={formData?.[index]?.sunday}
-                          type="number"
-                          onChange={(e, value) =>
-                            handleOnChange("sunday", e.target.value, index)
-                          }
-                          disabled={
-                            isDateInclude(weekData?.[6])
-                              ? true
-                              : isDisable?.[index]?.disable === false
-                                ? false
-                                : formData[index]?.id
-                                  ? true
-                                  : false
-                          }
-                        />
-                      </td>
-                      <td>
-                        <TextField
-                          className={"inputTextStyle"}
-                          fullWidth
-                          variant="outlined"
-                          value={formData?.[index]?.totalHours}
-                          type="number"
-                          onChange={(e, value) =>
-                            handleOnChange("totalHours", e.target.value, index)
-                          }
-                          disabled={true}
-                        />
-                      </td>
-                      <td>
-                        <Box sx={{ display: "flex", justifyContent: "center" }}>
-                          {formData?.[index]?.status?.toLowerCase() === "approved" ? (
-                            <Chip
-                              icon={<CheckCircle />}
-                              label="Approved"
-                              color="success"
-                              size="small"
-                            />
-                          ) : formData?.[index]?.status?.toLowerCase() === "rejected" ? (
-                            <Chip
-                              icon={<Cancel />}
-                              label="Rejected"
-                              color="error"
-                              size="small"
-                            />
-                          ) : (
-                            <Chip
-                              label="Pending"
-                              color="warning"
-                              size="small"
-                            />
+                          {errorMessage?.[index]?.referenceNo && (
+                            <FormHelperText error>{errorMessage[index].referenceNo}</FormHelperText>
                           )}
-                        </Box>
-                      </td>
-                      <td>
-                        {formData?.[index]?.sentDate
-                          ? getDateYear(formData?.[index]?.sentDate)
-                          : null}
-                      </td>
-                      <td>
-                        {formData?.[index]?.approvedDate
-                          ? getDateYear(formData?.[index]?.approvedDate)
-                          : null}
-                      </td>
-                      <td style={{ height: "70px" }}>
+                        </FormControl>
+                      </TableCell>
+                      <TableCell>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          variant="outlined"
+                          disabled
+                          value={row.projectName || ""}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          variant="outlined"
+                          disabled
+                          value={row.taskNo || ""}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <FormControl fullWidth size="small">
+                          <Select
+                            value={row.areaofWork || ""}
+                            error={!!errorMessage?.[index]?.areaofWork}
+                            disabled={isFieldDisabled(index, !!row.id)}
+                            onChange={(e) => handleOnChange("areaofWork", e.target.value, index)}
+                          >
+                            {(areaOfWork || []).map((item) => (
+                              <MenuItem key={item.areaofwork} value={item.areaofwork}>
+                                {item.areaofwork}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                          {errorMessage?.[index]?.areaofWork && (
+                            <FormHelperText error>{errorMessage[index].areaofWork}</FormHelperText>
+                          )}
+                        </FormControl>
+                      </TableCell>
+                      <TableCell>
+                        <FormControl fullWidth size="small">
+                          <Select
+                            value={row.variation || ""}
+                            disabled={isFieldDisabled(index, !!row.id)}
+                            onChange={(e) => handleOnChange("variation", e.target.value, index)}
+                          >
+                            {(variations || []).map((item) => (
+                              <MenuItem key={item.variation} value={item.variation}>
+                                {item.variation}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </TableCell>
+                      <TableCell>
+                        <FormControl fullWidth size="small">
+                          <Select
+                            value={row.subDivision || ""}
+                            disabled={isFieldDisabled(index, !!row.id)}
+                            onChange={(e) => handleOnChange("subDivision", e.target.value, index)}
+                          >
+                            {(row.subDivisionList?.split(",") || []).map((item, idx) => (
+                              <MenuItem key={`${item}-${idx}`} value={item.trim()}>
+                                {item.trim()}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </TableCell>
+                      {["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"].map(
+                        (day, dayIdx) => (
+                          <TableCell key={day}>
+                            <TextField
+                              fullWidth
+                              size="small"
+                              type="number"
+                              value={row[day] || ""}
+                              disabled={isDayDisabled(dayIdx, index, !!row.id)}
+                              onChange={(e) => handleOnChange(day, e.target.value, index)}
+                            />
+                          </TableCell>
+                        )
+                      )}
+                      <TableCell>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          variant="outlined"
+                          value={row.totalHours || "0.0"}
+                          disabled
+                        />
+                        {errorMessage?.[index]?.totalHours && (
+                          <FormHelperText error>{errorMessage[index].totalHours}</FormHelperText>
+                        )}
+                      </TableCell>
+                      <TableCell align="center">{getStatusChip(row.status)}</TableCell>
+                      <TableCell>{formatDate(row.sentDate)}</TableCell>
+                      <TableCell>{formatDate(row.approvedDate)}</TableCell>
+                      <TableCell>
                         <Stack direction="row" spacing={1} justifyContent="center">
-                          {!formData[index]?.id ? (
+                          {!row.id ? (
                             <>
                               <IconButton
-                                onClick={() => onSubmit(formData[index], index)}
+                                onClick={() => handleSubmit(index)}
                                 size="small"
+                                disabled={addingWork}
                                 sx={{
                                   background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                                   color: "white",
@@ -1047,62 +831,61 @@ const TimeManagement = () => {
                                   },
                                 }}
                               >
-                                <Send fontSize="small" />
+                                {addingWork ? <CircularProgress size={16} /> : <Send fontSize="small" />}
                               </IconButton>
-                              <IconButton
-                                onClick={() => onDeleteIndex(index)}
-                                size="small"
-                                color="error"
-                              >
+                              <IconButton onClick={() => handleDeleteRow(index)} size="small" color="error">
                                 <Delete fontSize="small" />
                               </IconButton>
                             </>
-                          ) : formData?.[index]?.status?.toLowerCase() === "approved" ? null : (
-                            <>
-                              <IconButton
-                                onClick={() => {
-                                  setIsDisable((prev) => ({
-                                    ...prev,
-                                    [index]: {
-                                      disable: false,
-                                    },
-                                  }));
-                                }}
-                                size="small"
-                                color="primary"
-                              >
-                                <Edit fontSize="small" />
-                              </IconButton>
-                              <IconButton
-                                onClick={() =>
-                                  updateProjectDetails(
-                                    formData[index],
-                                    formData[index]?.id
-                                  )
-                                }
-                                size="small"
-                                sx={{
-                                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                                  color: "white",
-                                  "&:hover": {
-                                    background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
-                                  },
-                                }}
-                              >
-                                <Save fontSize="small" />
-                              </IconButton>
-                            </>
-                          )}
+                          ) : <p style={{ color: "green" }}>Work Details sent your team lead for approval</p>
+                          // row.status?.toLowerCase() === "approved" ? null : (
+                          //   <>
+                          //     <IconButton onClick={() => handleEdit(index)} size="small" color="primary">
+                          //       <Edit fontSize="small" />
+                          //     </IconButton>
+                          //     <IconButton
+                          //       onClick={() => handleUpdate(index)}
+                          //       size="small"
+                          //       disabled={updatingWork}
+                          //       sx={{
+                          //         background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                          //         color: "white",
+                          //         "&:hover": {
+                          //           background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                          //         },
+                          //       }}
+                          //     >
+                          //       {updatingWork ? <CircularProgress size={16} /> : <Save fontSize="small" />}
+                          //     </IconButton>
+                          //   </>
+                          // )
+                          }
                         </Stack>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
-            </Paper>
+                </TableBody>
+              </Table>
+            </TableContainer>
           </Box>
         </CardContent>
       </Card>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

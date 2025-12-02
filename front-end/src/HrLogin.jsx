@@ -1,10 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./style.css";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { Box, Button, TextField } from "@mui/material";
 import { Controller, useForm } from "react-hook-form";
-import commonData from"../common.json"
+import { useAuth } from "./context/AuthContext";
+import ErrorMessage from "./components/ErrorMessage";
 
 function HrLogin() {
   const {
@@ -12,26 +12,29 @@ function HrLogin() {
     control,
     formState: { errors },
   } = useForm();
-
-  axios.defaults.withCredentials = true;
   const navigate = useNavigate();
-  axios.defaults.withCredentials = true;
+  const { login, isAuthenticated } = useAuth();
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const Submit = (data) => {
-    // event.preventDefault(); 
-    axios
-      .post(`${commonData?.APIKEY}/hrLogin`, data)
-      .then((res) => {
-        if (res.data.Status === "Success") {
-          const id = res.data.id;
-          navigate("/Hr");
-        } else {
-          setError(res.data.Error ? " Invalid Username and password" : null);
-        }
-      })
-      .catch((err) => console.log(err));
+  const Submit = async (data) => {
+    setError("");
+    setLoading(true);
+    const result = await login(data, "hr");
+    setLoading(false);
+
+    if (result.success) {
+      navigate("/Hr/LeaveBalance");
+    } else {
+      setError(result.error || "Invalid Username and password");
+    }
   };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/Hr/LeaveBalance");
+    }
+  }, [isAuthenticated, navigate]);
 
   return (
     <div className="d-flex justify-content-center align-items-center vh-100 loginPage">
@@ -85,15 +88,15 @@ function HrLogin() {
             />
           </div>
 
-          <small className= " text-danger mb-2 d-flex justify-content-center align-items-center">
-            {error && error}
-          </small>
+          <ErrorMessage error={error} onClose={() => setError("")} />
+
           <Button
             variant="contained"
             type="submit"
             className="btn btn-success w-100 rounded-0"
+            disabled={loading}
           >
-            Log in
+            {loading ? "Logging in..." : "Log in"}
           </Button>
         </form>
       </div>

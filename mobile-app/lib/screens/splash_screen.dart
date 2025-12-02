@@ -3,6 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:timesheet_mobile/providers/auth_provider.dart';
 import 'package:timesheet_mobile/screens/login_screen.dart';
 import 'package:timesheet_mobile/screens/home_screen.dart';
+import 'package:timesheet_mobile/screens/employee_dashboard_screen.dart';
+import 'package:timesheet_mobile/screens/hr_dashboard_screen.dart';
+import 'package:timesheet_mobile/screens/teamlead_dashboard_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -26,8 +29,20 @@ class _SplashScreenState extends State<SplashScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     
     if (authProvider.isAuthenticated) {
+      final user = authProvider.user;
+      final role = user?['role']?.toString().toLowerCase() ?? 'employee';
+      
+      Widget destination;
+      if (role == 'hr') {
+        destination = const HrDashboardScreen();
+      } else if (role == 'teamlead' || role == 'team_lead') {
+        destination = const TeamLeadDashboardScreen();
+      } else {
+        destination = const EmployeeDashboardScreen();
+      }
+      
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => destination),
       );
     } else {
       Navigator.of(context).pushReplacement(

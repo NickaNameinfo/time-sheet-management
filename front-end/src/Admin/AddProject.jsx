@@ -17,6 +17,8 @@ import {
   FormHelperText,
   IconButton,
   Stack,
+  Chip,
+  OutlinedInput,
 } from "@mui/material";
 import {
   ArrowBack,
@@ -25,6 +27,7 @@ import {
   Save,
   CalendarToday,
   AccessTime,
+  People,
 } from "@mui/icons-material";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
@@ -38,23 +41,28 @@ function AddProject() {
     setValue,
     watch,
   } = useForm();
-  const [empList, setEmpList] = useState(null);
+  const [empList, setEmpList] = useState(null); // For Team Lead selection
+  const [allEmployees, setAllEmployees] = useState([]); // For employee assignment
   const [rowData, setRowData] = useState([]);
+  const [selectedEmployees, setSelectedEmployees] = useState([]);
 
   let formDatas = watch();
   const navigate = useNavigate();
   const { id } = useParams();
 
   useEffect(() => {
+    // Fetch team leads for TL selection
     axios
       .get(`${commonData?.APIKEY}/getEmployee`)
       .then((res) => {
         if (res.data.Status === "Success") {
-          console.log(res.data.Result, "setEmpListsetEmpList");
           let filterted = res?.data?.Result.filter(
             (item) => item.role === "TL" || item.role === "Admin"
           );
           setEmpList(filterted);
+          
+          // Store all employees for assignment
+          setAllEmployees(res?.data?.Result || []);
         } else {
           alert("Error");
         }
@@ -73,24 +81,17 @@ function AddProject() {
     const isNumberIncluded = rowData.some(
       (item) => Number(item.referenceNo) === Number(formDatas?.referenceNo)
     );
-    // const isProjectNoIncluded = rowData.some(
-    //   (item) => Number(item.projectNo) === Number(formDatas?.projectNo)
-    // );
-    // else if (isProjectNoIncluded) {
-    //   alert(`${formDatas?.referenceNo} is already existing in Project No`);
-    // }
-    console.log(rowData, "rowData321423", isNumberIncluded);
     if (isNumberIncluded) {
       alert(`${formDatas?.referenceNo} is already existing in Reference No`);
     } else {
       let foundEmployee = empList?.find(
-        (employee) => employee.EMPID === data?.tlID
+        (employee) => employee.id === data?.tlID
       );
       let tempData = {
         ...data,
         tlName: foundEmployee?.employeeName,
+        employeeIds: selectedEmployees, // Include selected employee IDs
       };
-      console.log(tempData, "tempData123342")
       axios
         .post(`${commonData?.APIKEY}/project/create`, tempData)
         .then((res) => {
@@ -106,7 +107,6 @@ function AddProject() {
 
   const getEmployeeDetails = async (id) => {
     await axios.get(`${commonData?.APIKEY}/getProject/${id}`).then((res) => {
-      console.log(res, "res2342342");
       let tempData = {
         tlID: res?.data?.Result?.tlID,
         orderId: res?.data?.Result?.orderId,
@@ -125,18 +125,23 @@ function AddProject() {
       Object.keys(tempData).forEach((key) => {
         setValue(key, tempData[key]);
       });
+      
+      // Set selected employees if available
+      if (res?.data?.Result?.assignedEmployees && Array.isArray(res?.data?.Result?.assignedEmployees)) {
+        setSelectedEmployees(res.data.Result.assignedEmployees);
+      }
     });
   };
 
   const updateProject = (data) => {
     let foundEmployee = empList?.find(
-      (employee) => employee.EMPID === data?.tlID
+      (employee) => employee.id === data?.tlID
     );
     let tempData = {
       ...data,
       tlName: foundEmployee?.employeeName,
+      employeeIds: selectedEmployees, // Include selected employee IDs
     };
-    console.log(tempData, "tempData123")
     axios
       .put(`${commonData?.APIKEY}/project/update/${id}`, tempData)
       .then((res) => {
@@ -206,8 +211,8 @@ function AddProject() {
                             startAdornment={<Person sx={{ mr: 1, color: "text.secondary" }} />}
                           >
                             {empList?.map((res) => (
-                              <MenuItem value={res?.EMPID} key={res.id}>
-                                {res?.employeeName} ({res?.EMPID})
+                              <MenuItem value={res?.id} key={res.id}>
+                                {res?.employeeName} ({res?.id})
                               </MenuItem>
                             ))}
                           </Select>
@@ -218,6 +223,50 @@ function AddProject() {
                       </FormHelperText>
                     </FormControl>
                   </Grid>
+
+                  <Grid item xs={12}>
+                    <FormControl fullWidth>
+                      <InputLabel id="employees-select-label">Assign Employees</InputLabel>
+                      <Select
+                        labelId="employees-select-label"
+                        id="employees-select"
+                        multiple
+                        value={selectedEmployees}
+                        onChange={(e) => setSelectedEmployees(e.target.value)}
+                        input={<OutlinedInput label="Assign Employees" />}
+                        renderValue={(selected) => (
+                          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                            {selected.map((value) => {
+                              const employee = allEmployees.find((emp) => emp.id === value || emp.id === value);
+                              return (
+                                <Chip
+                                  key={value}
+                                  label={employee ? `${employee.employeeName} (${employee.id})` : value}
+                                  size="small"
+                                />
+                              );
+                            })}
+                          </Box>
+                        )}
+                        startAdornment={<People sx={{ mr: 1, color: "text.secondary" }} />}
+                      >
+                        {allEmployees
+                          ?.filter((emp) => emp.role !== "Admin") // Exclude admins from assignment
+                          .map((employee) => {
+                            const employeeId = employee.id;
+                            return (
+                              <MenuItem key={employee.id} value={employeeId}>
+                                {employee.employeeName} ({employee.id}) - {employee.designation || employee.role}
+                              </MenuItem>
+                            );
+                          })}
+                      </Select>
+                      <FormHelperText>
+                        Select employees to assign to this project
+                      </FormHelperText>
+                    </FormControl>
+                  </Grid>
+
                   <Grid item xs={12} sm={6}>
                     <Controller
                       name="orderId"

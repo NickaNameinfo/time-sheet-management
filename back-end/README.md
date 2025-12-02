@@ -143,7 +143,7 @@ npx nodemon server.js
 - `DELETE /project/delete/:id` - Delete project
 - `POST /project/addWorkDetails` - Add work details
 - `PUT /project/updateWorkDetails/:id` - Update work details
-- `GET /getWrokDetails` - Get all work details
+- `GET /getWorkDetails` - Get all work details
 - `GET /getBioDetails` - Get biometric details
 - `POST /filterTimeSheet` - Filter time sheet data
 

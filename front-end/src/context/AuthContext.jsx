@@ -46,6 +46,17 @@ export const AuthProvider = ({ children }) => {
           role: userData.role,
           tlName: userData.tlName,
           hrName: userData.hrName,
+          designation: userData.designation,
+          discipline: userData.discipline,
+          dateOfJoining: userData.dateOfJoining,
+          employeeStatus: userData.employeeStatus,
+          employeeImage: userData.employeeImage,
+          employeeAddress: userData.employeeAddress,
+          employeePhone: userData.employeePhone,
+          employeeEmail: userData.employeeEmail,
+          employeeDepartment: userData.employeeDepartment,
+          employeeDesignation: userData.employeeDesignation,
+          employeeDiscipline: userData.employeeDiscipline,
         });
         // Normalize roles - split by comma, trim whitespace, filter empty
         const roleString = userData.role || "";
@@ -67,21 +78,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (loginData, loginType = "employee") => {
     try {
-      let response;
-      switch (loginType) {
-        case "admin":
-          response = await apiService.adminLogin(loginData);
-          break;
-        case "teamLead":
-          response = await apiService.teamLeadLogin(loginData);
-          break;
-        case "hr":
-          response = await apiService.hrLogin(loginData);
-          break;
-        default:
-          response = await apiService.login(loginData);
-      }
-      console.log(response.data.Result);
+      let response = await apiService.login(loginData)
       if (response.data.Result || response.data.token) {
         const token = response.data.Result.tokensss || response.data.Result.token;
         console.log(token);
@@ -100,6 +97,9 @@ export const AuthProvider = ({ children }) => {
             role: apiRespone.role,
             tlName: apiRespone.tlName,
             hrName: apiRespone.hrName,
+            designation: apiRespone.designation,
+            discipline: apiRespone.discipline,
+            dateOfJoining: apiRespone.dateOfJoining,
           });
           // Normalize roles - split by comma, trim whitespace, filter empty
           const roleString = apiRespone.role || "";

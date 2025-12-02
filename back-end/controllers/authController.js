@@ -59,7 +59,7 @@ export const employeeLogin = asyncHandler(async (req, res) => {
   const token = jwt.sign(
     {
       role: user.role,
-      id: user.id,
+      id: user?.id,
       userName: user.userName,
       employeeName: user.employeeName,
       employeeId: user.EMPID,

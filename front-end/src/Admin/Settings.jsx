@@ -37,7 +37,7 @@ import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 import commonData from "../../common.json";
 
-export const Settings = () => {
+export const Settings = ({ from }) => {
   const navigate = useNavigate();
   const [rowData, setRowData] = useState([]);
   const [selectedRows, setSelectedRows] = useState([]);
@@ -291,7 +291,13 @@ export const Settings = () => {
             <Button
               variant="contained"
               startIcon={<Add />}
-              onClick={() => navigate("/Dashboard/AddUpdates")}
+              onClick={() => {
+                if (from === "hr") {
+                  navigate("/Hr/AddUpdates");
+                } else {
+                  navigate("/Dashboard/AddUpdates");
+                }
+              }}
               sx={{
                 background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                 "&:hover": {

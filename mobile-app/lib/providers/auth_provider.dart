@@ -61,14 +61,18 @@ class AuthProvider with ChangeNotifier {
     }
   }
   
-  Future<bool> login(String userName, String password) async {
+  Future<bool> login(String userName, String password, {String role = 'employee'}) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
     
     try {
       // Step 1: Login and get token
-      final loginResult = await _apiService.employeeLogin(userName, password);
+      final loginResult = role == 'hr' 
+          ? await _apiService.hrLogin(userName, password)
+          : role == 'teamLead'
+              ? await _apiService.teamLeadLogin(userName, password)
+              : await _apiService.employeeLogin(userName, password);
       
       // Backend returns 'tokensss', but we normalize it to 'token'
       final token = loginResult['token'] ?? loginResult['tokensss'];
@@ -94,13 +98,14 @@ class AuthProvider with ChangeNotifier {
         if (apiResponse != null && apiResponse.isNotEmpty) {
           // Store user details (matching frontend structure)
           final userData = {
-            'id': apiResponse['id'],
-            'userName': apiResponse['userName'],
-            'employeeName': apiResponse['employeeName'],
-            'employeeId': apiResponse['employeeId'] ?? apiResponse['EMPID'],
-            'EMPID': apiResponse['EMPID'] ?? apiResponse['employeeId'],
-            'role': apiResponse['role'],
-            'tlName': apiResponse['tlName'],
+            'id': apiResponse['id'] ?? loginResult['id'],
+            'userName': apiResponse['userName'] ?? loginResult['userName'] ?? userName,
+            'employeeName': apiResponse['employeeName'] ?? loginResult['tlName'] ?? loginResult['leadName'],
+            'employeeId': apiResponse['employeeId'] ?? apiResponse['EMPID'] ?? loginResult['id'],
+            'EMPID': apiResponse['EMPID'] ?? apiResponse['employeeId'] ?? loginResult['id'],
+            'role': apiResponse['role'] ?? loginResult['role'] ?? role,
+            'tlName': apiResponse['tlName'] ?? loginResult['tlName'] ?? loginResult['leadName'],
+            'leadName': loginResult['leadName'] ?? loginResult['tlName'],
             'hrName': apiResponse['hrName'],
             'token': token, // Store normalized token
           };

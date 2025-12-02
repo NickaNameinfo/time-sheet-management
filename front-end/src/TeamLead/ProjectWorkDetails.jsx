@@ -1,7 +1,5 @@
-import axios from "axios";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useForm, Controller } from "react-hook-form";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
@@ -15,11 +13,22 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  TextField,
   TextareaAutosize,
   IconButton,
   Tooltip,
   Chip,
+  Snackbar,
+  Alert,
+  CircularProgress,
+  TextField,
+  InputAdornment,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Grid,
+  Paper,
+  Stack,
 } from "@mui/material";
 import {
   Assignment,
@@ -29,24 +38,154 @@ import {
   Close,
   Comment,
   Send,
+  FilterList,
+  Search,
+  Clear,
 } from "@mui/icons-material";
-import commonData from "../../common.json";
+import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
+import { apiService } from "../services/api";
+import { useApi, useMutation } from "../hooks/useApi";
+import { useAuth } from "../context/AuthContext";
 function ProjectWorkDetails() {
-  const containerStyle = { width: "100%", height: "100%" };
   const gridStyle = { height: "100%", width: "100%" };
-  const [rowData, setRowData] = useState([]);
-  const [refresh, setRefresh] = React.useState(false);
-  const [isUpdate, setIsUpdate] = React.useState(false);
-  const [open, setOpen] = React.useState(false);
-  const [message, setMessage] = React.useState(null);
-  const [formData, setFormData] = React.useState(null);
-  const [onSelectedData, setSelectedData] = React.useState(null);
-  const token = localStorage.getItem("token");
-  axios.defaults.withCredentials = true;
-  const gridRef = React.createRef();
-  console.log(rowData, "rowDatarowData", onSelectedData, message);
-
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const gridRef = React.createRef();
+  
+  const [open, setOpen] = useState(false);
+  const [message, setMessage] = useState("");
+  const [selectedWorkDetail, setSelectedWorkDetail] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+  
+  // Filter states
+  const [filters, setFilters] = useState({
+    status: "all", // "all", "pending", "approved", "rejected"
+    employeeName: "",
+    projectName: "",
+    weekNumber: "",
+    referenceNo: "",
+    startDate: null,
+    endDate: null,
+    searchText: "",
+  });
+
+  // Fetch work details - filter by team lead's ID (tlId)
+  const { data: workDetails, loading, error, refetch } = useApi(
+    () => apiService.getWorkDetails({ tlId: user?.id }),
+    [user?.id],
+    !!user?.id
+  );
+
+  // Get unique values for filter dropdowns (backend already filters by tlId)
+  const filterOptions = useMemo(() => {
+    if (!workDetails || !user) return { employees: [], projects: [], weekNumbers: [], referenceNos: [] };
+    
+    const details = Array.isArray(workDetails) 
+      ? workDetails 
+      : workDetails?.Result || [];
+    
+    // Backend already filters by tlId, so use all details
+    return {
+      employees: [...new Set(details.map(item => item.employeeName).filter(Boolean))].sort(),
+      projects: [...new Set(details.map(item => item.projectName).filter(Boolean))].sort(),
+      weekNumbers: [...new Set(details.map(item => item.weekNumber).filter(Boolean))].sort((a, b) => Number(a) - Number(b)),
+      referenceNos: [...new Set(details.map(item => item.referenceNo).filter(Boolean))].sort(),
+    };
+  }, [workDetails, user]);
+
+  // Filter work details with applied filters (backend already filters by tlId)
+  const rowData = useMemo(() => {
+    if (!workDetails || !user) return [];
+    
+    // Handle both array and object with Result property
+    const details = Array.isArray(workDetails) 
+      ? workDetails 
+      : workDetails?.Result || [];
+    
+    // Backend already filters by tlId, so we just apply frontend filters
+    let filtered = details;
+    
+    // Apply status filter
+    if (filters.status !== "all") {
+      filtered = filtered.filter((item) => {
+        const statusValue = item.status?.trim() || "";
+        const status = statusValue === "" ? "pending" : statusValue.toLowerCase();
+        return status === filters.status;
+      });
+    }
+    
+    // Apply employee name filter
+    if (filters.employeeName) {
+      filtered = filtered.filter((item) =>
+        item.employeeName?.toLowerCase().includes(filters.employeeName.toLowerCase())
+      );
+    }
+    
+    // Apply project name filter
+    if (filters.projectName) {
+      filtered = filtered.filter((item) =>
+        item.projectName?.toLowerCase().includes(filters.projectName.toLowerCase())
+      );
+    }
+    
+    // Apply week number filter
+    if (filters.weekNumber) {
+      filtered = filtered.filter((item) => item.weekNumber === filters.weekNumber);
+    }
+    
+    // Apply reference number filter
+    if (filters.referenceNo) {
+      filtered = filtered.filter((item) =>
+        item.referenceNo?.toString().includes(filters.referenceNo.toString())
+      );
+    }
+    
+    // Apply date range filter
+    if (filters.startDate) {
+      const startDate = dayjs(filters.startDate).startOf('day');
+      filtered = filtered.filter((item) => {
+        if (!item.sentDate) return false;
+        const itemDate = dayjs(item.sentDate);
+        return itemDate.isSameOrAfter(startDate);
+      });
+    }
+    
+    if (filters.endDate) {
+      const endDate = dayjs(filters.endDate).endOf('day');
+      filtered = filtered.filter((item) => {
+        if (!item.sentDate) return false;
+        const itemDate = dayjs(item.sentDate);
+        return itemDate.isSameOrBefore(endDate);
+      });
+    }
+    
+    // Apply search text filter (searches across multiple fields)
+    if (filters.searchText) {
+      const searchLower = filters.searchText.toLowerCase();
+      filtered = filtered.filter((item) =>
+        item.employeeName?.toLowerCase().includes(searchLower) ||
+        item.projectName?.toLowerCase().includes(searchLower) ||
+        item.referenceNo?.toString().includes(searchLower) ||
+        item.taskNo?.toString().includes(searchLower) ||
+        item.areaofWork?.toLowerCase().includes(searchLower) ||
+        item.weekNumber?.toString().includes(searchLower)
+      );
+    }
+    
+    return filtered;
+  }, [workDetails, user, filters]);
+
+  // Mutation for updating work details
+  const { mutate: updateWorkDetailsMutation, loading: updating } = useMutation(
+    (payload) => apiService.updateWorkDetails(payload.id, payload.data)
+  );
+
+  // Mutation for sending notifications
+  const { mutate: sendNotificationMutation, loading: sendingNotification } = useMutation(
+    apiService.sendNotification
+  );
 
   const gridOptions = useMemo(
     () => ({
@@ -58,71 +197,143 @@ function ProjectWorkDetails() {
     []
   );
 
-  React.useEffect(() => {
-    console.log(message, onSelectedData, "onSelectedData123");
-    if (onSelectedData) {
-      let data = {
-        from: onSelectedData?.tlName,
-        to: onSelectedData?.userName,
-        sendDate: new Date(),
-        message: message,
-        empId: "",
-        tlId: "",
-      };
-      setFormData(data);
-    }
-  }, [onSelectedData, message]);
+  const showSnackbar = (message, severity = "success") => {
+    setSnackbar({ open: true, message, severity });
+  };
 
-  const updateProjectDetails = (status, params) => {
-    let apiTemp = { ...params.data, approvedDate: new Date(), status: status };
-    axios
-      .put(
-        `${commonData?.APIKEY}/project/updateWorkDetails/` + params.data.id,
-        apiTemp
-      )
-      .then(async (res) => {
-        setRefresh(true);
-        setIsUpdate(false);
-        alert("Update Successfully");
-        location.reload();
-      });
-    console.log(params.data, "datadatadatadata");
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
+
+  const handleFilterChange = (field, value) => {
+    setFilters((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleClearFilters = () => {
+    setFilters({
+      status: "all",
+      employeeName: "",
+      projectName: "",
+      weekNumber: "",
+      referenceNo: "",
+      startDate: null,
+      endDate: null,
+      searchText: "",
+    });
+  };
+
+  const hasActiveFilters = useMemo(() => {
+    return (
+      filters.status !== "all" ||
+      filters.employeeName !== "" ||
+      filters.projectName !== "" ||
+      filters.weekNumber !== "" ||
+      filters.referenceNo !== "" ||
+      filters.startDate !== null ||
+      filters.endDate !== null ||
+      filters.searchText !== ""
+    );
+  }, [filters]);
+
+  const updateProjectDetails = async (status, params) => {
+    const updateData = {
+      ...params.data,
+      approvedDate: new Date().toISOString().split('T')[0],
+      status: status,
+      approverId: user?.id || null, // Set approverId when approving/rejecting
+    };
+
+    const result = await updateWorkDetailsMutation({ id: params.data.id, data: updateData });
+    
+    if (result.success) {
+      showSnackbar(`Work details ${status} successfully`, "success");
+      refetch();
+    } else {
+      showSnackbar(result.error || "Failed to update work details", "error");
+    }
   };
 
   const columnDefs = useMemo(
     () => [
       {
         field: "employeeName",
+        headerName: "Employee Name",
         minWidth: 170,
         filter: true,
       },
-      { field: "areaofWork", minWidth: 170 },
-      { field: "projectName", minWidth: 170 },
-      { field: "referenceNo", minWidth: 170 },
-      { field: "taskNo", minWidth: 170 },
-      { field: "monday", minWidth: 170 },
-      { field: "tuesday", minWidth: 170 },
-      { field: "wednesday", minWidth: 170 },
-      { field: "thursday", minWidth: 170 },
-      { field: "friday", minWidth: 170 },
-      { field: "saturday", minWidth: 170 },
-      { field: "sunday", minWidth: 170 },
-      { field: "totalHours", filter: false, minWidth: 170 },
-      { field: "weekNumber", filter: false, minWidth: 170 },
-      { field: "sentDate", filter: false, minWidth: 170 },
+      { field: "areaofWork", headerName: "Area of Work", minWidth: 170 },
+      { field: "projectName", headerName: "Project Name", minWidth: 170 },
+      { field: "referenceNo", headerName: "Reference No", minWidth: 170 },
+      { field: "taskNo", headerName: "Task No", minWidth: 170 },
+      { field: "monday", headerName: "Monday", minWidth: 100 },
+      { field: "tuesday", headerName: "Tuesday", minWidth: 100 },
+      { field: "wednesday", headerName: "Wednesday", minWidth: 100 },
+      { field: "thursday", headerName: "Thursday", minWidth: 100 },
+      { field: "friday", headerName: "Friday", minWidth: 100 },
+      { field: "saturday", headerName: "Saturday", minWidth: 100 },
+      { field: "sunday", headerName: "Sunday", minWidth: 100 },
+      { field: "totalHours", headerName: "Total Hours", filter: false, minWidth: 120 },
+      { field: "weekNumber", headerName: "Week Number", filter: false, minWidth: 120 },
+      { 
+        field: "sentDate", 
+        headerName: "Sent Date", 
+        filter: false, 
+        minWidth: 150,
+        valueFormatter: (params) => {
+          if (!params.value) return "";
+          try {
+            const date = new Date(params.value);
+            if (isNaN(date.getTime())) return params.value;
+            return date.toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+          } catch (e) {
+            return params.value;
+          }
+        }
+      },
+      { 
+        field: "approvedDate", 
+        headerName: "Approved Date", 
+        filter: false, 
+        minWidth: 150,
+        valueFormatter: (params) => {
+          if (!params.value || params.value === "") return "-";
+          try {
+            const date = new Date(params.value);
+            if (isNaN(date.getTime())) return params.value;
+            return date.toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+            });
+          } catch (e) {
+            return params.value || "-";
+          }
+        }
+      },
       {
-        field: "Status",
+        field: "status",
+        headerName: "Status",
         pinned: "right",
         minWidth: 120,
         width: 120,
         filter: false,
         editable: false,
         cellRenderer: (params) => {
-          const status = params?.data?.status?.toLowerCase();
+          // Handle empty string status as "pending"
+          const statusValue = params?.data?.status?.trim() || "";
+          const status = statusValue === "" ? "pending" : statusValue.toLowerCase();
+          const displayStatus = status.charAt(0).toUpperCase() + status.slice(1);
+          
           return (
             <Box sx={{ display: "flex", justifyContent: "center" }}>
               <Chip
-                label={status || "Pending"}
+                label={displayStatus}
                 color={
                   status === "approved"
                     ? "success"
@@ -152,47 +363,91 @@ function ProjectWorkDetails() {
         field: "id",
         filter: false,
         editable: false,
-        cellRenderer: (params) => (
-          <Box sx={{ display: "flex", justifyContent: "center", gap: 1 }}>
-            {params?.data?.status?.toLowerCase() !== "approved" && (
-              <>
-                <Tooltip title="Approve">
-                  <IconButton
-                    size="small"
-                    color="success"
-                    onClick={() => updateProjectDetails("approved", params)}
-                    sx={{
-                      "&:hover": {
-                        bgcolor: "success.light",
-                        color: "white",
-                      },
-                    }}
-                  >
-                    <CheckCircle fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Reject">
-                  <IconButton
-                    size="small"
-                    color="error"
-                    onClick={() => updateProjectDetails("rejected", params)}
-                    sx={{
-                      "&:hover": {
-                        bgcolor: "error.light",
-                        color: "white",
-                      },
-                    }}
-                  >
-                    <Cancel fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              </>
-            )}
-          </Box>
-        ),
+        cellRenderer: (params) => {
+          // Handle empty string status as "pending"
+          const statusValue = params?.data?.status?.trim() || "";
+          const status = statusValue === "" ? "pending" : statusValue.toLowerCase();
+          const isApproved = status === "approved";
+          const isRejected = status === "rejected";
+          
+          return (
+            <Box sx={{ display: "flex", justifyContent: "center", gap: 1 }}>
+              {!isApproved && !isRejected && (
+                <>
+                  <Tooltip title="Approve">
+                    <IconButton
+                      size="small"
+                      color="success"
+                      onClick={() => updateProjectDetails("approved", params)}
+                      disabled={updating}
+                      sx={{
+                        "&:hover": {
+                          bgcolor: "success.light",
+                          color: "white",
+                        },
+                      }}
+                    >
+                      <CheckCircle fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Reject">
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={() => updateProjectDetails("rejected", params)}
+                      disabled={updating}
+                      sx={{
+                        "&:hover": {
+                          bgcolor: "error.light",
+                          color: "white",
+                        },
+                      }}
+                    >
+                      <Cancel fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Add Comment">
+                    <IconButton
+                      size="small"
+                      color="primary"
+                      onClick={() => {
+                        setSelectedWorkDetail(params.data);
+                        setOpen(true);
+                      }}
+                      sx={{
+                        "&:hover": {
+                          bgcolor: "primary.light",
+                          color: "white",
+                        },
+                      }}
+                    >
+                      <Comment fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </>
+              )}
+              {isApproved && (
+                <Chip
+                  label="Approved"
+                  color="success"
+                  size="small"
+                  icon={<CheckCircle fontSize="small" />}
+                />
+              )}
+              {isRejected && (
+                <Chip
+                  label="Rejected"
+                  color="error"
+                  size="small"
+                  icon={<Cancel fontSize="small" />}
+                />
+              )}
+            </Box>
+          );
+        },
       },
     ],
-    [isUpdate, rowData, refresh]
+    [updating]
   );
 
   const autoGroupColumnDef = useMemo(
@@ -233,54 +488,44 @@ function ProjectWorkDetails() {
   );
 
   const onGridReady = useCallback((params) => {
-    axios
-      .get(`${commonData?.APIKEY}/getWrokDetails`)
-      .then(async (res) => {
-        let userDetails = await axios.post(`${commonData?.APIKEY}/dashboard`, {
-          tokensss: token,
-        });
-        if (res.data.Status === "Success") {
-          let filterData = res.data.Result.filter(
-            (items) => items.userName === userDetails.data.employeeId
-          );
-          setRowData(filterData);
-        } else {
-          alert("Error");
-        }
-      })
-      .catch((err) => console.log(err));
+    // Grid is ready, data will be loaded via useApi hook
   }, []);
 
   const handleClose = () => {
     setOpen(false);
     setMessage("");
+    setSelectedWorkDetail(null);
   };
 
-  const handleSubmit = () => {
-    console.log(formData, "tests213");
-    axios
-      .post(`${commonData?.APIKEY}/sendNotification`, formData)
-      .then((res) => {
-        if (res.data.Error) {
-          alert(res.data.Error);
-        } else {
-          alert("Notification sent successfully");
-          setOpen(false);
-          setMessage("");
-        }
-      })
-      .catch((err) => {
-        console.log(err);
-        alert("Error sending notification");
-      });
+  const handleSubmit = async () => {
+    if (!selectedWorkDetail || !message.trim()) {
+      showSnackbar("Please enter a message", "warning");
+      return;
+    }
+
+    const notificationData = {
+      from: user?.employeeName || user?.userName,
+      to: selectedWorkDetail?.userName,
+      sendDate: new Date().toISOString(),
+      message: message,
+      empId: selectedWorkDetail?.employeeId || "",
+      tlId: user?.id || "",
+    };
+
+    const result = await sendNotificationMutation(notificationData);
+    
+    if (result.success) {
+      showSnackbar("Notification sent successfully", "success");
+      setOpen(false);
+      setMessage("");
+      setSelectedWorkDetail(null);
+    } else {
+      showSnackbar(result.error || "Error sending notification", "error");
+    }
   };
 
   const onSelectionChanged = (event) => {
     // Handle selection if needed
-  };
-
-  const onChangeValue = (value) => {
-    // Handle cell editing if needed
   };
 
   return (
@@ -306,14 +551,231 @@ function ProjectWorkDetails() {
           <Button
             variant="outlined"
             startIcon={<Refresh />}
-            onClick={() => {
-              setRefresh(!refresh);
-              onGridReady();
-            }}
+            onClick={refetch}
+            disabled={loading}
           >
-            Refresh
+            {loading ? "Refreshing..." : "Refresh"}
           </Button>
         </Box>
+
+        {/* Filters Card */}
+        <Card sx={{ mb: 3, borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
+          <CardContent>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
+              <FilterList color="primary" />
+              <Typography variant="h6" fontWeight="bold">
+                Filters
+              </Typography>
+              {hasActiveFilters && (
+                <Chip
+                  label="Clear All"
+                  onClick={handleClearFilters}
+                  color="warning"
+                  variant="outlined"
+                  icon={<Clear />}
+                  clickable
+                  size="small"
+                />
+              )}
+            </Box>
+
+            <Grid container spacing={2}>
+              {/* Quick Search */}
+              <Grid item xs={12} md={4}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="Search across all fields..."
+                  value={filters.searchText}
+                  onChange={(e) => handleFilterChange("searchText", e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Search color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Grid>
+
+              {/* Status Filter */}
+              <Grid item xs={12} md={2}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Status</InputLabel>
+                  <Select
+                    value={filters.status}
+                    label="Status"
+                    onChange={(e) => handleFilterChange("status", e.target.value)}
+                  >
+                    <MenuItem value="all">All</MenuItem>
+                    <MenuItem value="pending">Pending</MenuItem>
+                    <MenuItem value="approved">Approved</MenuItem>
+                    <MenuItem value="rejected">Rejected</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              {/* Employee Name Filter */}
+              <Grid item xs={12} md={2}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Employee</InputLabel>
+                  <Select
+                    value={filters.employeeName}
+                    label="Employee"
+                    onChange={(e) => handleFilterChange("employeeName", e.target.value)}
+                  >
+                    <MenuItem value="">All Employees</MenuItem>
+                    {filterOptions.employees.map((emp) => (
+                      <MenuItem key={emp} value={emp}>
+                        {emp}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              {/* Project Name Filter */}
+              <Grid item xs={12} md={2}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Project</InputLabel>
+                  <Select
+                    value={filters.projectName}
+                    label="Project"
+                    onChange={(e) => handleFilterChange("projectName", e.target.value)}
+                  >
+                    <MenuItem value="">All Projects</MenuItem>
+                    {filterOptions.projects.map((proj) => (
+                      <MenuItem key={proj} value={proj}>
+                        {proj}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              {/* Week Number Filter */}
+              <Grid item xs={12} md={2}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Week Number</InputLabel>
+                  <Select
+                    value={filters.weekNumber}
+                    label="Week Number"
+                    onChange={(e) => handleFilterChange("weekNumber", e.target.value)}
+                  >
+                    <MenuItem value="">All Weeks</MenuItem>
+                    {filterOptions.weekNumbers.map((week) => (
+                      <MenuItem key={week} value={week}>
+                        Week {week}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              {/* Reference Number Filter */}
+              <Grid item xs={12} md={2}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Reference No"
+                  placeholder="Search reference..."
+                  value={filters.referenceNo}
+                  onChange={(e) => handleFilterChange("referenceNo", e.target.value)}
+                />
+              </Grid>
+
+              {/* Date Range Filters */}
+              <Grid item xs={12} md={3}>
+                <LocalizationProvider dateAdapter={AdapterDayjs}>
+                  <DatePicker
+                    label="Start Date"
+                    value={filters.startDate}
+                    onChange={(newValue) => handleFilterChange("startDate", newValue)}
+                    slotProps={{
+                      textField: {
+                        size: "small",
+                        fullWidth: true,
+                      },
+                    }}
+                  />
+                </LocalizationProvider>
+              </Grid>
+
+              <Grid item xs={12} md={3}>
+                <LocalizationProvider dateAdapter={AdapterDayjs}>
+                  <DatePicker
+                    label="End Date"
+                    value={filters.endDate}
+                    onChange={(newValue) => handleFilterChange("endDate", newValue)}
+                    minDate={filters.startDate || undefined}
+                    slotProps={{
+                      textField: {
+                        size: "small",
+                        fullWidth: true,
+                      },
+                    }}
+                  />
+                </LocalizationProvider>
+              </Grid>
+
+              {/* Active Filters Count */}
+              {hasActiveFilters && (
+                <Grid item xs={12}>
+                  <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                    <Typography variant="body2" color="text.secondary">
+                      Active filters:
+                    </Typography>
+                    {filters.status !== "all" && (
+                      <Chip
+                        label={`Status: ${filters.status}`}
+                        size="small"
+                        onDelete={() => handleFilterChange("status", "all")}
+                      />
+                    )}
+                    {filters.employeeName && (
+                      <Chip
+                        label={`Employee: ${filters.employeeName}`}
+                        size="small"
+                        onDelete={() => handleFilterChange("employeeName", "")}
+                      />
+                    )}
+                    {filters.projectName && (
+                      <Chip
+                        label={`Project: ${filters.projectName}`}
+                        size="small"
+                        onDelete={() => handleFilterChange("projectName", "")}
+                      />
+                    )}
+                    {filters.weekNumber && (
+                      <Chip
+                        label={`Week: ${filters.weekNumber}`}
+                        size="small"
+                        onDelete={() => handleFilterChange("weekNumber", "")}
+                      />
+                    )}
+                    {filters.referenceNo && (
+                      <Chip
+                        label={`Ref: ${filters.referenceNo}`}
+                        size="small"
+                        onDelete={() => handleFilterChange("referenceNo", "")}
+                      />
+                    )}
+                    {(filters.startDate || filters.endDate) && (
+                      <Chip
+                        label="Date Range"
+                        size="small"
+                        onDelete={() => {
+                          handleFilterChange("startDate", null);
+                          handleFilterChange("endDate", null);
+                        }}
+                      />
+                    )}
+                  </Stack>
+                </Grid>
+              )}
+            </Grid>
+          </CardContent>
+        </Card>
       </Box>
 
       {/* Grid Card */}
@@ -325,12 +787,29 @@ function ProjectWorkDetails() {
               Work Submissions
             </Typography>
           </Box>
-          <Box sx={{ width: "100%", height: "600px" }}>
+          <Box sx={{ width: "100%", height: "600px", position: "relative" }}>
+            {loading && (
+              <Box
+                sx={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  zIndex: 1000,
+                }}
+              >
+                <CircularProgress />
+              </Box>
+            )}
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
             <div style={gridStyle} className="ag-theme-alpine">
               <AgGridReact
                 ref={gridRef}
-                rowData={rowData}
-                onRowEditingStarted={(value) => console.log(value, "ajdflajsdlfk")}
+                rowData={rowData || []}
                 columnDefs={columnDefs}
                 autoGroupColumnDef={autoGroupColumnDef}
                 defaultColDef={defaultColDef}
@@ -342,8 +821,7 @@ function ProjectWorkDetails() {
                 rowGroupPanelShow={"always"}
                 pivotPanelShow={"always"}
                 pagination={true}
-                refresh={refresh}
-                onCellEditingStarted={(value) => onChangeValue(value)}
+                paginationPageSize={20}
                 onGridReady={onGridReady}
                 onSelectionChanged={onSelectionChanged}
               />
@@ -390,11 +868,14 @@ function ProjectWorkDetails() {
           />
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
-          <Button onClick={handleClose}>Cancel</Button>
+          <Button onClick={handleClose} disabled={sendingNotification}>
+            Cancel
+          </Button>
           <Button
             onClick={handleSubmit}
             variant="contained"
-            startIcon={<Send />}
+            startIcon={sendingNotification ? <CircularProgress size={20} /> : <Send />}
+            disabled={sendingNotification || !message.trim()}
             sx={{
               background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
               "&:hover": {
@@ -402,10 +883,26 @@ function ProjectWorkDetails() {
               },
             }}
           >
-            Send
+            {sendingNotification ? "Sending..." : "Send"}
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbar.severity}
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

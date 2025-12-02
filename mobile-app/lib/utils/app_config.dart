@@ -13,9 +13,10 @@ class AppConfig {
   
   // API Endpoints
   static const String loginEndpoint = '/employeelogin';
+  static const String hrLoginEndpoint = '/hrLogin';
   static const String dashboardEndpoint = '/dashboard';
-  static const String clockInEndpoint = '/workDetails/clockIn';
-  static const String clockOutEndpoint = '/workDetails/clockOut';
+  static const String clockInEndpoint = '/project/workDetails/clockIn';
+  static const String clockOutEndpoint = '/project/workDetails/clockOut';
   static const String leaveEndpoint = '/applyLeave';
   static const String timesheetEndpoint = '/getWorkDetails';
   static const String shiftEndpoint = '/shifts/assignments';

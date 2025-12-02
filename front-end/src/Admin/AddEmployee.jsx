@@ -43,7 +43,7 @@ import ErrorMessage from "../components/ErrorMessage";
 import Loading from "../components/Loading";
 import { getImageUrl } from "../utils/helpers";
 
-function AddEmployee() {
+function AddEmployee({ from }) {
   const {
     handleSubmit,
     control,
@@ -166,7 +166,11 @@ function AddEmployee() {
         : await createEmployee(formData);
 
       if (result.success) {
-        navigate("/Dashboard/employee");
+        if (from === "hr") {
+          navigate("/Hr/employee");
+        } else {
+          navigate("/Dashboard/employee");
+        }
       } else {
         setError(result.error || "Failed to save employee");
       }
@@ -187,7 +191,13 @@ function AddEmployee() {
     <Box sx={{ p: 3 }}>
       {/* Header */}
       <Box sx={{ display: "flex", alignItems: "center", mb: 3, gap: 2 }}>
-        <IconButton onClick={() => navigate("/Dashboard/employee")} color="primary">
+        <IconButton onClick={() => {
+          if (from === "hr") {
+            navigate("/Hr/employee");
+          } else {
+            navigate("/Dashboard/employee");
+          }
+        }} color="primary">
           <ArrowBack />
         </IconButton>
         <Box>
@@ -602,7 +612,13 @@ function AddEmployee() {
             <Box sx={{ display: "flex", gap: 2, justifyContent: "flex-end" }}>
               <Button
                 variant="outlined"
-                onClick={() => navigate("/Dashboard/employee")}
+                onClick={() => {
+                  if (from === "hr") {
+                    navigate("/Hr/employee");
+                  } else {
+                    navigate("/Dashboard/employee");
+                  }
+                }}
                 disabled={creating || updating}
               >
                 Cancel

@@ -32,14 +32,7 @@ function Profile() {
     axios
       .post(`${commonData?.APIKEY}/dashboard`, { tokensss: token })
       .then((res) => {
-        if (res.data?.employeeId) {
-          axios
-            .get(`${commonData?.APIKEY}/get/${res.data.employeeId}`)
-            .then((result) => {
-              setEmployee(result.data.Result[0]);
-            })
-            .catch((err) => console.log(err));
-        }
+        setEmployee(res.data.Result);
       })
       .catch((err) => console.log(err));
   }, [token]);
@@ -59,7 +52,7 @@ function Profile() {
             <Typography variant="h4" fontWeight="bold">
               My Profile
             </Typography>
-            {!isEditing ? (
+            {/* {!isEditing ? (
               <Button
                 variant="contained"
                 startIcon={<Edit />}
@@ -82,13 +75,13 @@ function Profile() {
               >
                 Save Changes
               </Button>
-            )}
+            )} */}
           </Box>
 
           {/* Profile Picture */}
           <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mb: 4 }}>
             <Avatar
-              src={employee?.image ? `${commonData?.APIKEY}/images/${employee.image}` : undefined}
+              src={employee?.employeeImage ? `${commonData?.APIKEY}/images/${employee.employeeImage}` : undefined}
               sx={{
                 width: 150,
                 height: 150,
@@ -97,13 +90,13 @@ function Profile() {
                 fontSize: "4rem",
               }}
             >
-              {!employee?.image && <AccountCircle sx={{ fontSize: 150 }} />}
+              {!employee?.employeeImage && <AccountCircle sx={{ fontSize: 150 }} />}
             </Avatar>
             <Typography variant="h5" fontWeight="bold">
-              {employee?.employeeName || employee?.name || "Employee Name"}
+              {employee?.employeeName || "Employee Name"}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {employee?.EMPID || employee?.employeeId || "Employee ID"}
+              {employee?.EMPID || "Employee ID"}
             </Typography>
           </Box>
 
@@ -123,12 +116,12 @@ function Profile() {
                   <TextField
                     fullWidth
                     variant="outlined"
-                    defaultValue={employee?.employeeName || employee?.name}
+                    defaultValue={employee?.employeeName}
                     size="small"
                   />
                 ) : (
                   <Typography variant="h6" fontWeight="medium">
-                    {employee?.employeeName || employee?.name || "N/A"}
+                    {employee?.employeeName || "N/A"}
                   </Typography>
                 )}
               </Paper>
@@ -146,12 +139,12 @@ function Profile() {
                     fullWidth
                     variant="outlined"
                     type="email"
-                    defaultValue={employee?.email}
+                    defaultValue={employee?.userName}
                     size="small"
                   />
                 ) : (
                   <Typography variant="h6" fontWeight="medium">
-                    {employee?.email || "N/A"}
+                    {employee?.userName || "N/A"}
                   </Typography>
                 )}
               </Paper>
@@ -169,12 +162,12 @@ function Profile() {
                     fullWidth
                     variant="outlined"
                     type="tel"
-                    defaultValue={employee?.phone}
+                    defaultValue={employee?.mobile}
                     size="small"
                   />
                 ) : (
                   <Typography variant="h6" fontWeight="medium">
-                    {employee?.phone || "N/A"}
+                    {employee?.mobile || "N/A"}
                   </Typography>
                 )}
               </Paper>
@@ -188,7 +181,7 @@ function Profile() {
                   </Typography>
                 </Box>
                 <Typography variant="h6" fontWeight="medium">
-                  {employee?.designation || "N/A"}
+                  {employee?.role || "N/A"}
                 </Typography>
               </Paper>
             </Grid>

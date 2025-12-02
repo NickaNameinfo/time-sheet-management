@@ -2,6 +2,7 @@ import React from "react";
 import Login from "./Login";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
 import Dashboard from "./Admin/Dashboard";
 import Employee from "./Admin/Employee";
 import Leads from "./Admin/Leads";
@@ -66,8 +67,15 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
+        {/* Public Routes - Login Pages */}
         <Route path="/" element={<Start />}></Route>
-        <Route path="/Dashboard" element={<Dashboard />}>
+        <Route path="/login" element={<Login />}></Route>
+        <Route path="/employee-login" element={<EmployeeLogin />}></Route>
+        <Route path="/teamlead-login" element={<TeamLeadLogin />}></Route>
+        <Route path="/hr-login" element={<HrLogin />}></Route>
+        
+        {/* Protected Routes */}
+        <Route path="/Dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>}>
           <Route path="" index element={<Home />}></Route>
           <Route path="/Dashboard/employee" element={<Employee />}></Route>
           <Route path="/Dashboard/Settings" element={<Settings />}></Route>
@@ -116,19 +124,42 @@ function App() {
           <Route path="/Dashboard/TeamLeadProjectWorks" element={<ProjectWorkDetails />}></Route>
         </Route>
 
-        <Route path="/Employee" element={<EmployeeDashboard />}>
-         
+        <Route path="/Employee" element={<ProtectedRoute><EmployeeDashboard /></ProtectedRoute>}>
+          <Route path="" index element={<EmployeeHome />}></Route>
+          <Route path="/Employee/EmployeeHome" element={<EmployeeHome />}></Route>
+          <Route path="/Employee/TimeManagement" element={<TimeManagement />}></Route>
+          <Route path="/Employee/AddLeaves" element={<AddLeaveDetails />}></Route>
+          <Route path="/Employee/CompOff" element={<CompOff />}></Route>
+          <Route path="/Employee/Profile" element={<Profile />}></Route>
+          <Route path="/Employee/ShiftDetails" element={<ShiftManagement />}></Route>
         </Route>
 
-        <Route path="/TeamLead" element={<TeamLeadDashboard />}>
-        
+        <Route path="/TeamLead" element={<ProtectedRoute><TeamLeadDashboard /></ProtectedRoute>}>
+          <Route path="" index element={<TeamLeadHome />}></Route>
+          {/* <Route path="/TeamLead/LeadHome" element={<TeamLeadHome />}></Route> */}
+          <Route path="/TeamLead/TimeManagement" element={<TimeManagement />}></Route>
+          <Route path="/TeamLead/AddLeaves" element={<AddLeaveDetails />}></Route>
+          <Route path="/TeamLead/CompOff" element={<CompOff />}></Route>
+          <Route path="/TeamLead/Profile" element={<Profile />}></Route>
+          <Route path="/TeamLead/ProjectWorkDetails" element={<ProjectWorkDetails />}></Route>
+          <Route path="/TeamLead/Approvals" element={<ApprovalCenter />}></Route>
+          <Route path="/TeamLead/Productivity" element={<ProductivityDashboard />}></Route>
+          <Route path="/TeamLead/ShiftManagement" element={<ShiftManagement />}></Route>
+          <Route path="/TeamLead/OvertimeManagement" element={<OvertimeManagement />}></Route>
         </Route>
 
-        <Route path="/Hr" element={<HrDashboard />}>
-          
+        <Route path="/Hr" element={<ProtectedRoute><HrDashboard /></ProtectedRoute>}>
+          <Route path="" index element={<LeaveBalance />}></Route>
+          <Route path="/Hr/LeaveBalance" element={<LeaveBalance />}></Route>
+          <Route path="/Hr/create/:id?" element={<AddEmployee from="hr"/>}></Route>
+          <Route path="/Hr/employee" element={<Employee from="hr"/>}></Route>
+          <Route path="/Hr/Settings" element={<Settings from="hr"/>}></Route>
+          <Route path="/Hr/AddUpdates" element={<AddUpdates from="hr"/>}></Route>
+          <Route path="/Hr/Profile" element={<Profile />}></Route>
+          <Route path="/Hr/TimeManagement" element={<TimeManagement />}></Route>
+          <Route path="/Hr/AddLeaves" element={<AddLeaveDetails />}></Route>
+          <Route path="/Hr/CompOff" element={<CompOff />}></Route>
         </Route>
-
-        <Route path="/login" element={<Login />}></Route>
         </Routes>
       </AuthProvider>
     </BrowserRouter>

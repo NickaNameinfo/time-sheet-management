@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useApi } from "../hooks/useApi";
 import { useMutation } from "../hooks/useMutation";
 import { apiService } from "../services/api";
@@ -24,6 +24,9 @@ import {
   InputLabel,
   Stack,
   Chip,
+  Snackbar,
+  Alert,
+  IconButton,
 } from "@mui/material";
 import {
   TrendingUp,
@@ -33,6 +36,8 @@ import {
   AccessTime,
   CheckCircle,
   Group,
+  Refresh,
+  Close,
 } from "@mui/icons-material";
 import ErrorMessage from "./ErrorMessage";
 import Loading from "./Loading";
@@ -43,13 +48,14 @@ import { useAuth } from "../context/AuthContext";
 
 const ProductivityDashboard = () => {
   const { user } = useAuth();
-  const [selectedEmployee, setSelectedEmployee] = useState(user?.id || "");
+  const [selectedEmployee, setSelectedEmployee] = useState(user?.employeeId || "");
   const [startDate, setStartDate] = useState(dayjs().startOf("month"));
   const [endDate, setEndDate] = useState(dayjs().endOf("month"));
   const [period, setPeriod] = useState("daily");
+  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
-  const { data: employees } = useApi(apiService.getEmployees);
-  const { data: metrics, loading: metricsLoading } = useApi(
+  const { data: employeesData } = useApi(apiService.getEmployees);
+  const { data: metricsData, loading: metricsLoading, refetch: refetchMetrics } = useApi(
     () =>
       apiService.getProductivityMetrics({
         employeeId: selectedEmployee,
@@ -60,18 +66,18 @@ const ProductivityDashboard = () => {
     false
   );
 
-  const { data: teamProductivity, loading: teamLoading } = useApi(
+  const { data: teamProductivityData, loading: teamLoading, refetch: refetchTeam } = useApi(
     () =>
       apiService.getTeamProductivity({
-        teamLeadId: user?.id,
+        teamLeadId: user?.employeeId,
         startDate: startDate.format("YYYY-MM-DD"),
         endDate: endDate.format("YYYY-MM-DD"),
       }),
-    [user?.id, startDate, endDate],
+    [user?.employeeId, startDate, endDate],
     false
   );
 
-  const { data: trends, loading: trendsLoading } = useApi(
+  const { data: trendsData, loading: trendsLoading } = useApi(
     () =>
       apiService.getProductivityTrends({
         employeeId: selectedEmployee,
@@ -81,13 +87,36 @@ const ProductivityDashboard = () => {
     false
   );
 
+  // Parse API responses
+  const employees = useMemo(() => {
+    if (!employeesData) return [];
+    if (Array.isArray(employeesData)) return employeesData;
+    return employeesData?.Result || employeesData?.data?.Result || [];
+  }, [employeesData]);
+
+  const metrics = useMemo(() => {
+    if (!metricsData) return [];
+    if (Array.isArray(metricsData)) return metricsData;
+    return metricsData?.Result || metricsData?.data?.Result || [];
+  }, [metricsData]);
+
+  const teamProductivity = useMemo(() => {
+    if (!teamProductivityData) return null;
+    if (Array.isArray(teamProductivityData)) return { teamMetrics: teamProductivityData };
+    return teamProductivityData?.Result || teamProductivityData?.data?.Result || teamProductivityData;
+  }, [teamProductivityData]);
+
   const { mutate: calculateProductivity, loading: calculating } = useMutation(
     apiService.calculateProductivity
   );
 
   const handleCalculate = async () => {
     if (!selectedEmployee) {
-      alert("Please select an employee");
+      setSnackbar({
+        open: true,
+        message: "Please select an employee",
+        severity: "warning",
+      });
       return;
     }
 
@@ -97,8 +126,25 @@ const ProductivityDashboard = () => {
     });
 
     if (result.success) {
-      alert("Productivity calculated successfully");
+      setSnackbar({
+        open: true,
+        message: "Productivity calculated successfully",
+        severity: "success",
+      });
+      refetchMetrics();
+      refetchTeam();
+    } else {
+      setSnackbar({
+        open: true,
+        message: result.error || "Failed to calculate productivity",
+        severity: "error",
+      });
     }
+  };
+
+  const handleRefresh = () => {
+    refetchMetrics();
+    refetchTeam();
   };
 
   if (metricsLoading && teamLoading) {
@@ -130,20 +176,29 @@ const ProductivityDashboard = () => {
               Track and analyze employee productivity metrics
             </Typography>
           </Box>
-          <Button
-            variant="contained"
-            startIcon={<Calculate />}
-            onClick={handleCalculate}
-            disabled={calculating}
-            sx={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-              "&:hover": {
-                background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
-              },
-            }}
-          >
-            {calculating ? "Calculating..." : "Calculate Today"}
-          </Button>
+          <Stack direction="row" spacing={2}>
+            <Button
+              variant="outlined"
+              startIcon={<Refresh />}
+              onClick={handleRefresh}
+            >
+              Refresh
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<Calculate />}
+              onClick={handleCalculate}
+              disabled={calculating}
+              sx={{
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                "&:hover": {
+                  background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                },
+              }}
+            >
+              {calculating ? "Calculating..." : "Calculate Today"}
+            </Button>
+          </Stack>
         </Box>
 
         <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
@@ -429,6 +484,32 @@ const ProductivityDashboard = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: "100%" }}
+          action={
+            <IconButton
+              size="small"
+              aria-label="close"
+              color="inherit"
+              onClick={() => setSnackbar({ ...snackbar, open: false })}
+            >
+              <Close fontSize="small" />
+            </IconButton>
+          }
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

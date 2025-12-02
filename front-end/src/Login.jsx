@@ -20,10 +20,8 @@ function Login() {
   const Submit = async (data) => {
     setError("");
     setLoading(true);
-    const result = await login(data, "employee");
+    const result = await login(data, "admin");
     setLoading(false);
-
-    console.log(result);
 
     if (!result.success) {
       setError(result.error || "Login failed. Please try again.");
@@ -32,8 +30,19 @@ function Login() {
 
   useEffect(() => {
     if (isAuthenticated && roles) {
-      // All roles navigate to the same dashboard initially
-      navigate("/Dashboard/EmployeeHome");
+      // Redirect based on role
+      if (roles.includes("Admin")) {
+        navigate("/Dashboard");
+      } else if (roles.includes("HR")) {
+        navigate("/Hr/LeaveBalance");
+      } else if (roles.includes("TL") || roles.includes("teamLead")) {
+        navigate("/TeamLead/LeadHome");
+      } else if (roles.includes("Employee")) {
+        navigate("/Employee/EmployeeHome");
+      } else {
+        // Default fallback
+        navigate("/Dashboard");
+      }
     }
   }, [isAuthenticated, roles, navigate]);
 

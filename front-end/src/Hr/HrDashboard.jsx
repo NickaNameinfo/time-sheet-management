@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Box,
   Drawer,
@@ -16,39 +16,30 @@ import {
   IconButton,
 } from "@mui/material";
 import {
-  Dashboard as DashboardIcon,
   People,
   Logout,
   Menu,
+  EventAvailable,
+  Settings as SettingsIcon,
+  Person,
+  AccessTime,
+  Assignment,
 } from "@mui/icons-material";
-import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
-import axios from "axios";
+import { Link, Outlet, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import commonData from "../../common.json";
 
 const drawerWidth = 280;
 
 function HrDashboard() {
-  const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [mobileOpen, setMobileOpen] = useState(false);
-  const token = localStorage.getItem("token");
-  axios.defaults.withCredentials = true;
-
-  useEffect(() => {
-    axios.post(`${commonData?.APIKEY}/dashboard`, { tokensss: token }).then((res) => {
-      console.log(res, "resresresres");
-    });
-  }, []);
+  const { logout } = useAuth();
 
   const handleLogout = () => {
-    axios
-      .get(`${commonData?.APIKEY}/logout`)
-      .then((res) => {
-        navigate("/");
-      })
-      .catch((err) => console.log(err));
+    logout();
   };
 
   const handleDrawerToggle = () => {
@@ -57,14 +48,42 @@ function HrDashboard() {
 
   const menuItems = [
     {
-      title: "Dashboard",
-      icon: <DashboardIcon />,
-      path: "/Hr",
+      title: "Leave Balance",
+      icon: <EventAvailable />,
+      path: "/Hr/LeaveBalance",
     },
     {
-      title: "Manage Employee",
+      title: "Manage Employees",
       icon: <People />,
       path: "/Hr/employee",
+    },
+    {
+      title: "Settings",
+      icon: <SettingsIcon />,
+      path: "/Hr/Settings",
+    },
+  ];
+
+  const commonMenuItems = [
+    {
+      title: "Profile",
+      icon: <Person />,
+      path: "/Hr/Profile",
+    },
+    {
+      title: "Time Management",
+      icon: <AccessTime />,
+      path: "/Hr/TimeManagement",
+    },
+    {
+      title: "Apply Leave",
+      icon: <EventAvailable />,
+      path: "/Hr/AddLeaves",
+    },
+    {
+      title: "Comp-Off",
+      icon: <Assignment />,
+      path: "/Hr/CompOff",
     },
   ];
 
@@ -92,6 +111,56 @@ function HrDashboard() {
       </Box>
       <List sx={{ flexGrow: 1, pt: 2 }}>
         {menuItems.map((item) => {
+          const isActive = location.pathname === item.path;
+          return (
+            <ListItem key={item.path} disablePadding>
+              <ListItemButton
+                component={Link}
+                to={item.path}
+                selected={isActive}
+                sx={{
+                  mb: 0.5,
+                  mx: 1,
+                  borderRadius: 2,
+                  "&.Mui-selected": {
+                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    color: "white",
+                    "&:hover": {
+                      background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                    },
+                    "& .MuiListItemIcon-root": {
+                      color: "white",
+                    },
+                  },
+                  "&:hover": {
+                    bgcolor: "action.hover",
+                    transform: "translateX(5px)",
+                  },
+                  transition: "all 0.3s ease",
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 40, color: isActive ? "white" : "inherit" }}>
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText
+                  primary={item.title}
+                  primaryTypographyProps={{
+                    fontSize: "0.95rem",
+                    fontWeight: isActive ? 600 : 400,
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+          );
+        })}
+        
+        <Box sx={{ mt: 2, mb: 1, px: 2 }}>
+          <Typography variant="overline" sx={{ color: "text.secondary", fontSize: "0.75rem", fontWeight: 600 }}>
+            Common
+          </Typography>
+        </Box>
+        
+        {commonMenuItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
             <ListItem key={item.path} disablePadding>

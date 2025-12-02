@@ -18,6 +18,8 @@ import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 import commonData from "../../common.json";
+import ClockInOutCard from "../components/ClockInOutCard";
+
 function TeamLeadHome() {
   const containerStyle = { width: "100%", height: "100%" };
   const gridStyle = { height: "100%", width: "100%" };
@@ -25,16 +27,12 @@ function TeamLeadHome() {
   const [projectWorkHours, setProjectWorkHours] = React.useState(null);
   const [workDetails, setWorkDetails] = useState([]);
   const token = localStorage.getItem("token");
-
-  console.log(rowData, "rowDatarowData", workDetails);
   axios.defaults.withCredentials = true;
 
   const calculateProjectValues = (params, projectWorkHours) => {
     const project = projectWorkHours?.find(
       (items) => items.projectName === params.data.projectName
     );
-
-    console.log(project, "project1231");
     if (project) {
       const completionPercentage =
         (project.totalHours / params.data.allotatedHours) * 100;
@@ -76,7 +74,6 @@ function TeamLeadHome() {
       return { projectName, totalHours };
     });
     setProjectWorkHours(projectTotalHours);
-    console.log(projectTotalHours, "projectTotalHours");
   }, [workDetails]);
 
   const columnDefs = useMemo(
@@ -182,7 +179,6 @@ function TeamLeadHome() {
         let userDetails = await axios.post(`${commonData?.APIKEY}/dashboard`, {
           tokensss: token,
         });
-        console.log(res, "resres324", userDetails);
         if (res.data.Status === "Success") {
           let filterData = res.data.Result.filter(
             (items) => items.tlName === userDetails.data.employeeName
@@ -197,7 +193,7 @@ function TeamLeadHome() {
 
   const onGetWorkDetails = (params) => {
     axios
-      .get(`${commonData?.APIKEY}/getWrokDetails`)
+      .get(`${commonData?.APIKEY}/getWorkDetails`)
       .then((res) => {
         if (res.data.Status === "Success") {
           setWorkDetails(res.data.Result);
@@ -210,7 +206,6 @@ function TeamLeadHome() {
 
   const updateProjectDetails = (params) => {
     let apiTemp = { ...params.data, approvedDate: new Date() };
-    console.log(apiTemp, "apiTempapiTempapiTemp", params.data);
     axios
       .put(
         `${commonData?.APIKEY}/project/update/completion/` + params.data.id,
@@ -220,7 +215,6 @@ function TeamLeadHome() {
         alert("Update Successfully");
         location.reload();
       });
-    console.log(params.data, "datadatadatadata");
   };
 
   const onSelectionChanged = (event) => {
@@ -229,6 +223,9 @@ function TeamLeadHome() {
 
   return (
     <Box sx={{ p: 3 }}>
+      {/* Clock In/Out Card */}
+      <ClockInOutCard />
+
       {/* Header */}
       <Box sx={{ mb: 3 }}>
         <Box

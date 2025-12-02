@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:timesheet_mobile/providers/auth_provider.dart';
-import 'package:timesheet_mobile/screens/home_screen.dart';
+import 'package:timesheet_mobile/screens/employee_dashboard_screen.dart';
+import 'package:timesheet_mobile/screens/hr_dashboard_screen.dart';
+import 'package:timesheet_mobile/screens/teamlead_dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,6 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _userNameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  String _selectedRole = 'employee';
 
   @override
   void dispose() {
@@ -31,11 +34,24 @@ class _LoginScreenState extends State<LoginScreen> {
     final success = await authProvider.login(
       _userNameController.text.trim(),
       _passwordController.text,
+      role: _selectedRole,
     );
 
     if (success && mounted) {
+      final user = authProvider.user;
+      final role = user?['role']?.toString().toLowerCase() ?? _selectedRole;
+      
+      Widget destination;
+      if (role == 'hr') {
+        destination = const HrDashboardScreen();
+      } else if (role == 'teamlead' || role == 'team_lead') {
+        destination = const TeamLeadDashboardScreen();
+      } else {
+        destination = const EmployeeDashboardScreen();
+      }
+      
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => destination),
       );
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -128,6 +144,25 @@ class _LoginScreenState extends State<LoginScreen> {
                                   return 'Please enter your username';
                                 }
                                 return null;
+                              },
+                            ),
+                            const SizedBox(height: 20),
+                            // Role Selection
+                            DropdownButtonFormField<String>(
+                              value: _selectedRole,
+                              decoration: const InputDecoration(
+                                labelText: 'Login As',
+                                border: OutlineInputBorder(),
+                              ),
+                              items: const [
+                                DropdownMenuItem(value: 'employee', child: Text('Employee')),
+                                DropdownMenuItem(value: 'hr', child: Text('HR')),
+                                DropdownMenuItem(value: 'teamLead', child: Text('Team Lead')),
+                              ],
+                              onChanged: (value) {
+                                if (value != null) {
+                                  setState(() => _selectedRole = value);
+                                }
                               },
                             ),
                             const SizedBox(height: 20),

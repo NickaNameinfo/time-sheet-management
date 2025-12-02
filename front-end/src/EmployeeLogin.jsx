@@ -24,7 +24,7 @@ function EmployeeLogin() {
     setLoading(false);
 
     if (result.success) {
-      navigate("/Employee");
+      navigate("/Employee/EmployeeHome");
     } else {
       setError(result.error || "Invalid Username and password");
     }
@@ -32,7 +32,7 @@ function EmployeeLogin() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate("/Employee");
+      navigate("/Employee/EmployeeHome");
     }
   }, [isAuthenticated, navigate]);
 

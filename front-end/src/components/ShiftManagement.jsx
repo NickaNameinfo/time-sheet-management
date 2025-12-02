@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useApi } from "../hooks/useApi";
 import { useMutation } from "../hooks/useMutation";
 import { apiService } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 import {
   Box,
   Button,
@@ -24,6 +25,9 @@ import {
   Stack,
   IconButton,
   Grid,
+  Snackbar,
+  Alert,
+  CircularProgress,
 } from "@mui/material";
 import {
   Schedule,
@@ -41,8 +45,10 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
 
 const ShiftManagement = () => {
+  const { user, isEmployee } = useAuth();
   const [openDialog, setOpenDialog] = useState(false);
   const [assignDialog, setAssignDialog] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
   const [formData, setFormData] = useState({
     name: "",
     startTime: dayjs("08:00", "HH:mm"),
@@ -55,14 +61,28 @@ const ShiftManagement = () => {
     assignmentDate: dayjs(),
   });
 
+  // For employees: only fetch their assigned shift
+  // For HR/Admin: fetch all shifts and assignments
+  const isEmployeeUser = isEmployee();
+
   const { data: shifts, loading: shiftsLoading, refetch: refetchShifts } = useApi(
-    apiService.getShifts
-  );
-  const { data: employees, loading: employeesLoading } = useApi(apiService.getEmployees);
-  const { data: assignments, loading: assignmentsLoading, refetch: refetchAssignments } = useApi(
-    apiService.getShiftAssignments,
+    apiService.getShifts,
     [],
-    false
+    !isEmployeeUser // Only fetch all shifts if not employee
+  );
+  const { data: employees, loading: employeesLoading } = useApi(
+    apiService.getEmployees,
+    [],
+    !isEmployeeUser // Only fetch employees if not employee (for assignment)
+  );
+  
+  // Fetch shift assignments - filtered by employeeId for employees
+  const { data: assignments, loading: assignmentsLoading, refetch: refetchAssignments } = useApi(
+    () => apiService.getShiftAssignments(
+      isEmployeeUser ? { employeeId: user?.id, isActive: "true" } : {}
+    ),
+    [user?.id, isEmployeeUser],
+    !!user?.id || !isEmployeeUser
   );
 
   const { mutate: createShift, loading: creating } = useMutation(apiService.createShift);
@@ -78,8 +98,18 @@ const ShiftManagement = () => {
 
     if (result.success) {
       setOpenDialog(false);
+      setSnackbar({
+        open: true,
+        message: "Shift created successfully",
+        severity: "success",
+      });
       refetchShifts();
-      alert("Shift created successfully");
+    } else {
+      setSnackbar({
+        open: true,
+        message: result.error || "Failed to create shift",
+        severity: "error",
+      });
     }
   };
 
@@ -92,17 +122,32 @@ const ShiftManagement = () => {
 
     if (result.success) {
       setAssignDialog(false);
+      setSnackbar({
+        open: true,
+        message: "Shift assigned successfully",
+        severity: "success",
+      });
       refetchAssignments();
-      alert("Shift assigned successfully");
+    } else {
+      setSnackbar({
+        open: true,
+        message: result.error || "Failed to assign shift",
+        severity: "error",
+      });
     }
   };
 
-  if (shiftsLoading || employeesLoading) {
-    return <Loading message="Loading shifts..." />;
+  if ((shiftsLoading || employeesLoading || assignmentsLoading) && !assignments) {
+    return <Loading message="Loading shift details..." />;
   }
 
+  // Handle assignments data format
+  const assignmentsList = Array.isArray(assignments)
+    ? assignments
+    : assignments?.Result || assignments?.data?.Result || [];
+
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 3, bgcolor: "grey.50", minHeight: "100vh" }}>
       {/* Header */}
       <Box sx={{ mb: 3 }}>
         <Box
@@ -114,11 +159,23 @@ const ShiftManagement = () => {
           }}
         >
           <Box>
-            <Typography variant="h4" fontWeight="bold" gutterBottom>
-              Shift Management
+            <Typography
+              variant="h4"
+              fontWeight="bold"
+              gutterBottom
+              sx={{
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              {isEmployeeUser ? "My Shift Details" : "Shift Management"}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Create and manage employee shift schedules
+              {isEmployeeUser
+                ? "View your assigned shift schedule"
+                : "Create and manage employee shift schedules"}
             </Typography>
           </Box>
           <Stack direction="row" spacing={2}>
@@ -126,96 +183,142 @@ const ShiftManagement = () => {
               variant="outlined"
               startIcon={<Refresh />}
               onClick={() => {
-                refetchShifts();
+                if (!isEmployeeUser) refetchShifts();
                 refetchAssignments();
+              }}
+              disabled={assignmentsLoading}
+              sx={{
+                borderRadius: 2,
+                textTransform: "uppercase",
+                fontWeight: 600,
               }}
             >
               Refresh
             </Button>
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={() => setOpenDialog(true)}
-              sx={{
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                "&:hover": {
-                  background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
-                },
-              }}
-            >
-              Create Shift
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<PersonAdd />}
-              onClick={() => setAssignDialog(true)}
-            >
-              Assign Shift
-            </Button>
+            {!isEmployeeUser && (
+              <>
+                <Button
+                  variant="contained"
+                  startIcon={<Add />}
+                  onClick={() => setOpenDialog(true)}
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: "uppercase",
+                    fontWeight: 600,
+                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    boxShadow: "0 4px 15px rgba(102, 126, 234, 0.4)",
+                    "&:hover": {
+                      background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                      boxShadow: "0 6px 20px rgba(102, 126, 234, 0.6)",
+                    },
+                  }}
+                >
+                  Create Shift
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<PersonAdd />}
+                  onClick={() => setAssignDialog(true)}
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: "uppercase",
+                    fontWeight: 600,
+                  }}
+                >
+                  Assign Shift
+                </Button>
+              </>
+            )}
           </Stack>
         </Box>
       </Box>
 
-      {/* Shifts List */}
-      <Card sx={{ mb: 3, borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
-        <CardContent>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
-            <Schedule color="primary" />
-            <Typography variant="h6" fontWeight="bold">
-              Available Shifts
-            </Typography>
-          </Box>
-          <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
-            <Table>
-              <TableHead>
-                <TableRow sx={{ bgcolor: "primary.main" }}>
-                  <TableCell sx={{ color: "white", fontWeight: "bold" }}>Name</TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: "bold" }}>Start Time</TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: "bold" }}>End Time</TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: "bold" }}>Break Duration</TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: "bold" }}>Status</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {shifts?.length > 0 ? (
-                  shifts.map((shift) => (
-                    <TableRow key={shift.id} hover>
-                      <TableCell>
-                        <Typography fontWeight="medium">{shift.name}</Typography>
-                      </TableCell>
-                      <TableCell>{shift.start_time}</TableCell>
-                      <TableCell>{shift.end_time}</TableCell>
-                      <TableCell>{shift.break_duration} minutes</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={shift.is_active ? "Active" : "Inactive"}
-                          color={shift.is_active ? "success" : "default"}
-                          size="small"
-                          variant={shift.is_active ? "filled" : "outlined"}
-                        />
+      {/* Shifts List - Only show for HR/Admin */}
+      {!isEmployeeUser && (
+        <Card sx={{ mb: 3, borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
+          <CardContent>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
+              <Box
+                sx={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 2,
+                  bgcolor: "primary.light",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Schedule sx={{ color: "primary.main", fontSize: 24 }} />
+              </Box>
+              <Typography variant="h6" fontWeight="bold">
+                Available Shifts
+              </Typography>
+            </Box>
+            <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
+              <Table>
+                <TableHead>
+                  <TableRow sx={{ bgcolor: "primary.main" }}>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Name</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Start Time</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>End Time</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Break Duration</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Status</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {shifts?.length > 0 ? (
+                    shifts.map((shift) => (
+                      <TableRow key={shift.id} hover>
+                        <TableCell>
+                          <Typography fontWeight="medium">{shift.name}</Typography>
+                        </TableCell>
+                        <TableCell>{shift.start_time}</TableCell>
+                        <TableCell>{shift.end_time}</TableCell>
+                        <TableCell>{shift.break_duration} minutes</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={shift.is_active ? "Active" : "Inactive"}
+                            color={shift.is_active ? "success" : "default"}
+                            size="small"
+                            variant={shift.is_active ? "filled" : "outlined"}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                        <Typography color="text.secondary">No shifts available</Typography>
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
-                      <Typography color="text.secondary">No shifts available</Typography>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Shift Assignments */}
       <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
         <CardContent>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
-            <PersonAdd color="primary" />
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: 2,
+                bgcolor: "primary.light",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <PersonAdd sx={{ color: "primary.main", fontSize: 24 }} />
+            </Box>
             <Typography variant="h6" fontWeight="bold">
-              Shift Assignments
+              {isEmployeeUser ? "My Shift Assignment" : "Shift Assignments"}
             </Typography>
           </Box>
           {assignmentsLoading ? (
@@ -225,21 +328,51 @@ const ShiftManagement = () => {
               <Table>
                 <TableHead>
                   <TableRow sx={{ bgcolor: "primary.main" }}>
-                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Employee</TableCell>
-                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Shift</TableCell>
+                    {!isEmployeeUser && (
+                      <TableCell sx={{ color: "white", fontWeight: "bold" }}>Employee</TableCell>
+                    )}
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Shift Name</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Start Time</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>End Time</TableCell>
                     <TableCell sx={{ color: "white", fontWeight: "bold" }}>Start Date</TableCell>
                     <TableCell sx={{ color: "white", fontWeight: "bold" }}>End Date</TableCell>
                     <TableCell sx={{ color: "white", fontWeight: "bold" }}>Status</TableCell>
+                    {/* Note: Shift assignments are read-only - no edit/delete actions available */}
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {assignments?.length > 0 ? (
-                    assignments.map((assignment) => (
+                  {assignmentsList.length > 0 ? (
+                    assignmentsList.map((assignment) => (
                       <TableRow key={assignment.id} hover>
-                        <TableCell>{assignment.employeeName}</TableCell>
-                        <TableCell>{assignment.shift_name}</TableCell>
-                        <TableCell>{assignment.assignment_date}</TableCell>
-                        <TableCell>{assignment.end_date || "Ongoing"}</TableCell>
+                        {!isEmployeeUser && (
+                          <TableCell>
+                            <Typography fontWeight="medium">
+                              {assignment.employeeName || "N/A"}
+                            </Typography>
+                            {assignment.EMPID && (
+                              <Typography variant="caption" color="text.secondary">
+                                ID: {assignment.EMPID}
+                              </Typography>
+                            )}
+                          </TableCell>
+                        )}
+                        <TableCell>
+                          <Typography fontWeight="medium">
+                            {assignment.shift_name || "N/A"}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>{assignment.start_time || "N/A"}</TableCell>
+                        <TableCell>{assignment.end_time || "N/A"}</TableCell>
+                        <TableCell>
+                          {assignment.assignment_date
+                            ? dayjs(assignment.assignment_date).format("YYYY-MM-DD")
+                            : "N/A"}
+                        </TableCell>
+                        <TableCell>
+                          {assignment.end_date
+                            ? dayjs(assignment.end_date).format("YYYY-MM-DD")
+                            : "Ongoing"}
+                        </TableCell>
                         <TableCell>
                           <Chip
                             label={assignment.is_active ? "Active" : "Inactive"}
@@ -252,8 +385,19 @@ const ShiftManagement = () => {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
-                        <Typography color="text.secondary">No shift assignments found</Typography>
+                      <TableCell
+                        colSpan={isEmployeeUser ? 6 : 7}
+                        align="center"
+                        sx={{ py: 4 }}
+                      >
+                        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+                          <Schedule sx={{ fontSize: 48, color: "text.disabled", opacity: 0.5 }} />
+                          <Typography color="text.secondary">
+                            {isEmployeeUser
+                              ? "No shift assigned yet"
+                              : "No shift assignments found"}
+                          </Typography>
+                        </Box>
                       </TableCell>
                     </TableRow>
                   )}
@@ -413,6 +557,22 @@ const ShiftManagement = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

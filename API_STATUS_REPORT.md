@@ -67,10 +67,10 @@
 
 ### 8. ⚠️ GET `/getWorkDetails`
 - **Status**: ⚠️ EXISTS BUT HAS TYPO
-- **Current Route**: `/getWrokDetails` (typo: "Wrok" instead of "Work")
+- **Current Route**: `/getWorkDetails` (typo: "Wrok" instead of "Work")
 - **Location**: `back-end/routes/projectRoutes.js` (line 26)
 - **Controller**: `back-end/controllers/projectController.js` → `getWorkDetails`
-- **Action Required**: Fix typo in route OR update mobile app to use `/getWrokDetails`
+- **Action Required**: Fix typo in route OR update mobile app to use `/getWorkDetails`
 - **Suggested Fix**: Change route to `/getWorkDetails` in `projectRoutes.js`
 
 ---
@@ -80,7 +80,7 @@
 ### 1. Route Typo
 - **File**: `back-end/routes/projectRoutes.js`
 - **Line**: 26
-- **Current**: `router.get("/getWrokDetails", getWorkDetails);`
+- **Current**: `router.get("/getWorkDetails", getWorkDetails);`
 - **Should be**: `router.get("/getWorkDetails", getWorkDetails);`
 
 ### 2. Missing Clock In/Out Endpoints
@@ -99,7 +99,7 @@
 
 ### Priority 1: Fix Route Typo
 1. Update `back-end/routes/projectRoutes.js` line 26
-2. Change `/getWrokDetails` to `/getWorkDetails`
+2. Change `/getWorkDetails` to `/getWorkDetails`
 
 ### Priority 2: Create Clock In/Out APIs
 1. Create `clockIn` controller function

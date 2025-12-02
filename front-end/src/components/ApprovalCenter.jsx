@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useApi } from "../hooks/useApi";
 import { useMutation } from "../hooks/useMutation";
 import { apiService } from "../services/api";
@@ -27,6 +27,11 @@ import {
   Stack,
   IconButton,
   Tooltip,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Grid,
 } from "@mui/material";
 import {
   CheckCircle,
@@ -38,7 +43,11 @@ import {
   Description,
   History,
   Person,
+  FilterList,
 } from "@mui/icons-material";
+import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
 import ErrorMessage from "./ErrorMessage";
 import Loading from "./Loading";
 import { useAuth } from "../context/AuthContext";
@@ -50,16 +59,34 @@ const ApprovalCenter = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [comments, setComments] = useState("");
   const [selectedItems, setSelectedItems] = useState([]);
+  
+  // History filters
+  const [historyFilters, setHistoryFilters] = useState({
+    entityType: "",
+    status: "",
+    startDate: null,
+    endDate: null,
+  });
 
   const { data: pendingApprovals, loading: pendingLoading, refetch: refetchPending } = useApi(
     () => apiService.getPendingApprovals({ approverId: user?.id }),
     [user?.id]
   );
 
-  const { data: approvalHistory, loading: historyLoading } = useApi(
-    () => apiService.getApprovalHistory({}),
-    []
+  const { data: approvalHistoryData, loading: historyLoading, refetch: refetchHistory } = useApi(
+    () => apiService.getApprovalHistory(historyFilters),
+    [historyFilters.entityType, historyFilters.status, historyFilters.startDate, historyFilters.endDate]
   );
+
+  // Parse approval history data
+  const approvalHistory = useMemo(() => {
+    if (!approvalHistoryData) return [];
+    // Handle both array and object with Result property
+    if (Array.isArray(approvalHistoryData)) {
+      return approvalHistoryData;
+    }
+    return approvalHistoryData?.Result || approvalHistoryData?.data?.Result || [];
+  }, [approvalHistoryData]);
 
   const { mutate: approveEntity, loading: approving } = useMutation((data) =>
     apiService.approveEntity(data.entityType, data.entityId, {
@@ -91,6 +118,7 @@ const ApprovalCenter = () => {
       setSelectedItem(null);
       setComments("");
       refetchPending();
+      refetchHistory(); // Refresh history after approval
       alert(`Item ${selectedItem.status} successfully`);
     }
   };
@@ -168,7 +196,12 @@ const ApprovalCenter = () => {
             <Button
               variant="outlined"
               startIcon={<Refresh />}
-              onClick={refetchPending}
+              onClick={() => {
+                refetchPending();
+                if (tabValue === 3) {
+                  refetchHistory();
+                }
+              }}
             >
               Refresh
             </Button>
@@ -193,7 +226,13 @@ const ApprovalCenter = () => {
 
       <Tabs
         value={tabValue}
-        onChange={(e, newValue) => setTabValue(newValue)}
+        onChange={(e, newValue) => {
+          setTabValue(newValue);
+          // Refresh history when switching to history tab
+          if (newValue === 3) {
+            refetchHistory();
+          }
+        }}
         sx={{
           mb: 3,
           "& .MuiTab-root": {
@@ -515,6 +554,110 @@ const ApprovalCenter = () => {
       {tabValue === 3 && (
         <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
           <CardContent>
+            {/* Filters */}
+            <Box sx={{ mb: 3 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+                <FilterList color="primary" />
+                <Typography variant="h6" fontWeight="bold">
+                  Filters
+                </Typography>
+              </Box>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={3}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Entity Type</InputLabel>
+                    <Select
+                      value={historyFilters.entityType}
+                      label="Entity Type"
+                      onChange={(e) =>
+                        setHistoryFilters({ ...historyFilters, entityType: e.target.value })
+                      }
+                    >
+                      <MenuItem value="">All Types</MenuItem>
+                      <MenuItem value="leave">Leave</MenuItem>
+                      <MenuItem value="overtime">Overtime</MenuItem>
+                      <MenuItem value="timesheet">Timesheet</MenuItem>
+                      <MenuItem value="workdetails">Work Details</MenuItem>
+                      <MenuItem value="compoff">Comp-Off</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} md={3}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Status</InputLabel>
+                    <Select
+                      value={historyFilters.status}
+                      label="Status"
+                      onChange={(e) =>
+                        setHistoryFilters({ ...historyFilters, status: e.target.value })
+                      }
+                    >
+                      <MenuItem value="">All Status</MenuItem>
+                      <MenuItem value="approved">Approved</MenuItem>
+                      <MenuItem value="rejected">Rejected</MenuItem>
+                      <MenuItem value="pending">Pending</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} md={3}>
+                  <LocalizationProvider dateAdapter={AdapterDayjs}>
+                    <DatePicker
+                      label="Start Date"
+                      value={historyFilters.startDate ? dayjs(historyFilters.startDate) : null}
+                      onChange={(newValue) =>
+                        setHistoryFilters({
+                          ...historyFilters,
+                          startDate: newValue ? newValue.format("YYYY-MM-DD") : null,
+                        })
+                      }
+                      slotProps={{
+                        textField: {
+                          size: "small",
+                          fullWidth: true,
+                        },
+                      }}
+                    />
+                  </LocalizationProvider>
+                </Grid>
+                <Grid item xs={12} md={3}>
+                  <LocalizationProvider dateAdapter={AdapterDayjs}>
+                    <DatePicker
+                      label="End Date"
+                      value={historyFilters.endDate ? dayjs(historyFilters.endDate) : null}
+                      onChange={(newValue) =>
+                        setHistoryFilters({
+                          ...historyFilters,
+                          endDate: newValue ? newValue.format("YYYY-MM-DD") : null,
+                        })
+                      }
+                      slotProps={{
+                        textField: {
+                          size: "small",
+                          fullWidth: true,
+                        },
+                      }}
+                    />
+                  </LocalizationProvider>
+                </Grid>
+                <Grid item xs={12}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => {
+                      setHistoryFilters({
+                        entityType: "",
+                        status: "",
+                        startDate: null,
+                        endDate: null,
+                      });
+                    }}
+                    size="small"
+                  >
+                    Clear Filters
+                  </Button>
+                </Grid>
+              </Grid>
+            </Box>
+
             <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
               <Table>
                 <TableHead>
@@ -539,7 +682,7 @@ const ApprovalCenter = () => {
                         <TableCell>
                           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                             <Person sx={{ fontSize: 16, color: "text.secondary" }} />
-                            {history.employeeName}
+                            {history.employeeName || `ID: ${history.approver_id}`}
                           </Box>
                         </TableCell>
                         <TableCell>{history.approval_level}</TableCell>
@@ -557,7 +700,11 @@ const ApprovalCenter = () => {
                             variant={history.status === "approved" ? "filled" : "outlined"}
                           />
                         </TableCell>
-                        <TableCell>{new Date(history.created_at).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          {history.created_at
+                            ? new Date(history.created_at).toLocaleString()
+                            : "N/A"}
+                        </TableCell>
                         <TableCell>
                           <Typography
                             variant="body2"
@@ -576,7 +723,9 @@ const ApprovalCenter = () => {
                   ) : (
                     <TableRow>
                       <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
-                        <Typography color="text.secondary">No approval history found</Typography>
+                        <Typography color="text.secondary">
+                          {historyLoading ? "Loading..." : "No approval history found"}
+                        </Typography>
                       </TableCell>
                     </TableRow>
                   )}

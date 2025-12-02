@@ -40,7 +40,7 @@ import { useMutation } from "../hooks/useMutation";
 import Loading from "../components/Loading";
 import ErrorMessage from "../components/ErrorMessage";
 
-function Employee() {
+function Employee({ from }) {
   const navigate = useNavigate();
   const [selectedRows, setSelectedRows] = useState([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -67,7 +67,11 @@ function Employee() {
   }, [searchText, gridApi]);
 
   const onClickEdit = (id) => {
-    navigate(`/Dashboard/create/${id}`);
+    if (from === "hr") {
+      navigate(`/Hr/create/${id}`);
+    } else {
+      navigate(`/Dashboard/create/${id}`);
+    }
   };
 
   const handleDeleteClick = (employee) => {
@@ -165,23 +169,6 @@ function Employee() {
         field: "discipline",
         headerName: "Discipline",
         minWidth: 120,
-      },
-      {
-        field: "employeeStatus",
-        headerName: "Status",
-        minWidth: 120,
-        cellRenderer: (params) => {
-          const status = params.value?.toLowerCase();
-          const isActive = status === "active" || status === "1";
-          return (
-            <Chip
-              label={isActive ? "Active" : "Inactive"}
-              size="small"
-              color={isActive ? "success" : "default"}
-              variant={isActive ? "filled" : "outlined"}
-            />
-          );
-        },
       },
       {
         field: "date",
@@ -322,7 +309,13 @@ function Employee() {
             <Button
               variant="contained"
               startIcon={<Add />}
-              onClick={() => navigate("/Dashboard/create")}
+              onClick={() => {
+                if (from === "hr") {
+                  navigate("/Hr/create");
+                } else {
+                  navigate("/Dashboard/create");
+                }
+              }}
               sx={{
                 background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                 "&:hover": {
