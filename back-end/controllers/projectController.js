@@ -450,6 +450,7 @@ export const clockIn = asyncHandler(async (req, res) => {
   const { 
     employeeId, 
     employeeName, 
+    employeeNo: reqEmployeeNo,
     projectName, 
     referenceNo, 
     areaOfWork,
@@ -460,6 +461,8 @@ export const clockIn = asyncHandler(async (req, res) => {
     subDivisionList,
     allotatedHours,
     desciplineCode,
+    designation: reqDesignation,
+    tlName: reqTlName,
     date, 
     clockInTime 
   } = req.body;
@@ -480,9 +483,11 @@ export const clockIn = asyncHandler(async (req, res) => {
   }
   
   const userName = employee[0].userName;
-  const employeeNo = employee[0].EMPID || employee[0].id;
+  // Use employeeNo from request body if provided, otherwise get from database
+  const employeeNo = reqEmployeeNo ? parseInt(reqEmployeeNo) : (employee[0].EMPID || employee[0].id);
   const employeeDiscipline = employee[0].discipline || '';
-  const employeeDesignation = employee[0].designation || '';
+  // Use designation from request body if provided, otherwise get from database
+  const employeeDesignation = reqDesignation || employee[0].designation || '';
   const currentDate = date || new Date().toISOString().split('T')[0];
   const currentDateTime = clockInTime || new Date().toISOString();
   
@@ -546,8 +551,28 @@ export const clockIn = asyncHandler(async (req, res) => {
   // Get team lead ID if available - try multiple sources
   let tlNameId = null;
   
-  // First, try to get from project
-  if (projectData.tlName) {
+  // First, try to use tlName from request body if provided (could be ID or name)
+  if (reqTlName) {
+    // Check if it's a number (ID)
+    const tlNameAsNumber = parseInt(reqTlName);
+    if (!isNaN(tlNameAsNumber)) {
+      tlNameId = tlNameAsNumber;
+    } else {
+      // It's a name, look it up
+      try {
+        const tlSql = "SELECT id FROM team_lead WHERE leadName = ? LIMIT 1";
+        const tlResult = await query(tlSql, [reqTlName]);
+        if (tlResult.length > 0) {
+          tlNameId = tlResult[0].id;
+        }
+      } catch (e) {
+        // Continue to next method
+      }
+    }
+  }
+  
+  // If still no tlName, try to get from project
+  if (!tlNameId && projectData.tlName) {
     try {
       const tlSql = "SELECT id FROM team_lead WHERE leadName = ? LIMIT 1";
       const tlResult = await query(tlSql, [projectData.tlName]);

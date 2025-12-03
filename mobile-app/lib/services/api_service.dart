@@ -161,6 +161,7 @@ class ApiService {
       _dio.options.baseUrl = AppConfig.baseUrl;
       
       // Prepare data - include all work details fields (matching ClockInOutCard.jsx)
+      // Always send all fields, use empty string if not provided (backend expects this)
       final clockInData = {
         'employeeId': employeeId,
         'employeeName': employeeName.trim(),
@@ -170,16 +171,16 @@ class ApiService {
         'projectName': projectName.trim(),
         'referenceNo': referenceNo.trim(),
         'areaOfWork': areaOfWork.trim(),
-        // Additional work details fields
-        if (projectNo != null && projectNo.isNotEmpty) 'projectNo': projectNo.trim(),
-        if (taskNo != null && taskNo.isNotEmpty) 'taskNo': taskNo.trim(),
-        if (variation != null && variation.isNotEmpty) 'variation': variation.trim(),
-        if (subDivision != null && subDivision.isNotEmpty) 'subDivision': subDivision.trim(),
-        if (subDivisionList != null && subDivisionList.isNotEmpty) 'subDivisionList': subDivisionList.trim(),
-        if (allotatedHours != null && allotatedHours.isNotEmpty) 'allotatedHours': allotatedHours.trim(),
-        if (desciplineCode != null && desciplineCode.isNotEmpty) 'desciplineCode': desciplineCode.trim(),
-        if (designation != null && designation.isNotEmpty) 'designation': designation.trim(),
-        if (tlName != null && tlName.isNotEmpty) 'tlName': tlName.trim(),
+        // Additional work details fields - always send, use empty string if null
+        'projectNo': (projectNo != null && projectNo.isNotEmpty) ? projectNo.trim() : '',
+        'taskNo': (taskNo != null && taskNo.isNotEmpty) ? taskNo.trim() : '',
+        'variation': (variation != null && variation.isNotEmpty) ? variation.trim() : '',
+        'subDivision': (subDivision != null && subDivision.isNotEmpty) ? subDivision.trim() : '',
+        'subDivisionList': (subDivisionList != null && subDivisionList.isNotEmpty) ? subDivisionList.trim() : '',
+        'allotatedHours': (allotatedHours != null && allotatedHours.isNotEmpty) ? allotatedHours.trim() : '',
+        'desciplineCode': (desciplineCode != null && desciplineCode.isNotEmpty) ? desciplineCode.trim() : '',
+        'designation': (designation != null && designation.isNotEmpty) ? designation.trim() : '',
+        'tlName': (tlName != null && tlName.isNotEmpty) ? tlName.trim() : '',
       };
       
       _logger.d('Clock In Request Data: $clockInData');
