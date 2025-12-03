@@ -87,8 +87,8 @@ export const getImageUrl = (imagePath) => {
   }
   // Get API base URL from environment or use default
   // Use the same default as frontend config (8000) but user should set VITE_API_BASE_URL
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "https://nicknameinfo.net/timesheet ";
-  // const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "https://nicknameinfo.net/timesheet ";
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "https://nicknameinfo.net/timesheet";
+  // const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "https://nicknameinfo.net/timesheet";
   // Remove any leading slashes from imagePath to avoid double slashes
   const cleanPath = imagePath.startsWith("/") ? imagePath.slice(1) : imagePath;
   // Construct full URL: http://localhost:8081/images/employeeImage_xxx.jpg

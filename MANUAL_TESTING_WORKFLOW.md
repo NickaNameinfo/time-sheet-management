@@ -8,7 +8,7 @@ This document provides a comprehensive manual testing workflow for all Phase 1 &
 ## Prerequisites
 
 ### 1. Environment Setup
-- [ ] Backend server running on `https://nicknameinfo.net/timesheet ` (done)
+- [ ] Backend server running on `https://nicknameinfo.net/timesheet` (done)
 - [ ] Frontend server running (typically `http://localhost:5173` or similar) (done)
 - [ ] Database connection established (done)
 - [ ] All migrations executed (done)

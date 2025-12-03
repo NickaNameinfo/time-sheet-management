@@ -66,13 +66,13 @@ Test a few endpoints to verify everything works:
 
 ```bash
 # Get OT Rules
-curl https://nicknameinfo.net/timesheet /overtime/rules
+curl https://nicknameinfo.net/timesheet/overtime/rules
 
 # Get Shifts
-curl https://nicknameinfo.net/timesheet /shifts
+curl https://nicknameinfo.net/timesheet/shifts
 
 # Get Clients (requires auth token)
-curl -H "Authorization: Bearer YOUR_TOKEN" https://nicknameinfo.net/timesheet /clients
+curl -H "Authorization: Bearer YOUR_TOKEN" https://nicknameinfo.net/timesheet/clients
 ```
 
 ---

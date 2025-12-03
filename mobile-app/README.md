@@ -81,7 +81,7 @@ mobile-app/
 
 - Flutter SDK (3.0.0 or higher)
 - Android Studio / Xcode (for mobile development)
-- Backend API running (default: https://nicknameinfo.net/timesheet )
+- Backend API running (default: https://nicknameinfo.net/timesheet)
 
 ### 2. Install Dependencies
 
