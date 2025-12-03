@@ -60,7 +60,7 @@ Create a `.env` file in the root directory:
 
 ```env
 # API Configuration
-VITE_API_BASE_URL=https://nicknameinfo.net/timesheet
+VITE_API_BASE_URL=https://nicknameinfo.net/timesheet 
 VITE_BASE_URL=http://localhost:5173
 
 # Environment
@@ -211,7 +211,7 @@ const result = await mutate(data);
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `VITE_API_BASE_URL` | Backend API URL | `https://nicknameinfo.net/timesheet` |
+| `VITE_API_BASE_URL` | Backend API URL | `https://nicknameinfo.net/timesheet ` |
 | `VITE_BASE_URL` | Frontend base URL | `http://localhost:5173` |
 | `VITE_NODE_ENV` | Environment mode | `development` |
 

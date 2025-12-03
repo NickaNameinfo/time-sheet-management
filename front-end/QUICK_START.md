@@ -15,7 +15,7 @@ cp .env.example .env
 
 Edit `.env` and update if needed:
 ```env
-VITE_API_BASE_URL=https://nicknameinfo.net/timesheet
+VITE_API_BASE_URL=https://nicknameinfo.net/timesheet 
 VITE_BASE_URL=http://localhost:5173
 ```
 

@@ -3,7 +3,7 @@ class AppConfig {
   // Note: Backend runs on port 8000
   // For web: use localhost:8000
   // For mobile: use your computer's IP address (e.g., http://192.168.1.100:8000)
-  static const String baseUrl = 'https://nicknameinfo.net/timesheet';
+  static const String baseUrl = 'https://nicknameinfo.net/timesheet ';
   // For production, use your actual server URL
   // static const String baseUrl = 'https://api.yourcompany.com';
   

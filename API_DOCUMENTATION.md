@@ -2,7 +2,7 @@
 
 ## Base URL
 ```
-https://nicknameinfo.net/timesheet
+https://nicknameinfo.net/timesheet 
 ```
 
 All endpoints require authentication unless specified. Include token in request body or Authorization header.

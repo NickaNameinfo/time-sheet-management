@@ -462,158 +462,163 @@ export const clockIn = asyncHandler(async (req, res) => {
     allotatedHours,
     desciplineCode,
     designation: reqDesignation,
-    tlName: reqTlName,
+    tlName: reqTlName, // Can be ID or Name
     date, 
     clockInTime 
   } = req.body;
-  
-  // Debug logging
-  console.log('Clock In Request Body:', req.body);
-  
-  if (!employeeId || !employeeName) {
-    return sendError(res, "employeeId and employeeName are required", 400);
+
+  // 1. Validation
+  if (!employeeId) {
+    return sendError(res, "employeeId is required", 400);
   }
+
+  // 2. Fetch Employee Details
+  const employeeSql = `
+    SELECT userName, employeeName, EMPID, id, discipline, designation 
+    FROM employee 
+    WHERE EMPID = ? OR id = ? 
+    LIMIT 1
+  `;
+  const employeeResult = await query(employeeSql, [employeeId, employeeId]);
   
-  // Get employee details to get userName, employeeNo, discipline, designation
-  const employeeSql = "SELECT userName, EMPID, id, discipline, designation FROM employee WHERE EMPID = ? OR id = ? LIMIT 1";
-  const employee = await query(employeeSql, [employeeId, employeeId]);
-  
-  if (employee.length === 0) {
+  if (employeeResult.length === 0) {
     return sendError(res, "Employee not found", 404);
   }
+
+  const empData = employeeResult[0];
   
-  const userName = employee[0].userName;
-  // Use employeeNo from request body if provided, otherwise get from database
-  const employeeNo = reqEmployeeNo ? parseInt(reqEmployeeNo) : (employee[0].EMPID || employee[0].id);
-  const employeeDiscipline = employee[0].discipline || '';
-  // Use designation from request body if provided, otherwise get from database
-  const employeeDesignation = reqDesignation || employee[0].designation || '';
-  const currentDate = date || new Date().toISOString().split('T')[0];
+  // Validate critical employee data
+  if (!empData.userName || (!empData.employeeName && !employeeName)) {
+    return sendError(res, "Critical employee data (username/name) missing. Contact administrator.", 404);
+  }
+
+  // 3. Prepare Employee Variables (DB takes precedence, fallback to Request)
+  const finalEmployeeName = (empData.employeeName && empData.employeeName.trim()) || employeeName;
+  const finalUserName = empData.userName;
+  const finalEmployeeNo = reqEmployeeNo ? parseInt(reqEmployeeNo) : (empData.EMPID || empData.id);
+  const finalDesignation = reqDesignation || empData.designation || '';
+  const finalDiscipline = empData.discipline || '';
+
+  // 4. Time and Date Calculation
   const currentDateTime = clockInTime || new Date().toISOString();
-  
-  // Calculate week number
-  const clockInDate = new Date(currentDateTime);
-  const startOfYear = new Date(clockInDate.getFullYear(), 0, 1);
-  const daysSinceStart = Math.floor((clockInDate - startOfYear) / (1000 * 60 * 60 * 24));
+  // Ensure we compare DATE only parts for the "already clocked in" check
+  const checkDate = date || new Date().toISOString().split('T')[0];
+
+  // Calculate Week Number
+  const clockInDateObj = new Date(currentDateTime);
+  const startOfYear = new Date(clockInDateObj.getFullYear(), 0, 1);
+  const daysSinceStart = Math.floor((clockInDateObj - startOfYear) / (1000 * 60 * 60 * 24));
   const weekNumber = Math.ceil((daysSinceStart + startOfYear.getDay() + 1) / 7);
-  
-  // Check if employee already clocked in today (no clock out)
-  // Check for existing active clock-in using userName and sentDate
+
+  // 5. Check for Existing Active Clock-In
+  // We check if there is a record with status='active' for this user today
   const checkSql = `
     SELECT id FROM workdetails 
     WHERE userName = ? 
-    AND (DATE(STR_TO_DATE(SUBSTRING(sentDate, 1, 10), '%Y-%m-%d')) = DATE(?)
-         OR DATE(STR_TO_DATE(sentDate, '%Y-%m-%d')) = DATE(?))
     AND (status = 'active' OR status IS NULL OR status = '')
+    AND DATE(sentDate) = DATE(?)
     LIMIT 1
   `;
-  const existing = await query(checkSql, [userName, currentDate, currentDate]);
+  
+  const existing = await query(checkSql, [finalUserName, currentDateTime]); // Using currentDateTime ensures DB formats match
   
   if (existing.length > 0) {
-    return sendError(res, "You are already clocked in. Please clock out first.", 400);
+    return sendError(res, "You are already clocked in for today. Please clock out first.", 400);
   }
-  
-  // Get project details if projectName or referenceNo is provided
-  let projectData = {
-    tlName: null,
-    projectNo: null,
-    taskNo: null,
-    variation: null,
-    subDivision: null,
-    subDivisionList: null,
-    allotatedHours: null,
-  };
+
+  // 6. Fetch Project Defaults (if Project Name/Ref provided)
+  let projDefaults = {};
   
   if (projectName || referenceNo) {
     try {
       const projectSql = `
-        SELECT tlName, projectNo, taskJobNo, variation, subDivision, allotatedHours 
+        SELECT tlName, projectNo, taskJobNo, subDivision, allotatedHours 
         FROM project 
         WHERE projectName = ? OR referenceNo = ?
         LIMIT 1
       `;
-      const projectResult = await query(projectSql, [projectName || '', referenceNo || '']);
-      if (projectResult.length > 0) {
-        const proj = projectResult[0];
-        projectData.tlName = proj.tlName;
-        projectData.projectNo = proj.projectNo;
-        projectData.taskNo = proj.taskJobNo;
-        projectData.variation = proj.variation;
-        projectData.subDivision = proj.subDivision;
-        projectData.subDivisionList = proj.subDivision;
-        projectData.allotatedHours = proj.allotatedHours;
+      const projResult = await query(projectSql, [projectName || '', referenceNo || '']);
+      
+      if (projResult.length > 0) {
+        projDefaults = projResult[0];
       }
     } catch (e) {
-      console.log('Error fetching project:', e);
+      console.error('Error fetching project details:', e);
     }
   }
-  
-  // Get team lead ID if available - try multiple sources
-  let tlNameId = null;
-  
-  // First, try to use tlName from request body if provided (could be ID or name)
+
+  // 7. Resolve Team Lead ID (The Hierarchy: Req Body -> Project -> Employee's Manager)
+  let finalTlId = null;
+
+  // A. Check Request Body first
   if (reqTlName) {
-    // Check if it's a number (ID)
-    const tlNameAsNumber = parseInt(reqTlName);
-    if (!isNaN(tlNameAsNumber)) {
-      tlNameId = tlNameAsNumber;
+    if (!isNaN(parseInt(reqTlName))) {
+      // It's already an ID
+      finalTlId = parseInt(reqTlName);
     } else {
-      // It's a name, look it up
-      try {
-        const tlSql = "SELECT id FROM team_lead WHERE leadName = ? LIMIT 1";
-        const tlResult = await query(tlSql, [reqTlName]);
-        if (tlResult.length > 0) {
-          tlNameId = tlResult[0].id;
-        }
-      } catch (e) {
-        // Continue to next method
-      }
-    }
-  }
-  
-  // If still no tlName, try to get from project
-  if (!tlNameId && projectData.tlName) {
-    try {
+      // It's a name, look up the ID
       const tlSql = "SELECT id FROM team_lead WHERE leadName = ? LIMIT 1";
-      const tlResult = await query(tlSql, [projectData.tlName]);
-      if (tlResult.length > 0) {
-        tlNameId = tlResult[0].id;
-      }
-    } catch (e) {
-      // Continue to next method
+      const tlRes = await query(tlSql, [reqTlName]);
+      if (tlRes.length > 0) finalTlId = tlRes[0].id;
     }
   }
-  
-  // If still no tlName, try to get from employee's team lead
-  if (!tlNameId) {
+
+  // B. Check Project Default if still null
+  if (!finalTlId && projDefaults.tlName) {
+    // Usually project table stores the TL Name, so we look up the ID
+    const tlSql = "SELECT id FROM team_lead WHERE leadName = ? LIMIT 1";
+    const tlRes = await query(tlSql, [projDefaults.tlName]);
+    if (tlRes.length > 0) finalTlId = tlRes[0].id;
+  }
+
+  // C. Check Employee's Assigned Team Lead if still null
+  if (!finalTlId) {
     try {
       const teamLeadSql = `
         SELECT tl.id 
         FROM team_lead tl
-        INNER JOIN employee e ON tl.EMPID = e.EMPID OR tl.EMPID = e.id
+        JOIN employee e ON (tl.EMPID = e.EMPID OR tl.EMPID = e.id)
         WHERE e.EMPID = ? OR e.id = ?
         LIMIT 1
       `;
-      const teamLeadResult = await query(teamLeadSql, [employeeId, employeeId]);
-      if (teamLeadResult.length > 0) {
-        tlNameId = teamLeadResult[0].id;
-      }
-    } catch (e) {
-      // Use null as fallback
-    }
+      const tlRes = await query(teamLeadSql, [employeeId, employeeId]);
+      if (tlRes.length > 0) finalTlId = tlRes[0].id;
+    } catch (e) { console.error('Error fetching default team lead:', e); }
   }
-  
-  // Use provided values or project values or defaults
-  const finalProjectNo = projectNo || projectData.projectNo || '';
-  const finalTaskNo = taskNo || projectData.taskNo || '';
-  const finalVariation = variation || projectData.variation || '';
-  const finalSubDivision = subDivision || projectData.subDivision || '';
-  const finalSubDivisionList = subDivisionList || projectData.subDivisionList || '';
-  const finalAllotatedHours = allotatedHours || projectData.allotatedHours || '';
-  const finalDesciplineCode = desciplineCode || '';
-  
-  // Insert work detail record with clock in - include all fields like addWorkDetails
-  const baseSql = `
+
+  // 8. Prepare Final Values for Insert
+  // Priority: Request > Project Default > Empty String
+  const getVal = (reqVal, projVal) => {
+    if (reqVal !== undefined && reqVal !== null) return reqVal.toString().trim();
+    if (projVal !== undefined && projVal !== null) return projVal.toString().trim();
+    return '';
+  };
+
+  const dbValues = {
+    employeeName: finalEmployeeName,
+    userName: finalUserName,
+    referenceNo: referenceNo || '',
+    projectName: projectName || '',
+    tlName: finalTlId, // This column seems to store the ID based on your logic
+    taskNo: getVal(taskNo, projDefaults.taskJobNo),
+    areaofWork: areaOfWork || '',
+    variation: getVal(variation, null), // Variation not in project table
+    subDivision: getVal(subDivision, projDefaults.subDivision),
+    totalHours: '0.0',
+    weekNumber: weekNumber.toString(),
+    projectNo: getVal(projectNo, projDefaults.projectNo),
+    employeeNo: finalEmployeeNo,
+    designation: finalDesignation,
+    discipline: finalDiscipline,
+    subDivisionList: getVal(subDivisionList, projDefaults.subDivision),
+    status: 'active',
+    sentDate: currentDateTime,
+    allotatedHours: getVal(allotatedHours, projDefaults.allotatedHours),
+    desciplineCode: desciplineCode || ''
+  };
+
+  // 9. Execute Insert
+  const insertSql = `
     INSERT INTO workdetails (
       employeeName, userName, referenceNo, projectName, tlName, taskNo,
       areaofWork, variation, subDivision, totalHours, weekNumber,
@@ -621,71 +626,40 @@ export const clockIn = asyncHandler(async (req, res) => {
       status, sentDate, allotatedHours, desciplineCode
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
-  
-  // Prepare values - match addWorkDetails structure
-  // Convert numeric fields properly - use null for missing numbers, empty string for missing strings
-  const values = [
-    (employeeName && employeeName.trim()) || '', // employeeName
-    (userName && userName.trim()) || '', // userName
-    (referenceNo && referenceNo.trim()) || '', // referenceNo
-    (projectName && projectName.trim()) || '', // projectName
-    tlNameId ? parseInt(tlNameId) : null, // tlName (as ID number, not string) - can be null
-    (finalTaskNo && finalTaskNo.toString().trim()) || '', // taskNo
-    (areaOfWork && areaOfWork.trim()) || '', // areaofWork
-    (finalVariation && finalVariation.trim()) || '', // variation
-    (finalSubDivision && finalSubDivision.trim()) || '', // subDivision
-    '0.0', // totalHours (will be updated on clock out)
-    weekNumber.toString(), // weekNumber
-    (finalProjectNo && finalProjectNo.toString().trim()) || '', // projectNo
-    employeeNo ? parseInt(employeeNo) : null, // employeeNo (as number) - can be null
-    (employeeDesignation && employeeDesignation.trim()) || '', // designation
-    (employeeDiscipline && employeeDiscipline.trim()) || '', // discipline
-    (finalSubDivisionList && finalSubDivisionList.trim()) || '', // subDivisionList
-    'active', // status
-    currentDateTime, // sentDate
-    (finalAllotatedHours && finalAllotatedHours.toString().trim()) || '', // allotatedHours
-    (finalDesciplineCode && finalDesciplineCode.trim()) || '', // desciplineCode
+
+  const insertParams = [
+    dbValues.employeeName,
+    dbValues.userName,
+    dbValues.referenceNo,
+    dbValues.projectName,
+    dbValues.tlName,
+    dbValues.taskNo,
+    dbValues.areaofWork,
+    dbValues.variation,
+    dbValues.subDivision,
+    dbValues.totalHours,
+    dbValues.weekNumber,
+    dbValues.projectNo,
+    dbValues.employeeNo,
+    dbValues.designation,
+    dbValues.discipline,
+    dbValues.subDivisionList,
+    dbValues.status,
+    dbValues.sentDate,
+    dbValues.allotatedHours,
+    dbValues.desciplineCode
   ];
-  
-  // Debug logging to see what's being inserted
-  console.log('Clock In - Inserting values:', {
-    employeeName: values[0],
-    userName: values[1],
-    referenceNo: values[2],
-    projectName: values[3],
-    tlName: values[4],
-    taskNo: values[5],
-    areaofWork: values[6],
-    variation: values[7],
-    subDivision: values[8],
-    totalHours: values[9],
-    weekNumber: values[10],
-    projectNo: values[11],
-    employeeNo: values[12],
-    designation: values[13],
-    discipline: values[14],
-    subDivisionList: values[15],
-    status: values[16],
-    sentDate: values[17],
-    allotatedHours: values[18],
-    desciplineCode: values[19],
-  });
-  
-  console.log('Executing SQL:', baseSql);
-  console.log('With values:', values);
-  
-  const result = await query(baseSql, values);
-  
-  console.log('Insert result:', result);
-  console.log('Insert ID:', result.insertId);
-  
-  // Get the created record
-  const getSql = "SELECT * FROM workdetails WHERE id = ?";
-  const created = await query(getSql, [result.insertId]);
-  
-  console.log('Created record:', created[0]);
-  
-  return sendSuccess(res, created[0] || { id: result.insertId }, "Clocked in successfully");
+
+  console.log('Clock In - Inserting for:', finalUserName);
+
+  const result = await query(insertSql, insertParams);
+
+  // 10. Return Result
+  // Fetch the created record to return to frontend
+  const getCreatedSql = "SELECT * FROM workdetails WHERE id = ?";
+  const createdRecord = await query(getCreatedSql, [result.insertId]);
+
+  return sendSuccess(res, createdRecord[0] || { id: result.insertId }, "Clocked in successfully");
 });
 
 // Clock Out - Update existing work detail record

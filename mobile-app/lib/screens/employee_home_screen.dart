@@ -301,6 +301,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
       }
       
       if (selectedProjectData.isNotEmpty) {
+        // Match frontend ClockInOutCard.jsx exactly
         refNo = selectedProjectData['referenceNo']?.toString() ?? refNo;
         projectName = selectedProjectData['projectName']?.toString() ?? _selectedProject;
         projectNo = selectedProjectData['projectNo']?.toString();
@@ -311,6 +312,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
         allotatedHours = selectedProjectData['allotatedHours']?.toString();
         desciplineCode = selectedProjectData['desciplineCode']?.toString();
         designation = selectedProjectData['designation']?.toString();
+        // Match frontend: ClockInOutCard.jsx sends selectedProject.tlName (line 228)
         tlName = selectedProjectData['tlName']?.toString();
       } else {
         // Use provided values if project not found
@@ -334,22 +336,38 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
         return;
       }
 
+      // Match frontend ClockInOutCard.jsx exactly - build projectDetails object and spread it
+      final Map<String, dynamic> projectDetails = {};
+      if (selectedProjectData.isNotEmpty) {
+        projectDetails['referenceNo'] = refNo.isNotEmpty ? refNo.trim() : '';
+        projectDetails['projectName'] = (projectName?.isNotEmpty ?? false) ? projectName!.trim() : (_selectedProject.isNotEmpty ? _selectedProject.trim() : '');
+        if (projectNo != null && projectNo!.isNotEmpty) projectDetails['projectNo'] = projectNo!.trim();
+        if (taskNo != null && taskNo!.isNotEmpty) projectDetails['taskNo'] = taskNo!.trim();
+        if (variation != null && variation!.isNotEmpty) projectDetails['variation'] = variation!.trim();
+        if (subDivision != null && subDivision!.isNotEmpty) projectDetails['subDivision'] = subDivision!.trim();
+        if (subDivisionList != null && subDivisionList!.isNotEmpty) projectDetails['subDivisionList'] = subDivisionList!.trim();
+        if (allotatedHours != null && allotatedHours!.isNotEmpty) projectDetails['allotatedHours'] = allotatedHours!.trim();
+        if (desciplineCode != null && desciplineCode!.isNotEmpty) projectDetails['desciplineCode'] = desciplineCode!.trim();
+        if (designation != null && designation!.isNotEmpty) projectDetails['designation'] = designation!.trim();
+      }
+
+      // Match frontend: employeeNo: user?.id, tlName: selectedProject.tlName
       final result = await _apiService.clockIn(
         employeeId: employeeId,
         employeeName: empName,
         employeeNo: employeeId, // Match frontend: employeeNo: user?.id
-        projectName: (projectName?.isNotEmpty ?? false) ? projectName!.trim() : (_selectedProject.isNotEmpty ? _selectedProject.trim() : ''),
-        referenceNo: refNo.isNotEmpty ? refNo.trim() : '',
+        projectName: projectDetails['projectName'] ?? ((projectName?.isNotEmpty ?? false) ? projectName!.trim() : (_selectedProject.isNotEmpty ? _selectedProject.trim() : '')),
+        referenceNo: projectDetails['referenceNo'] ?? (refNo.isNotEmpty ? refNo.trim() : ''),
         areaOfWork: _selectedAreaOfWork.isNotEmpty ? _selectedAreaOfWork.trim() : '',
-        projectNo: projectNo,
-        taskNo: taskNo,
-        variation: variation,
-        subDivision: subDivision,
-        subDivisionList: subDivisionList,
-        allotatedHours: allotatedHours,
-        desciplineCode: desciplineCode,
-        designation: designation,
-        tlName: tlName,
+        projectNo: projectDetails['projectNo'],
+        taskNo: projectDetails['taskNo'],
+        variation: projectDetails['variation'],
+        subDivision: projectDetails['subDivision'],
+        subDivisionList: projectDetails['subDivisionList'],
+        allotatedHours: projectDetails['allotatedHours'],
+        desciplineCode: projectDetails['desciplineCode'],
+        designation: projectDetails['designation'],
+        tlName: tlName, // Match frontend: tlName: selectedProject.tlName
       );
 
       if (mounted) {
@@ -461,12 +479,15 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
         return;
       }
 
+      // Match frontend: clockOutTime: new Date().toISOString()
       final result = await _apiService.clockOut(
         employeeId: employeeId,
         workDetailId: workDetailId,
+        clockOutTime: DateTime.now().toIso8601String(), // Match frontend
       );
 
       if (mounted) {
+        // Match frontend: result.data?.totalHours || todayHours.toFixed(2)
         final totalHours = result['totalHours']?.toString() ?? 
                           result['hours']?.toString() ?? 
                           _todayWorkingHours.toStringAsFixed(2);
@@ -499,9 +520,10 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
         _hoursUpdateTimer?.cancel();
         _updateTimeManagementScreen();
         
+        // Match frontend success message format: "Clocked out successfully. Total hours: X hours"
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Checked out successfully. Total hours: $totalHours hours'),
+            content: Text('Clocked out successfully. Total hours: $totalHours hours'),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 4),
           ),

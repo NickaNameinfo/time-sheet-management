@@ -167,7 +167,8 @@ class ApiService {
         'employeeName': employeeName.trim(),
         'employeeNo': employeeNo ?? employeeId, // Match frontend: employeeNo: user?.id
         'date': DateTime.now().toIso8601String().split('T')[0],
-        'clockInTime': DateTime.now().toIso8601String(),
+        // Ensure clockInTime includes 'Z' timezone indicator to match frontend format
+        'clockInTime': DateTime.now().toUtc().toIso8601String(),
         'projectName': projectName.trim(),
         'referenceNo': referenceNo.trim(),
         'areaOfWork': areaOfWork.trim(),
@@ -180,8 +181,12 @@ class ApiService {
         'allotatedHours': (allotatedHours != null && allotatedHours.isNotEmpty) ? allotatedHours.trim() : '',
         'desciplineCode': (desciplineCode != null && desciplineCode.isNotEmpty) ? desciplineCode.trim() : '',
         'designation': (designation != null && designation.isNotEmpty) ? designation.trim() : '',
-        'tlName': (tlName != null && tlName.isNotEmpty) ? tlName.trim() : '',
       };
+      
+      // Only send tlName if it has a value, otherwise omit it (backend will get it from project)
+      if (tlName != null && tlName.isNotEmpty) {
+        clockInData['tlName'] = tlName.trim();
+      }
       
       _logger.d('Clock In Request Data: $clockInData');
       
@@ -228,18 +233,20 @@ class ApiService {
   Future<Map<String, dynamic>> clockOut({
     required String employeeId,
     required String workDetailId,
+    String? clockOutTime,
     String? description,
   }) async {
     try {
       // Ensure baseUrl is correct before request
       _dio.options.baseUrl = AppConfig.baseUrl;
       
+      // Match frontend: clockOutTime: new Date().toISOString()
       final response = await _dio.post(
         AppConfig.clockOutEndpoint,
         data: {
           'employeeId': employeeId,
           'workDetailId': workDetailId,
-          'clockOutTime': DateTime.now().toIso8601String(),
+          'clockOutTime': clockOutTime ?? DateTime.now().toIso8601String(),
           'description': description ?? '',
         },
       );
