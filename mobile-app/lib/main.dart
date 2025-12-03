@@ -13,6 +13,7 @@ import 'package:timesheet_mobile/providers/notification_provider.dart';
 import 'package:timesheet_mobile/providers/offline_provider.dart';
 import 'package:timesheet_mobile/services/notification_service.dart';
 import 'package:timesheet_mobile/services/offline_service.dart';
+import 'package:timesheet_mobile/services/background_timer_service.dart';
 import 'package:timesheet_mobile/screens/splash_screen.dart';
 import 'package:timesheet_mobile/utils/app_config.dart';
 import 'package:logger/logger.dart';
@@ -54,6 +55,18 @@ void main() async {
       logger.i('NotificationService initialized');
     } catch (e) {
       logger.w('NotificationService initialization failed: $e');
+    }
+    
+    // Initialize background timer service (skip on web)
+    if (!kIsWeb) {
+      try {
+        await BackgroundTimerService.initialize();
+        logger.i('BackgroundTimerService initialized');
+        // Check if user is clocked in and start background timer
+        await BackgroundTimerService.startBackgroundTimer();
+      } catch (e) {
+        logger.w('BackgroundTimerService initialization failed: $e');
+      }
     }
     
     // Set preferred orientations (skip on web)

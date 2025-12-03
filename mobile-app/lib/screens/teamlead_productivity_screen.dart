@@ -160,63 +160,65 @@ class _TeamLeadProductivityScreenState extends State<TeamLeadProductivityScreen>
                     const SizedBox(height: 12),
                     _employeeStats.isEmpty
                         ? const Center(child: Text('No productivity data available'))
-                        : ..._employeeStats.entries.map((entry) {
-                            final empName = entry.key;
-                            final stats = entry.value;
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              elevation: 2,
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          empName,
-                                          style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
+                        : Column(
+                            children: _employeeStats.entries.map((entry) {
+                              final empName = entry.key;
+                              final stats = entry.value;
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                elevation: 2,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            empName,
+                                            style: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
-                                        ),
-                                        Chip(
-                                          label: Text('${(stats['totalHours'] as double).toStringAsFixed(1)}h'),
-                                          backgroundColor: Colors.blue,
-                                          labelStyle: const TextStyle(color: Colors.white),
-                                        ),
-                                      ],
-                                    ),
-                                    const Divider(),
-                                    const SizedBox(height: 8),
-                                    _buildProductivityRow(
-                                      'Total Hours',
-                                      '${(stats['totalHours'] as double).toStringAsFixed(2)} hours',
-                                    ),
-                                    _buildProductivityRow(
-                                      'Projects',
-                                      '${(stats['projectCount'] as Set).length}',
-                                    ),
-                                    _buildProductivityRow(
-                                      'Weeks',
-                                      '${(stats['weekCount'] as Set).length}',
-                                    ),
-                                    _buildProductivityRow(
-                                      'Approved',
-                                      '${stats['approvedCount']}',
-                                      color: Colors.green,
-                                    ),
-                                    _buildProductivityRow(
-                                      'Pending',
-                                      '${stats['pendingCount']}',
-                                      color: Colors.orange,
-                                    ),
-                                  ],
+                                          Chip(
+                                            label: Text('${(stats['totalHours'] as double).toStringAsFixed(1)}h'),
+                                            backgroundColor: Colors.blue,
+                                            labelStyle: const TextStyle(color: Colors.white),
+                                          ),
+                                        ],
+                                      ),
+                                      const Divider(),
+                                      const SizedBox(height: 8),
+                                      _buildProductivityRow(
+                                        'Total Hours',
+                                        '${(stats['totalHours'] as double).toStringAsFixed(2)} hours',
+                                      ),
+                                      _buildProductivityRow(
+                                        'Projects',
+                                        '${(stats['projectCount'] as Set).length}',
+                                      ),
+                                      _buildProductivityRow(
+                                        'Weeks',
+                                        '${(stats['weekCount'] as Set).length}',
+                                      ),
+                                      _buildProductivityRow(
+                                        'Approved',
+                                        '${stats['approvedCount']}',
+                                        color: Colors.green,
+                                      ),
+                                      _buildProductivityRow(
+                                        'Pending',
+                                        '${stats['pendingCount']}',
+                                        color: Colors.orange,
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            );
-                          }),
+                              );
+                            }).toList(),
+                          ),
                   ],
                 ),
               ),

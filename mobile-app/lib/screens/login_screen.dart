@@ -146,25 +146,25 @@ class _LoginScreenState extends State<LoginScreen> {
                                 return null;
                               },
                             ),
-                            const SizedBox(height: 20),
-                            // Role Selection
-                            DropdownButtonFormField<String>(
-                              value: _selectedRole,
-                              decoration: const InputDecoration(
-                                labelText: 'Login As',
-                                border: OutlineInputBorder(),
-                              ),
-                              items: const [
-                                DropdownMenuItem(value: 'employee', child: Text('Employee')),
-                                DropdownMenuItem(value: 'hr', child: Text('HR')),
-                                DropdownMenuItem(value: 'teamLead', child: Text('Team Lead')),
-                              ],
-                              onChanged: (value) {
-                                if (value != null) {
-                                  setState(() => _selectedRole = value);
-                                }
-                              },
-                            ),
+                            // const SizedBox(height: 20),
+                            // // Role Selection
+                            // DropdownButtonFormField<String>(
+                            //   value: _selectedRole,
+                            //   decoration: const InputDecoration(
+                            //     labelText: 'Login As',
+                            //     border: OutlineInputBorder(),
+                            //   ),
+                            //   items: const [
+                            //     DropdownMenuItem(value: 'employee', child: Text('Employee')),
+                            //     DropdownMenuItem(value: 'hr', child: Text('HR')),
+                            //     DropdownMenuItem(value: 'teamLead', child: Text('Team Lead')),
+                            //   ],
+                            //   onChanged: (value) {
+                            //     if (value != null) {
+                            //       setState(() => _selectedRole = value);
+                            //     }
+                            //   },
+                            // ),
                             const SizedBox(height: 20),
                             TextFormField(
                               controller: _passwordController,

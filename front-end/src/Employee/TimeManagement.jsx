@@ -323,7 +323,6 @@ const TimeManagement = () => {
 
       if (name === "referenceNo") {
         const project = projects?.find((item) => item.referenceNo === value);
-        console.log(project, "project4223")
         if (project) {
           updatedData[index] = {
             ...formData[index],
@@ -427,6 +426,7 @@ const TimeManagement = () => {
         ...row,
         employeeName: user?.employeeName || user?.name,
         employeeNo: user?.id,
+        employeeId: user?.id,
         userName: user?.userName,
         sentDate: new Date(),
         weekNumber: String(currentWeek),

@@ -540,12 +540,45 @@ const EmployeeHome = () => {
       return;
     }
 
+    // Get project details if project or referenceNo is provided
+    // Match the logic from TimeManagement.jsx - find by referenceNo first, then by projectName
+    let projectDetails = {};
+    let selectedProject = null;
+    
+    if (clockInData.referenceNo) {
+      // Find by referenceNo (like TimeManagement.jsx does)
+      selectedProject = projectsList.find(
+        (p) => p.referenceNo === clockInData.referenceNo
+      );
+    } else if (clockInData.projectName) {
+      // Fallback to projectName
+      selectedProject = projectsList.find(
+        (p) => p.projectName === clockInData.projectName
+      );
+    }
+    
+    if (selectedProject) {
+      projectDetails = {
+        referenceNo: selectedProject.referenceNo || clockInData.referenceNo,
+        projectName: selectedProject.projectName || clockInData.projectName,
+        projectNo: selectedProject.projectNo,
+        taskNo: selectedProject.taskJobNo || selectedProject.taskNo,
+        variation: selectedProject.variation,
+        subDivision: selectedProject.subDivision,
+        subDivisionList: selectedProject.subDivision,
+        allotatedHours: selectedProject.allotatedHours,
+        desciplineCode: selectedProject.desciplineCode,
+        // Note: tlName will be extracted by backend from project.tlID or employee's team lead
+      };
+    }
+
     const result = await clockIn({
       employeeId: user?.id,
       employeeName: user?.employeeName || user?.name,
-      projectName: clockInData.projectName,
-      referenceNo: clockInData.referenceNo,
+      projectName: projectDetails.projectName || clockInData.projectName,
+      referenceNo: projectDetails.referenceNo || clockInData.referenceNo,
       areaOfWork: clockInData.areaOfWork,
+      ...projectDetails, // Spread all project details
       date: new Date().toISOString().split('T')[0],
       clockInTime: new Date().toISOString(),
     });

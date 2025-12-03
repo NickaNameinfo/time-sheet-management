@@ -278,9 +278,9 @@ class _HrCompOffApprovalScreenState extends State<HrCompOffApprovalScreen> {
                                       const SizedBox(height: 8),
                                       _buildInfoRow('Work Date', _formatDate(request['leaveFrom']?.toString())),
                                       if (request['workHours'] != null)
-                                        _buildInfoRow('Work Hours', request['workHours']?.toString()),
+                                        _buildInfoRow('Work Hours', request['workHours']?.toString() ?? 'N/A'),
                                       if (request['reason'] != null && request['reason'].toString().isNotEmpty)
-                                        _buildInfoRow('Reason', request['reason']?.toString()),
+                                        _buildInfoRow('Reason', request['reason']?.toString() ?? 'N/A'),
                                       if (isPending) ...[
                                         const SizedBox(height: 12),
                                         Row(

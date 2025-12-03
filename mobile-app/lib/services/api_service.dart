@@ -142,31 +142,64 @@ class ApiService {
   Future<Map<String, dynamic>> clockIn({
     required String employeeId,
     required String employeeName,
-    String? projectName,
-    String? referenceNo,
-    String? areaOfWork,
+    String? employeeNo,
+    String projectName = '',
+    String referenceNo = '',
+    String areaOfWork = '',
+    String? projectNo,
+    String? taskNo,
+    String? variation,
+    String? subDivision,
+    String? subDivisionList,
+    String? allotatedHours,
+    String? desciplineCode,
+    String? designation,
+    String? tlName,
   }) async {
     try {
       // Ensure baseUrl is correct before request
       _dio.options.baseUrl = AppConfig.baseUrl;
       
+      // Prepare data - include all work details fields (matching ClockInOutCard.jsx)
+      final clockInData = {
+        'employeeId': employeeId,
+        'employeeName': employeeName.trim(),
+        'employeeNo': employeeNo ?? employeeId, // Match frontend: employeeNo: user?.id
+        'date': DateTime.now().toIso8601String().split('T')[0],
+        'clockInTime': DateTime.now().toIso8601String(),
+        'projectName': projectName.trim(),
+        'referenceNo': referenceNo.trim(),
+        'areaOfWork': areaOfWork.trim(),
+        // Additional work details fields
+        if (projectNo != null && projectNo.isNotEmpty) 'projectNo': projectNo.trim(),
+        if (taskNo != null && taskNo.isNotEmpty) 'taskNo': taskNo.trim(),
+        if (variation != null && variation.isNotEmpty) 'variation': variation.trim(),
+        if (subDivision != null && subDivision.isNotEmpty) 'subDivision': subDivision.trim(),
+        if (subDivisionList != null && subDivisionList.isNotEmpty) 'subDivisionList': subDivisionList.trim(),
+        if (allotatedHours != null && allotatedHours.isNotEmpty) 'allotatedHours': allotatedHours.trim(),
+        if (desciplineCode != null && desciplineCode.isNotEmpty) 'desciplineCode': desciplineCode.trim(),
+        if (designation != null && designation.isNotEmpty) 'designation': designation.trim(),
+        if (tlName != null && tlName.isNotEmpty) 'tlName': tlName.trim(),
+      };
+      
+      _logger.d('Clock In Request Data: $clockInData');
+      
       final response = await _dio.post(
         AppConfig.clockInEndpoint,
-        data: {
-          'employeeId': employeeId,
-          'employeeName': employeeName,
-          'projectName': projectName ?? '',
-          'referenceNo': referenceNo ?? '',
-          'areaOfWork': areaOfWork ?? '',
-          'date': DateTime.now().toIso8601String().split('T')[0],
-          'clockInTime': DateTime.now().toIso8601String(),
-        },
+        data: clockInData,
       );
       
+      _logger.d('Clock In Response: ${response.statusCode}');
+      _logger.d('Clock In Response Data: ${response.data}');
+      
       if (response.data['Status'] == 'Success') {
-        return response.data['Result'] ?? {};
+        final result = response.data['Result'] ?? {};
+        _logger.d('Clock In Success - Result: $result');
+        return result;
       } else {
-        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Clock in failed');
+        final errorMsg = response.data['Message'] ?? response.data['Error'] ?? 'Clock in failed';
+        _logger.e('Clock In Failed: $errorMsg');
+        throw Exception(errorMsg);
       }
     } on DioException catch (e) {
       String errorMessage = 'Connection error';
@@ -706,6 +739,16 @@ class ApiService {
     } catch (e) {
       _logger.e('Get pending approvals error: $e');
       rethrow;
+    }
+  }
+
+  // Logout
+  Future<void> logout() async {
+    try {
+      await _dio.get('/logout');
+    } catch (e) {
+      _logger.e('Logout error: $e');
+      // Continue with logout even if API call fails
     }
   }
 

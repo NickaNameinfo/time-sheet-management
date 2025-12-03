@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timesheet_mobile/services/api_service.dart';
+import 'package:timesheet_mobile/services/background_timer_service.dart';
 import 'package:timesheet_mobile/utils/app_config.dart';
 import 'package:logger/logger.dart';
 
@@ -154,9 +155,31 @@ class AuthProvider with ChangeNotifier {
   }
   
   Future<void> logout() async {
+    try {
+      // Call backend logout API
+      await _apiService.logout();
+    } catch (e) {
+      _logger.e('Logout API error: $e');
+      // Continue with local logout even if API call fails
+    }
+    
+    // Clear local storage
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(AppConfig.tokenKey);
     await prefs.remove(AppConfig.userKey);
+    
+    // Clear any attendance state
+    await prefs.remove('clock_in_time');
+    await prefs.remove('work_detail_id');
+    await prefs.remove('is_clocked_in');
+    await prefs.remove('current_working_hours');
+    
+    // Stop background timer
+    try {
+      await BackgroundTimerService.stopBackgroundTimer();
+    } catch (e) {
+      _logger.e('Error stopping background timer: $e');
+    }
     
     _isAuthenticated = false;
     _user = null;

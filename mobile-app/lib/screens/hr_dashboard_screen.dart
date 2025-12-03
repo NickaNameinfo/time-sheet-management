@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:timesheet_mobile/providers/auth_provider.dart';
+import 'package:timesheet_mobile/screens/employee_home_screen.dart';
 import 'package:timesheet_mobile/screens/hr_leave_balance_screen.dart';
 import 'package:timesheet_mobile/screens/hr_employee_list_screen.dart';
 import 'package:timesheet_mobile/screens/hr_settings_screen.dart';
@@ -9,6 +12,7 @@ import 'package:timesheet_mobile/screens/employee_add_leaves_screen.dart';
 import 'package:timesheet_mobile/screens/employee_compoff_screen.dart';
 import 'package:timesheet_mobile/screens/hr_leave_approval_screen.dart';
 import 'package:timesheet_mobile/screens/hr_compoff_approval_screen.dart';
+import 'package:timesheet_mobile/screens/login_screen.dart';
 
 class HrDashboardScreen extends StatefulWidget {
   const HrDashboardScreen({super.key});
@@ -21,11 +25,11 @@ class _HrDashboardScreenState extends State<HrDashboardScreen> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = [
+    const EmployeeHomeScreen(), // Home with check-in/check-out
     const HrLeaveBalanceScreen(),
     const HrEmployeeListScreen(),
     const HrSettingsScreen(),
     const HrAddUpdatesScreen(),
-    const EmployeeProfileScreen(),
   ];
 
   // Common screens accessible via drawer
@@ -42,8 +46,56 @@ class _HrDashboardScreenState extends State<HrDashboardScreen> {
       appBar: AppBar(
         title: const Text('HR Dashboard'),
         actions: [
-          PopupMenuButton(
+          Consumer<AuthProvider>(
+            builder: (context, authProvider, _) {
+              return IconButton(
+                icon: const Icon(Icons.logout),
+                tooltip: 'Logout',
+                onPressed: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Logout'),
+                      content: const Text('Are you sure you want to logout?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('Logout', style: TextStyle(color: Colors.red)),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (confirm == true && mounted) {
+                    await authProvider.logout();
+                    if (mounted) {
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => LoginScreen()),
+                        (route) => false,
+                      );
+                    }
+                  }
+                },
+              );
+            },
+          ),
+          PopupMenuButton<String>(
             itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'profile',
+                child: Row(
+                  children: [
+                    Icon(Icons.person),
+                    SizedBox(width: 8),
+                    Text('Profile'),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
               const PopupMenuItem(
                 value: 'leaveApproval',
                 child: Row(
@@ -98,6 +150,9 @@ class _HrDashboardScreenState extends State<HrDashboardScreen> {
             ],
             onSelected: (value) {
               switch (value) {
+                case 'profile':
+                  _navigateToScreen(const EmployeeProfileScreen());
+                  break;
                 case 'leaveApproval':
                   _navigateToScreen(const HrLeaveApprovalScreen());
                   break;
@@ -125,6 +180,10 @@ class _HrDashboardScreenState extends State<HrDashboardScreen> {
         type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.event_available),
             label: 'Leave Balance',
           ),
@@ -139,10 +198,6 @@ class _HrDashboardScreenState extends State<HrDashboardScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.announcement),
             label: 'Updates',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
           ),
         ],
       ),

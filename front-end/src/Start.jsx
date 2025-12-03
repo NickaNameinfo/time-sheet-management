@@ -22,6 +22,8 @@ import {
   PhotoLibrary,
   InsertDriveFile,
   TrendingUp,
+  PhoneAndroid,
+  GetApp,
 } from "@mui/icons-material";
 import Login from "./Login";
 import { apiService } from "./services/api";
@@ -231,10 +233,48 @@ function Start() {
                         textAlign="center"
                         sx={{ textShadow: "2px 2px 4px rgba(0,0,0,0.3)" }}
                       >
-                        Time Sheet Management System
+                        Welcome to the Nickname Infotech
+
+                        {/* Login Section */}
+                        <Card
+                          sx={{
+                            flex: 1,
+                            marginTop: 2,
+                            borderRadius: 3,
+                            boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
+                            background: "rgba(255,255,255,0.95)",
+                            backdropFilter: "blur(10px)",
+                            display: "flex",
+                            flexDirection: "column",
+                            width: "50%",
+                            margin: "20px auto 0 auto",
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                              color: "white",
+                              p: 2,
+                              textAlign: "center",
+                            }}
+                          >
+                            <Typography variant="h6" fontWeight="bold">
+                              Login
+                            </Typography>
+                          </Box>
+                          <CardContent sx={{ flex: 1, display: "flex", alignItems: "center" }}>
+                            <Box sx={{ width: "100%" }}>
+                              <Login />
+                            </Box>
+                          </CardContent>
+                        </Card>
                       </Typography>
+
                     </Box>
+
+
                   </Box>
+
                 </Card>
 
                 {/* Flash Announcement */}
@@ -383,16 +423,15 @@ function Start() {
                   </CardContent>
                 </Card>
 
-                {/* Login Section */}
+                {/* Mobile App Download Section */}
                 <Card
                   sx={{
-                    flex: 1,
                     borderRadius: 3,
                     boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
                     background: "rgba(255,255,255,0.95)",
                     backdropFilter: "blur(10px)",
-                    display: "flex",
-                    flexDirection: "column",
+                    border: "2px solid",
+                    borderColor: "primary.main",
                   }}
                 >
                   <Box
@@ -400,19 +439,54 @@ function Start() {
                       background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                       color: "white",
                       p: 2,
-                      textAlign: "center",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
                     }}
                   >
+                    <PhoneAndroid sx={{ fontSize: 28 }} />
                     <Typography variant="h6" fontWeight="bold">
-                      Employee Login
+                      Mobile App
                     </Typography>
                   </Box>
-                  <CardContent sx={{ flex: 1, display: "flex", alignItems: "center" }}>
-                    <Box sx={{ width: "100%" }}>
-                      <Login />
+                  <CardContent>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      Download our mobile app for Android devices. Access your timesheet, leave requests, and more on the go!
+                    </Typography>
+                    <Box
+                      component="a"
+                      href={`/mobile-app/app-release.apk`}
+                      download="timesheet-mobile-app.apk"
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 1.5,
+                        p: 1.5,
+                        borderRadius: 2,
+                        bgcolor: "primary.main",
+                        color: "white",
+                        textDecoration: "none",
+                        transition: "all 0.3s ease",
+                        "&:hover": {
+                          bgcolor: "primary.dark",
+                          transform: "translateY(-2px)",
+                          boxShadow: 4,
+                        },
+                      }}
+                    >
+                      <GetApp />
+                      <Typography variant="body1" fontWeight="bold">
+                        Download APK
+                      </Typography>
                     </Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block", textAlign: "center" }}>
+                      Version 1.0.0 • Size: ~51 MB
+                    </Typography>
                   </CardContent>
                 </Card>
+
+
               </Box>
             </Fade>
           </Grid>

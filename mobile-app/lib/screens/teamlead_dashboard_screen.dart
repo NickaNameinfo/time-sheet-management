@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:timesheet_mobile/providers/auth_provider.dart';
 import 'package:timesheet_mobile/screens/teamlead_home_screen.dart';
 import 'package:timesheet_mobile/screens/employee_time_management_screen.dart';
 import 'package:timesheet_mobile/screens/employee_add_leaves_screen.dart';
@@ -7,6 +9,7 @@ import 'package:timesheet_mobile/screens/employee_profile_screen.dart';
 import 'package:timesheet_mobile/screens/teamlead_project_work_details_screen.dart';
 import 'package:timesheet_mobile/screens/teamlead_approval_center_screen.dart';
 import 'package:timesheet_mobile/screens/teamlead_productivity_screen.dart';
+import 'package:timesheet_mobile/screens/login_screen.dart';
 
 class TeamLeadDashboardScreen extends StatefulWidget {
   const TeamLeadDashboardScreen({super.key});
@@ -32,6 +35,43 @@ class _TeamLeadDashboardScreenState extends State<TeamLeadDashboardScreen> {
       appBar: AppBar(
         title: const Text('Team Lead Dashboard'),
         actions: [
+          Consumer<AuthProvider>(
+            builder: (context, authProvider, _) {
+              return IconButton(
+                icon: const Icon(Icons.logout),
+                tooltip: 'Logout',
+                onPressed: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Logout'),
+                      content: const Text('Are you sure you want to logout?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('Logout', style: TextStyle(color: Colors.red)),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (confirm == true && mounted) {
+                    await authProvider.logout();
+                    if (mounted) {
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => LoginScreen()),
+                        (route) => false,
+                      );
+                    }
+                  }
+                },
+              );
+            },
+          ),
           PopupMenuButton(
             itemBuilder: (context) => [
               const PopupMenuItem(

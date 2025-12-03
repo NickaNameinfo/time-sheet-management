@@ -34,11 +34,11 @@ function Login() {
       if (roles.includes("Admin")) {
         navigate("/Dashboard");
       } else if (roles.includes("HR")) {
-        navigate("/Hr/LeaveBalance");
+        navigate("/Hr");
       } else if (roles.includes("TL") || roles.includes("teamLead")) {
-        navigate("/TeamLead/LeadHome");
+        navigate("/TeamLead");
       } else if (roles.includes("Employee")) {
-        navigate("/Employee/EmployeeHome");
+        navigate("/Employee");
       } else {
         // Default fallback
         navigate("/Dashboard");

@@ -285,9 +285,9 @@ class _HrLeaveApprovalScreenState extends State<HrLeaveApprovalScreen> {
                                       _buildInfoRow('From Date', _formatDate(request['leaveFrom']?.toString())),
                                       _buildInfoRow('To Date', _formatDate(request['leaveTo']?.toString())),
                                       if (request['leaveHours'] != null)
-                                        _buildInfoRow('Hours', request['leaveHours']?.toString()),
+                                        _buildInfoRow('Hours', request['leaveHours']?.toString() ?? 'N/A'),
                                       if (request['reason'] != null && request['reason'].toString().isNotEmpty)
-                                        _buildInfoRow('Reason', request['reason']?.toString()),
+                                        _buildInfoRow('Reason', request['reason']?.toString() ?? 'N/A'),
                                       if (request['appliedDate'] != null)
                                         _buildInfoRow('Applied Date', _formatDate(request['appliedDate']?.toString())),
                                       if (isPending) ...[

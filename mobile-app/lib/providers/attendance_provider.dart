@@ -48,9 +48,10 @@ class AttendanceProvider with ChangeNotifier {
           final result = await _apiService.clockIn(
             employeeId: employeeId,
             employeeName: employeeName,
-            projectName: projectName,
-            referenceNo: referenceNo,
-            areaOfWork: areaOfWork,
+            employeeNo: employeeId,
+            projectName: projectName ?? '',
+            referenceNo: referenceNo ?? '',
+            areaOfWork: areaOfWork ?? '',
           );
           
           _isClockedIn = true;
