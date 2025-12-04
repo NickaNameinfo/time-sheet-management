@@ -407,7 +407,6 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
         
         _calculateTodayHours();
         _startHoursTimer();
-        _updateTimeManagementScreen();
         
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

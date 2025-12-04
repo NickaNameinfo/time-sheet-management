@@ -350,53 +350,47 @@ export const addWorkDetails = asyncHandler(async (req, res) => {
 
 export const updateWorkDetails = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const baseSql =
-    "UPDATE workdetails SET `employeeName`=?, `userName`=?, `referenceNo`=?, `projectName`=?, `tlName`=?, `taskNo`=?, `areaofWork`=?, `variation`=?, `subDivision`=?, `totalHours`=?, `weekNumber`=?, `projectNo`=?, `employeeNo`=?, `designation`=?";
-  let sql = baseSql;
-  const values = [
-    req.body.employeeName,
-    req.body.userName,
-    req.body.referenceNo,
-    req.body.projectName,
-    req.body.tlName,
-    req.body.taskNo,
-    req.body.areaofWork,
-    req.body.variation,
-    req.body.subDivision,
-    req.body.totalHours,
-    req.body.weekNumber,
-    req.body.projectNo,
-    req.body.employeeNo,
-    req.body.designation,
+
+  // 1. Define all possible columns in your database that are allowed to be updated
+  // Note: Make sure these match your DB column names exactly (e.g., 'areaofWork')
+  const allowedFields = [
+    "employeeName", "userName", "referenceNo", "projectName", "tlName", 
+    "taskNo", "areaofWork", "variation", "subDivision", "totalHours", 
+    "weekNumber", "projectNo", "employeeNo", "designation", "discipline", 
+    "subDivisionList", "monday", "tuesday", "wednesday", "thursday", 
+    "friday", "saturday", "sunday", "status", "sentDate", 
+    "approvedDate", "allotatedHours", "desciplineCode", "approverId"
   ];
 
-  const optionalFields = [
-    "discipline",
-    "subDivisionList",
-    "monday",
-    "tuesday",
-    "wednesday",
-    "thursday",
-    "friday",
-    "saturday",
-    "sunday",
-    "status",
-    "sentDate",
-    "approvedDate",
-    "allotatedHours",
-    "desciplineCode",
-    "approverId",
-  ];
+  // 2. Dynamically build the SET clause
+  const updates = [];
+  const values = [];
 
-  optionalFields.forEach((field) => {
-    if (req.body[field] !== undefined) {
-      sql += `, \`${field}\`=?`;
-      values.push(req.body[field]);
+  // Iterate over the keys provided in req.body
+  Object.keys(req.body).forEach((key) => {
+    // Check if the key is in our allowed list AND is not undefined
+    if (allowedFields.includes(key) && req.body[key] !== undefined) {
+      updates.push(`\`${key}\` = ?`); // Add field to SQL (e.g., `userName` = ?)
+      values.push(req.body[key]);     // Add value to array
     }
   });
-  sql += " WHERE id = ?";
+
+  // 3. Validation: If no valid fields were sent, stop here
+  if (updates.length === 0) {
+    return sendError(res, "No valid fields provided for update", 400);
+  }
+
+  // 4. Construct Final SQL
+  // Join the updates array with commas
+  const sql = `UPDATE workdetails SET ${updates.join(", ")} WHERE id = ?`;
+  
+  // Add the ID to the end of the values array for the WHERE clause
   values.push(id);
 
+  console.log("Update SQL:", sql); // Debugging: check the query
+  console.log("Update Values:", values);
+
+  // 5. Execute
   await query(sql, values);
   return sendSuccess(res, null, "Work details updated successfully");
 });
