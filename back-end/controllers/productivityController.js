@@ -2,25 +2,67 @@ import { query } from "../config/database.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
-// Calculate Productivity Score
-export const calculateProductivity = asyncHandler(async (req, res) => {
-  const { employeeId, date } = req.body;
-
-  if (!employeeId || !date) {
-    return sendError(res, "employeeId and date are required", 400);
-  }
-
-  // Get work details for the day
-  const workSql = `
-    SELECT SUM(totalHours) as total_hours, COUNT(*) as tasks_completed
-    FROM workdetails
-    WHERE employeeNo = (SELECT EMPID FROM employee WHERE id = ?)
-    AND DATE(sentDate) = ?
-    AND status = 'approved'
+// Helper function to calculate productivity for an employee on a specific date
+// This can be called from both the API endpoint and from approval controller
+export const calculateProductivityForEmployee = async (employeeId, date) => {
+  // Get employee info - employeeId can be employee.id or EMPID
+  const employeeSql = `
+    SELECT id, EMPID, userName 
+    FROM employee 
+    WHERE id = ? OR EMPID = ?
+    LIMIT 1
   `;
-  const workData = await query(workSql, [employeeId, date]);
+  const employeeResult = await query(employeeSql, [employeeId, employeeId]);
+  
+  if (employeeResult.length === 0) {
+    throw new Error(`Employee not found: ${employeeId}`);
+  }
+  
+  const employee = employeeResult[0];
+  const actualEmployeeId = employee.id; // Use the actual employee.id for productivity_metrics
+  
+  // Get work details for the day - match by employeeNo (which is EMPID) or userName
+  // Handle different date formats in sentDate (sentDate is stored as VARCHAR)
+  // Use the same date parsing logic as in other controllers
+  const workSql = `
+    SELECT 
+      SUM(CAST(totalHours AS DECIMAL(10,2))) as total_hours, 
+      COUNT(*) as tasks_completed,
+      GROUP_CONCAT(id) as workdetail_ids
+    FROM workdetails
+    WHERE (
+      (employeeNo = ? OR employeeNo = ?) OR
+      userName = ?
+    )
+    AND (
+      DATE(STR_TO_DATE(SUBSTRING(sentDate, 1, 10), '%Y-%m-%d')) = ? OR
+      DATE(STR_TO_DATE(sentDate, '%Y-%m-%d')) = ? OR
+      DATE(sentDate) = ? OR
+      SUBSTRING(sentDate, 1, 10) = ?
+    )
+    AND status = 'approved'
+    AND totalHours IS NOT NULL
+    AND totalHours != ''
+    AND CAST(totalHours AS DECIMAL(10,2)) > 0
+  `;
+  const workData = await query(workSql, [
+    employee.EMPID || employee.id,
+    String(employee.EMPID || employee.id), // Try as string too
+    employee.userName,
+    date,
+    date,
+    date,
+    date // Also try direct string comparison
+  ]);
+  
   const totalHours = parseFloat(workData[0]?.total_hours || 0);
   const tasksCompleted = parseInt(workData[0]?.tasks_completed || 0);
+  
+  console.log(`[Productivity] Query for employee ${actualEmployeeId} (EMPID: ${employee.EMPID}, userName: ${employee.userName}) on date ${date}`);
+  console.log(`[Productivity] Found ${tasksCompleted} tasks, Total hours: ${totalHours}`);
+  if (workData[0]?.workdetail_ids) {
+    console.log(`[Productivity] Workdetail IDs: ${workData[0].workdetail_ids}`);
+  }
 
   // Get assigned tasks (if you have a tasks table, otherwise use work details count)
   const assignedTasks = tasksCompleted; // Simplified - should come from tasks table
@@ -30,6 +72,8 @@ export const calculateProductivity = asyncHandler(async (req, res) => {
   // For now, assuming all approved hours are productive
   const productiveHours = totalHours;
   const productivityScore = totalHours > 0 ? (productiveHours / 8) * 100 : 0; // Assuming 8 hours standard
+  // Cap productivity score at 100%
+  const cappedProductivityScore = Math.min(productivityScore, 100);
   const taskCompletionRate =
     assignedTasks > 0 ? (tasksCompleted / assignedTasks) * 100 : 0;
 
@@ -39,7 +83,7 @@ export const calculateProductivity = asyncHandler(async (req, res) => {
 
   // Check if metric exists
   const checkSql = "SELECT id FROM productivity_metrics WHERE employee_id = ? AND metric_date = ?";
-  const existing = await query(checkSql, [employeeId, date]);
+  const existing = await query(checkSql, [actualEmployeeId, date]);
 
   if (existing.length > 0) {
     // Update
@@ -60,9 +104,9 @@ export const calculateProductivity = asyncHandler(async (req, res) => {
       idleTimeMinutes,
       tasksCompleted,
       assignedTasks,
-      productivityScore,
+      cappedProductivityScore,
       taskCompletionRate,
-      employeeId,
+      actualEmployeeId,
       date,
     ]);
   } else {
@@ -75,29 +119,45 @@ export const calculateProductivity = asyncHandler(async (req, res) => {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     await query(insertSql, [
-      employeeId,
+      actualEmployeeId,
       date,
       totalHours,
       productiveHours,
       idleTimeMinutes,
       tasksCompleted,
       assignedTasks,
-      productivityScore,
+      cappedProductivityScore,
       taskCompletionRate,
     ]);
   }
 
-  return sendSuccess(res, {
-    employeeId,
+  return {
+    employeeId: actualEmployeeId,
     date,
     totalHours,
     productiveHours,
     idleTimeMinutes,
     tasksCompleted,
     tasksAssigned: assignedTasks,
-    productivityScore: productivityScore.toFixed(2),
+    productivityScore: cappedProductivityScore.toFixed(2),
     taskCompletionRate: taskCompletionRate.toFixed(2),
-  });
+  };
+};
+
+// Calculate Productivity Score (API Endpoint)
+export const calculateProductivity = asyncHandler(async (req, res) => {
+  const { employeeId, date } = req.body;
+
+  if (!employeeId || !date) {
+    return sendError(res, "employeeId and date are required", 400);
+  }
+
+  try {
+    const result = await calculateProductivityForEmployee(employeeId, date);
+    return sendSuccess(res, result);
+  } catch (error) {
+    return sendError(res, error.message || "Failed to calculate productivity", 500);
+  }
 });
 
 // Get Productivity Metrics
@@ -125,9 +185,30 @@ export const getProductivityMetrics = asyncHandler(async (req, res) => {
     params.push(endDate);
   }
   if (teamId) {
-    // Assuming team is based on TL assignment
-    sql += " AND e.id IN (SELECT employee_id FROM team_lead WHERE id = ?)";
-    params.push(teamId);
+    // Get team members by matching tlName in workdetails with team lead
+    const teamLeadSql = "SELECT leadName, EMPID FROM team_lead WHERE id = ? LIMIT 1";
+    const teamLeadResult = await query(teamLeadSql, [teamId]);
+    
+    if (teamLeadResult.length > 0) {
+      const teamLead = teamLeadResult[0];
+      sql += ` AND (
+        e.EMPID = ? OR
+        e.id IN (
+          SELECT DISTINCT 
+            CASE 
+              WHEN w.employeeNo IS NOT NULL AND w.employeeNo != '' THEN 
+                (SELECT id FROM employee WHERE EMPID = w.employeeNo LIMIT 1)
+              WHEN w.userName IS NOT NULL AND w.userName != '' THEN 
+                (SELECT id FROM employee WHERE userName = w.userName LIMIT 1)
+              ELSE NULL
+            END as emp_id
+          FROM workdetails w
+          WHERE (w.tlName = ? OR w.tlName = ?)
+            AND (w.employeeNo IS NOT NULL OR w.userName IS NOT NULL)
+        )
+      )`;
+      params.push(teamLead.EMPID || teamId, teamLead.leadName, teamId.toString());
+    }
   }
 
   sql += " ORDER BY pm.metric_date DESC, pm.productivity_score DESC";
@@ -144,15 +225,45 @@ export const getTeamProductivity = asyncHandler(async (req, res) => {
     return sendError(res, "teamLeadId is required", 400);
   }
 
-  // Get team members
+  // Get team lead info first
+  const teamLeadSql = "SELECT id, leadName, EMPID FROM team_lead WHERE id = ? LIMIT 1";
+  const teamLeadResult = await query(teamLeadSql, [teamLeadId]);
+  
+  if (teamLeadResult.length === 0) {
+    return sendError(res, "Team lead not found", 404);
+  }
+  
+  const teamLead = teamLeadResult[0];
+  const teamLeadName = teamLead.leadName;
+  const teamLeadEmpId = teamLead.EMPID;
+  
+  // Get team members - employees whose workdetails have tlName matching the team lead's name or id
+  // Match by userName or employeeNo from workdetails where tlName matches
   const teamSql = `
-    SELECT e.id, e.employeeName, e.EMPID
+    SELECT DISTINCT e.id, e.employeeName, e.EMPID
     FROM employee e
-    WHERE e.role LIKE '%TL%' OR e.id IN (
-      SELECT employee_id FROM team_lead WHERE id = ?
+    WHERE e.id IN (
+      SELECT DISTINCT 
+        CASE 
+          WHEN w.employeeNo IS NOT NULL AND w.employeeNo != '' THEN 
+            (SELECT id FROM employee WHERE EMPID = w.employeeNo LIMIT 1)
+          WHEN w.userName IS NOT NULL AND w.userName != '' THEN 
+            (SELECT id FROM employee WHERE userName = w.userName LIMIT 1)
+          ELSE NULL
+        END as emp_id
+      FROM workdetails w
+      WHERE (w.tlName = ? OR w.tlName = ?)
+        AND (w.employeeNo IS NOT NULL OR w.userName IS NOT NULL)
     )
+    OR e.EMPID = ?
+    OR (e.role LIKE '%TL%' AND e.EMPID = ?)
   `;
-  const teamMembers = await query(teamSql, [teamLeadId]);
+  const teamMembers = await query(teamSql, [
+    teamLeadName,
+    teamLeadId.toString(),
+    teamLeadEmpId || teamLeadId,
+    teamLeadEmpId || teamLeadId
+  ]);
 
   const teamMetrics = [];
 

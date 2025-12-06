@@ -3,18 +3,39 @@ import { sendSuccess, sendError } from "../utils/response.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
 export const sendNotification = asyncHandler(async (req, res) => {
-  const sql =
-    "INSERT INTO notification (`from`,`to`,`message`, `sendDate`, `empId`, `tlId`) VALUES (?)";
-  const values = [
-    req.body.from,
-    req.body.to,
-    req.body.message,
-    req.body.sendDate,
-    req.body.empId,
-    req.body.tlId,
-  ];
-
-  await query(sql, [values]);
+  // Check if empId and tlId columns exist in the notification table
+  // If they exist, include them; otherwise, use only the basic columns
+  let sql;
+  let values;
+  
+  try {
+    // Try to insert with empId and tlId first
+    sql = "INSERT INTO notification (`from`,`to`,`message`, `sendDate`, `empId`, `tlId`) VALUES (?, ?, ?, ?, ?, ?)";
+    values = [
+      req.body.from || '',
+      req.body.to || '',
+      req.body.message || '',
+      req.body.sendDate || new Date().toISOString(),
+      req.body.empId || '',
+      req.body.tlId || '',
+    ];
+    await query(sql, values);
+  } catch (error) {
+    // If empId/tlId columns don't exist, use basic columns only
+    if (error.code === 'ER_BAD_FIELD_ERROR' && error.sqlMessage?.includes('empId')) {
+      sql = "INSERT INTO notification (`from`,`to`,`message`, `sendDate`) VALUES (?, ?, ?, ?)";
+      values = [
+        req.body.from || '',
+        req.body.to || '',
+        req.body.message || '',
+        req.body.sendDate || new Date().toISOString(),
+      ];
+      await query(sql, values);
+    } else {
+      throw error; // Re-throw if it's a different error
+    }
+  }
+  
   return sendSuccess(res, null, "Notification sent successfully");
 });
 
@@ -37,15 +58,33 @@ export const getNotifications = asyncHandler(async (req, res) => {
   const userName = employee[0].userName;
   
   // Get notifications for this employee
-  // Assuming notification table has 'to' field that can be userName or empId
-  const sql = `
-    SELECT * FROM notification 
-    WHERE (empId = ? OR \`to\` = ? OR \`to\` = ?)
-    ORDER BY sendDate DESC, id DESC
-    LIMIT 100
-  `;
+  // Try to query with empId first, fallback to just 'to' field if empId doesn't exist
+  let sql;
+  let results;
   
-  const results = await query(sql, [employeeId, userName, employeeId]);
+  try {
+    // Try query with empId column
+    sql = `
+      SELECT * FROM notification 
+      WHERE (empId = ? OR \`to\` = ? OR \`to\` = ?)
+      ORDER BY sendDate DESC, id DESC
+      LIMIT 100
+    `;
+    results = await query(sql, [employeeId, userName, employeeId]);
+  } catch (error) {
+    // If empId column doesn't exist, use only 'to' field
+    if (error.code === 'ER_BAD_FIELD_ERROR' && error.sqlMessage?.includes('empId')) {
+      sql = `
+        SELECT * FROM notification 
+        WHERE \`to\` = ? OR \`to\` = ?
+        ORDER BY sendDate DESC, id DESC
+        LIMIT 100
+      `;
+      results = await query(sql, [userName, employeeId]);
+    } else {
+      throw error; // Re-throw if it's a different error
+    }
+  }
   
   // Format results to include isRead flag (assuming there's a read status)
   const formattedResults = results.map(notification => ({

@@ -276,7 +276,7 @@ const ApprovalCenter = () => {
                     <TableCell sx={{ color: "white", fontWeight: "bold" }}>Leave Type</TableCell>
                     <TableCell sx={{ color: "white", fontWeight: "bold" }}>From</TableCell>
                     <TableCell sx={{ color: "white", fontWeight: "bold" }}>To</TableCell>
-                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Hours</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Days</TableCell>
                     <TableCell sx={{ color: "white", fontWeight: "bold" }}>Reason</TableCell>
                     <TableCell sx={{ color: "white", fontWeight: "bold" }}>Action</TableCell>
                   </TableRow>

@@ -59,6 +59,11 @@ function ProjectWorkDetails() {
   const [selectedWorkDetail, setSelectedWorkDetail] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
   
+  // Approval dialog states
+  const [approvalDialog, setApprovalDialog] = useState(false);
+  const [approvalComments, setApprovalComments] = useState("");
+  const [selectedItem, setSelectedItem] = useState(null);
+  
   // Filter states
   const [filters, setFilters] = useState({
     status: "all", // "all", "pending", "approved", "rejected"
@@ -177,9 +182,18 @@ function ProjectWorkDetails() {
     return filtered;
   }, [workDetails, user, filters]);
 
-  // Mutation for updating work details
+  // Mutation for updating work details (for non-approval updates)
   const { mutate: updateWorkDetailsMutation, loading: updating } = useMutation(
     (payload) => apiService.updateWorkDetails(payload.id, payload.data)
+  );
+
+  // Mutation for approving/rejecting work details (uses approval endpoint)
+  const { mutate: approveWorkDetailsMutation, loading: approving } = useMutation(
+    (data) => apiService.approveEntity(data.entityType, data.entityId, {
+      approverId: user?.id || 1,
+      status: data.status,
+      comments: data.comments || "",
+    })
   );
 
   // Mutation for sending notifications
@@ -235,22 +249,40 @@ function ProjectWorkDetails() {
     );
   }, [filters]);
 
-  const updateProjectDetails = async (status, params) => {
-    const updateData = {
-      ...params.data,
-      approvedDate: new Date().toISOString().split('T')[0],
-      status: status,
-      approverId: user?.id || null, // Set approverId when approving/rejecting
-    };
+  const handleApprove = (status, params) => {
+    setSelectedItem({ ...params.data, status });
+    setApprovalDialog(true);
+  };
 
-    const result = await updateWorkDetailsMutation({ id: params.data.id, data: updateData });
-    
-    if (result.success) {
-      showSnackbar(`Work details ${status} successfully`, "success");
-      refetch();
-    } else {
-      showSnackbar(result.error || "Failed to update work details", "error");
+  const handleConfirmApprove = async () => {
+    if (!selectedItem) return;
+
+    try {
+      // Use approval endpoint for approve/reject actions (consistent with ApprovalCenter)
+      const result = await approveWorkDetailsMutation({
+        entityType: "timesheet", // or "workdetails" - both work the same way
+        entityId: selectedItem.id,
+        status: selectedItem.status,
+        comments: approvalComments || "",
+      });
+      
+      if (result.success || result.Status === 'Success') {
+        showSnackbar(`Work details ${selectedItem.status} successfully`, "success");
+        setApprovalDialog(false);
+        setSelectedItem(null);
+        setApprovalComments("");
+        refetch();
+      } else {
+        showSnackbar(result.error || result.Message || "Failed to update work details", "error");
+      }
+    } catch (error) {
+      showSnackbar(error.message || "Failed to update work details", "error");
     }
+  };
+
+  const updateProjectDetails = async (status, params) => {
+    // This function is kept for backward compatibility but now uses handleApprove
+    handleApprove(status, params);
   };
 
   const columnDefs = useMemo(
@@ -378,8 +410,8 @@ function ProjectWorkDetails() {
                     <IconButton
                       size="small"
                       color="success"
-                      onClick={() => updateProjectDetails("approved", params)}
-                      disabled={updating}
+                      onClick={() => handleApprove("approved", params)}
+                      disabled={approving || updating}
                       sx={{
                         "&:hover": {
                           bgcolor: "success.light",
@@ -394,8 +426,8 @@ function ProjectWorkDetails() {
                     <IconButton
                       size="small"
                       color="error"
-                      onClick={() => updateProjectDetails("rejected", params)}
-                      disabled={updating}
+                      onClick={() => handleApprove("rejected", params)}
+                      disabled={approving || updating}
                       sx={{
                         "&:hover": {
                           bgcolor: "error.light",
@@ -447,7 +479,7 @@ function ProjectWorkDetails() {
         },
       },
     ],
-    [updating]
+    [approving, updating]
   );
 
   const autoGroupColumnDef = useMemo(
@@ -884,6 +916,94 @@ function ProjectWorkDetails() {
             }}
           >
             {sendingNotification ? "Sending..." : "Send"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Approval Dialog */}
+      <Dialog
+        open={approvalDialog}
+        onClose={() => {
+          setApprovalDialog(false);
+          setApprovalComments("");
+          setSelectedItem(null);
+        }}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Typography variant="h6" fontWeight="bold">
+              {selectedItem?.status === "approved" ? "Approve" : "Reject"} Work Details
+            </Typography>
+            <IconButton
+              onClick={() => {
+                setApprovalDialog(false);
+                setApprovalComments("");
+                setSelectedItem(null);
+              }}
+              size="small"
+            >
+              <Close />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {selectedItem && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Employee: {selectedItem.employeeName || "N/A"}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Project: {selectedItem.projectName || "N/A"}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Reference No: {selectedItem.referenceNo || "N/A"}
+              </Typography>
+            </Box>
+          )}
+          <TextField
+            label="Comments"
+            multiline
+            rows={4}
+            value={approvalComments}
+            onChange={(e) => setApprovalComments(e.target.value)}
+            fullWidth
+            sx={{ mt: 2 }}
+            placeholder="Enter approval comments (optional)"
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button
+            onClick={() => {
+              setApprovalDialog(false);
+              setApprovalComments("");
+              setSelectedItem(null);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmApprove}
+            variant="contained"
+            disabled={approving}
+            startIcon={selectedItem?.status === "approved" ? <CheckCircle /> : <Cancel />}
+            color={selectedItem?.status === "approved" ? "success" : "error"}
+            sx={{
+              background:
+                selectedItem?.status === "approved"
+                  ? "linear-gradient(135deg, #4caf50 0%, #2e7d32 100%)"
+                  : "linear-gradient(135deg, #f44336 0%, #c62828 100%)",
+              "&:hover": {
+                background:
+                  selectedItem?.status === "approved"
+                    ? "linear-gradient(135deg, #43a047 0%, #1b5e20 100%)"
+                    : "linear-gradient(135deg, #e53935 0%, #b71c1c 100%)",
+              },
+            }}
+          >
+            {approving ? "Processing..." : "Confirm"}
           </Button>
         </DialogActions>
       </Dialog>
