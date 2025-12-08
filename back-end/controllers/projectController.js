@@ -688,20 +688,63 @@ export const clockOut = asyncHandler(async (req, res) => {
   }
   
   // Calculate total hours
+  // Helper function to parse date consistently (handles various formats from MySQL)
+  const parseDate = (dateValue) => {
+    if (!dateValue) return null;
+    
+    // Convert to string if it's not already
+    const dateStr = dateValue.toString().trim();
+    
+    // If it's already an ISO string with timezone info, parse directly
+    if (dateStr.includes('T') && (dateStr.includes('Z') || dateStr.includes('+') || dateStr.includes('-'))) {
+      return new Date(dateStr);
+    }
+    
+    // If it's a MySQL DATETIME format (YYYY-MM-DD HH:MM:SS), parse it
+    // MySQL DATETIME doesn't include timezone, so we'll treat it as UTC
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(dateStr)) {
+      // MySQL DATETIME format - append 'Z' to treat as UTC
+      return new Date(dateStr.replace(' ', 'T') + 'Z');
+    }
+    
+    // Try parsing as-is
+    const parsed = new Date(dateStr);
+    if (!isNaN(parsed.getTime())) {
+      return parsed;
+    }
+    
+    return null;
+  };
+  
   // Use sentDate field (which contains the clock-in time) if clockInTime doesn't exist
   let clockInDate;
   if (workDetail[0].clockInTime) {
-    clockInDate = new Date(workDetail[0].clockInTime);
+    clockInDate = parseDate(workDetail[0].clockInTime);
   } else if (workDetail[0].sentDate) {
-    // sentDate might be in various formats, try to parse it
-    clockInDate = new Date(workDetail[0].sentDate);
-  } else {
-    // Fallback to current time if no date found
-    clockInDate = new Date();
+    clockInDate = parseDate(workDetail[0].sentDate);
   }
   
-  const clockOut = new Date(clockOutTime || new Date());
-  const totalHours = Math.max(0, (clockOut - clockInDate) / (1000 * 60 * 60)); // Convert to hours
+  // If parsing failed, use current time as fallback (shouldn't happen in normal cases)
+  if (!clockInDate || isNaN(clockInDate.getTime())) {
+    console.error('Failed to parse clock-in date:', {
+      clockInTime: workDetail[0].clockInTime,
+      sentDate: workDetail[0].sentDate
+    });
+    return sendError(res, "Invalid clock-in date found. Please contact administrator.", 400);
+  }
+  
+  // Parse clock-out time (should be ISO string from frontend)
+  const clockOut = parseDate(clockOutTime) || new Date();
+  
+  // Ensure clockOut is valid
+  if (isNaN(clockOut.getTime())) {
+    return sendError(res, "Invalid clock-out time", 400);
+  }
+  
+  // Calculate difference in milliseconds, then convert to hours
+  // Both dates should now be in UTC for accurate comparison
+  const diffMs = clockOut.getTime() - clockInDate.getTime();
+  const totalHours = Math.max(0, diffMs / (1000 * 60 * 60)); // Convert to hours
   
   // Determine which day of the week (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
   const dayOfWeek = clockOut.getDay();
