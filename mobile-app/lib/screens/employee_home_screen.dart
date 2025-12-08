@@ -22,7 +22,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
   bool _isLoading = true;
   Map<String, dynamic>? _leaveBalances;
   List<dynamic> _timesheetData = [];
-  int _selectedWeek = 1;
+  int _selectedWeek = 0; // 0 means use current week
   
   // Today's attendance
   DateTime? _todayCheckIn;
@@ -53,6 +53,8 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
   @override
   void initState() {
     super.initState();
+    // Initialize to current week
+    _selectedWeek = _getCurrentWeekNumber();
     _loadData();
     _checkTodayAttendance().then((_) {
       // Start timer after checking attendance
@@ -142,12 +144,15 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                          todayWork['workDetailId']?.toString();
         
         // Try different field names for clock in/out times
+        // sentDate contains clock-in time if clockInTime doesn't exist (matches backend logic)
         final clockInStr = todayWork['clockInTime']?.toString() ?? 
                          todayWork['clockIn']?.toString() ??
-                         todayWork['inTime']?.toString();
+                         todayWork['inTime']?.toString() ??
+                         todayWork['sentDate']?.toString();
         final clockOutStr = todayWork['clockOutTime']?.toString() ?? 
                           todayWork['clockOut']?.toString() ??
-                          todayWork['outTime']?.toString();
+                          todayWork['outTime']?.toString() ??
+                          todayWork['approvedDate']?.toString();
         
         final isClockedIn = clockInStr != null && clockInStr.isNotEmpty && 
                            (clockOutStr == null || clockOutStr.isEmpty);
@@ -166,10 +171,34 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
           }
           
           // Calculate hours from work detail if available
+          double? backendHours;
           if (todayWork['hours'] != null) {
-            _todayWorkingHours = (todayWork['hours'] as num).toDouble();
+            backendHours = (todayWork['hours'] as num).toDouble();
           } else if (todayWork['totalHours'] != null) {
-            _todayWorkingHours = (todayWork['totalHours'] as num).toDouble();
+            backendHours = (todayWork['totalHours'] as num).toDouble();
+          }
+          
+          if (backendHours != null) {
+            // Verify calculation if we have both clock-in and clock-out times
+            double finalHours = backendHours;
+            if (_todayCheckIn != null && _todayCheckOut != null) {
+              try {
+                final duration = _todayCheckOut!.difference(_todayCheckIn!);
+                final calculatedHours = duration.inSeconds / 3600.0;
+                // Use frontend calculation if backend seems incorrect (more than 1 hour difference)
+                if ((calculatedHours - backendHours).abs() > 1.0) {
+                  print('Time calculation mismatch: backend=$backendHours, calculated=$calculatedHours');
+                  finalHours = calculatedHours; // Use calculated value
+                }
+              } catch (e) {
+                print('Error verifying time calculation: $e');
+              }
+            }
+            
+            _todayWorkingHours = finalHours;
+            // Format time from hours (convert to seconds)
+            final totalSeconds = (finalHours * 3600).round();
+            _todayTimeFormatted = _formatTime(totalSeconds);
           } else {
             _calculateTodayHours();
           }
@@ -704,7 +733,10 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
     final now = DateTime.now();
     final startOfYear = DateTime(now.year, 1, 1);
     final daysSinceStart = now.difference(startOfYear).inDays;
-    return (daysSinceStart / 7).floor() + 1;
+    // Match backend calculation: Math.ceil((daysSinceStart + startOfYear.getDay() + 1) / 7)
+    // startOfYear.weekday returns 1-7 (Monday=1, Sunday=7), but we need 0-6 (Sunday=0)
+    final dayOfWeek = startOfYear.weekday % 7; // Convert to 0-6 format (Sunday=0)
+    return ((daysSinceStart + dayOfWeek + 1) / 7).ceil();
   }
 
   @override

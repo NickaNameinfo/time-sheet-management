@@ -146,13 +146,42 @@ const EmployeeHome = () => {
           (item) => item.status === 'completed' && item.totalHours
         );
         if (completedToday) {
+          const clockInTime = completedToday.sentDate;
+          const clockOutTime = completedToday.approvedDate || completedToday.clockOutTime || completedToday.sentDate;
+          
           setTodayClockStatus({
             id: completedToday.id,
-            clockInTime: completedToday.sentDate,
-            clockOutTime: completedToday.approvedDate || completedToday.sentDate,
+            clockInTime: clockInTime,
+            clockOutTime: clockOutTime,
             status: 'completed',
           });
-          const hours = parseFloat(completedToday.totalHours) || 0;
+          
+          // Use backend totalHours, but verify with frontend calculation if both times are available
+          let hours = parseFloat(completedToday.totalHours) || 0;
+          
+          // Verify calculation if we have both clock-in and clock-out times
+          if (clockInTime && clockOutTime && clockInTime !== clockOutTime) {
+            try {
+              const clockIn = new Date(clockInTime);
+              const clockOut = new Date(clockOutTime);
+              if (!isNaN(clockIn.getTime()) && !isNaN(clockOut.getTime())) {
+                const diffMs = clockOut.getTime() - clockIn.getTime();
+                const calculatedHours = Math.max(0, diffMs / (1000 * 60 * 60));
+                // Use frontend calculation if backend seems incorrect (more than 1 hour difference)
+                if (Math.abs(calculatedHours - hours) > 1) {
+                  console.warn('Time calculation mismatch:', {
+                    backend: hours,
+                    frontend: calculatedHours,
+                    diff: Math.abs(calculatedHours - hours)
+                  });
+                  hours = calculatedHours; // Use frontend calculation
+                }
+              }
+            } catch (e) {
+              console.error('Error verifying time calculation:', e);
+            }
+          }
+          
           setTodayHours(hours);
           const totalSeconds = Math.floor(hours * 3600);
           setTodayTimeFormatted(formatTime(totalSeconds));

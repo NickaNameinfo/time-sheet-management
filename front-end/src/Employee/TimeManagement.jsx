@@ -112,9 +112,9 @@ const TimeManagement = () => {
     window.addEventListener('workDetailsUpdated', handleWorkDetailsUpdate);
     
     // Also auto-refresh every 30 seconds to catch any updates
-    const interval = setInterval(() => {
-      refetchWorkDetails();
-    }, 30000);
+    // const interval = setInterval(() => {
+    //   refetchWorkDetails();
+    // }, 30000);
 
     return () => {
       window.removeEventListener('workDetailsUpdated', handleWorkDetailsUpdate);

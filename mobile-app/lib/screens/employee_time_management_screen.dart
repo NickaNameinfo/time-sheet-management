@@ -45,7 +45,10 @@ class _EmployeeTimeManagementScreenState extends State<EmployeeTimeManagementScr
     final now = DateTime.now();
     final startOfYear = DateTime(now.year, 1, 1);
     final daysSinceStart = now.difference(startOfYear).inDays;
-    return (daysSinceStart / 7).floor() + 1;
+    // Match backend calculation: Math.ceil((daysSinceStart + startOfYear.getDay() + 1) / 7)
+    // startOfYear.weekday returns 1-7 (Monday=1, Sunday=7), but we need 0-6 (Sunday=0)
+    final dayOfWeek = startOfYear.weekday % 7; // Convert to 0-6 format (Sunday=0)
+    return ((daysSinceStart + dayOfWeek + 1) / 7).ceil();
   }
 
   List<String> _getWeekDates(int weekNumber, int year) {
@@ -472,7 +475,7 @@ class _EmployeeTimeManagementScreenState extends State<EmployeeTimeManagementScr
                                 children: [
                                   const Text('Calendar Week', style: TextStyle(fontWeight: FontWeight.w500)),
                                   DropdownButton<int>(
-                                    value: _selectedWeek,
+                                    value: _selectedWeek ?? _getCurrentWeekNumber(),
                                     items: List.generate(52, (i) => i + 1).map((week) {
                                       return DropdownMenuItem(
                                         value: week,
@@ -480,10 +483,12 @@ class _EmployeeTimeManagementScreenState extends State<EmployeeTimeManagementScr
                                       );
                                     }).toList(),
                                     onChanged: (value) {
-                                      setState(() {
-                                        _selectedWeek = value;
-                                      });
-                                      _initializeWeekData();
+                                      if (value != null) {
+                                        setState(() {
+                                          _selectedWeek = value;
+                                        });
+                                        _initializeWeekData();
+                                      }
                                     },
                                   ),
                                 ],
