@@ -799,9 +799,26 @@ export const clockOut = asyncHandler(async (req, res) => {
 });
 
 export const getBioDetails = asyncHandler(async (req, res) => {
-  const sql = "SELECT * FROM devicelogsinfo";
-  const results = await biometricQuery(sql);
-  return sendSuccess(res, results);
+  try {
+    const sql = "SELECT * FROM devicelogsinfo";
+    const results = await biometricQuery(sql);
+    return sendSuccess(res, results || []);
+  } catch (error) {
+    // Handle database errors gracefully
+    console.error('Get bio details error:', error);
+    
+    // If table doesn't exist or database connection fails, return empty array
+    if (error.code === 'ER_NO_SUCH_TABLE' || 
+        error.code === 'ER_BAD_DB_ERROR' || 
+        error.code === 'ECONNREFUSED' ||
+        error.message?.includes('doesn\'t exist')) {
+      console.warn('Biometric database or table not available, returning empty results');
+      return sendSuccess(res, []);
+    }
+    
+    // For other errors, return a proper error message
+    return sendError(res, `Failed to get bio details: ${error.message || 'Database error'}`, 500);
+  }
 });
 
 export const filterTimeSheet = asyncHandler(async (req, res) => {
@@ -811,16 +828,33 @@ export const filterTimeSheet = asyncHandler(async (req, res) => {
     return sendError(res, "userId and a non-empty array of logDates are required", 400);
   }
 
-  // Use parameterized query to prevent SQL injection
-  const placeholders = logDates.map(() => "?").join(",");
-  const sql = `SELECT *, DATE_FORMAT(LogDate, '%Y-%m-%d %H:%i:%s') AS FormattedLogDate 
-               FROM devicelogsinfo  
-               WHERE DATE(LogDate) IN (${placeholders}) AND UserId = ?`;
+  try {
+    // Use parameterized query to prevent SQL injection
+    const placeholders = logDates.map(() => "?").join(",");
+    const sql = `SELECT *, DATE_FORMAT(LogDate, '%Y-%m-%d %H:%i:%s') AS FormattedLogDate 
+                 FROM devicelogsinfo  
+                 WHERE DATE(LogDate) IN (${placeholders}) AND UserId = ?`;
 
-  // Combine dates and userId for parameterized query
-  const params = [...logDates, userId];
+    // Combine dates and userId for parameterized query
+    const params = [...logDates, userId];
 
-  const results = await biometricQuery(sql, params);
-  return sendSuccess(res, results);
+    const results = await biometricQuery(sql, params);
+    return sendSuccess(res, results || []);
+  } catch (error) {
+    // Handle database errors gracefully
+    console.error('Filter timesheet error:', error);
+    
+    // If table doesn't exist or database connection fails, return empty array
+    if (error.code === 'ER_NO_SUCH_TABLE' || 
+        error.code === 'ER_BAD_DB_ERROR' || 
+        error.code === 'ECONNREFUSED' ||
+        error.message?.includes('doesn\'t exist')) {
+      console.warn('Biometric database or table not available, returning empty results');
+      return sendSuccess(res, []);
+    }
+    
+    // For other errors, return a proper error message
+    return sendError(res, `Failed to filter timesheet: ${error.message || 'Database error'}`, 500);
+  }
 });
 
