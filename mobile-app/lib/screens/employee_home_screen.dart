@@ -9,6 +9,7 @@ import 'package:timesheet_mobile/services/background_timer_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timesheet_mobile/utils/app_config.dart';
 import 'package:intl/intl.dart';
+import 'dart:ui'; // Added for FontFeature
 
 class EmployeeHomeScreen extends StatefulWidget {
   const EmployeeHomeScreen({super.key});
@@ -104,7 +105,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
       final employeeId = user['id']?.toString() ?? user['employeeId']?.toString();
       if (employeeId == null) return;
       
-      // First check SharedPreferences for saved clock-in state
+      // First check SharedPreferences for saved clock-in state (Most accurate for current session)
       final prefs = await SharedPreferences.getInstance();
       final savedClockInTime = prefs.getString('clock_in_time');
       final savedWorkDetailId = prefs.getString('work_detail_id');
@@ -113,8 +114,10 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
       if (savedClockInTime != null && isClockedInSaved) {
         final clockInTime = DateTime.tryParse(savedClockInTime);
         if (clockInTime != null) {
+          // Convert to Local time for consistent calculation against DateTime.now()
+          final localClockInTime = clockInTime.isUtc ? clockInTime.toLocal() : clockInTime;
           setState(() {
-            _todayCheckIn = clockInTime;
+            _todayCheckIn = localClockInTime;
             _isClockedIn = true;
             _workDetailId = savedWorkDetailId;
             _calculateTodayHours();
@@ -143,8 +146,6 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
         final workDetailId = todayWork['id']?.toString() ?? 
                          todayWork['workDetailId']?.toString();
         
-        // Try different field names for clock in/out times
-        // sentDate contains clock-in time if clockInTime doesn't exist (matches backend logic)
         final clockInStr = todayWork['clockInTime']?.toString() ?? 
                          todayWork['clockIn']?.toString() ??
                          todayWork['inTime']?.toString() ??
@@ -161,47 +162,48 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
           _workDetailId = workDetailId;
           
           if (clockInStr != null && clockInStr.isNotEmpty) {
-            _todayCheckIn = DateTime.tryParse(clockInStr);
+            DateTime? parsedClockIn = DateTime.tryParse(clockInStr);
+            
+            // Handle MySQL/Backend formats that might not be standard ISO
+            if (parsedClockIn == null) {
+              try {
+                final parts = clockInStr.split(' ');
+                if (parts.length == 2) {
+                  final datePart = parts[0].split('-');
+                  final timePart = parts[1].split(':');
+                  if (datePart.length == 3 && timePart.length >= 2) {
+                    parsedClockIn = DateTime(
+                      int.parse(datePart[0]),
+                      int.parse(datePart[1]),
+                      int.parse(datePart[2]),
+                      int.parse(timePart[0]),
+                      int.parse(timePart[1]),
+                      timePart.length > 2 ? int.parse(timePart[2]) : 0,
+                    );
+                  }
+                }
+              } catch (e) {
+                debugPrint('Error parsing clock-in time: $e');
+              }
+            } else if (parsedClockIn.isUtc) {
+              // If API returns UTC, convert to Local so the timer matches device time
+              parsedClockIn = parsedClockIn.toLocal();
+            }
+
+            _todayCheckIn = parsedClockIn;
             _isClockedIn = isClockedIn;
           }
           
           if (clockOutStr != null && clockOutStr.isNotEmpty) {
-            _todayCheckOut = DateTime.tryParse(clockOutStr);
+            DateTime? parsedOut = DateTime.tryParse(clockOutStr);
+            if (parsedOut != null && parsedOut.isUtc) {
+               parsedOut = parsedOut.toLocal();
+            }
+            _todayCheckOut = parsedOut;
             _isClockedIn = false;
           }
           
-          // Calculate hours from work detail if available
-          double? backendHours;
-          if (todayWork['hours'] != null) {
-            backendHours = (todayWork['hours'] as num).toDouble();
-          } else if (todayWork['totalHours'] != null) {
-            backendHours = (todayWork['totalHours'] as num).toDouble();
-          }
-          
-          if (backendHours != null) {
-            // Verify calculation if we have both clock-in and clock-out times
-            double finalHours = backendHours;
-            if (_todayCheckIn != null && _todayCheckOut != null) {
-              try {
-                final duration = _todayCheckOut!.difference(_todayCheckIn!);
-                final calculatedHours = duration.inSeconds / 3600.0;
-                // Use frontend calculation if backend seems incorrect (more than 1 hour difference)
-                if ((calculatedHours - backendHours).abs() > 1.0) {
-                  print('Time calculation mismatch: backend=$backendHours, calculated=$calculatedHours');
-                  finalHours = calculatedHours; // Use calculated value
-                }
-              } catch (e) {
-                print('Error verifying time calculation: $e');
-              }
-            }
-            
-            _todayWorkingHours = finalHours;
-            // Format time from hours (convert to seconds)
-            final totalSeconds = (finalHours * 3600).round();
-            _todayTimeFormatted = _formatTime(totalSeconds);
-          } else {
-            _calculateTodayHours();
-          }
+          _calculateTodayHours();
         });
         
         // Save state if clocked in
@@ -213,53 +215,46 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
           }
           await BackgroundTimerService.startBackgroundTimer();
         }
-      } else {
-        // Check attendance provider state
-        final attendanceProvider = Provider.of<AttendanceProvider>(context, listen: false);
-        if (attendanceProvider.isClockedIn && attendanceProvider.currentAttendance != null) {
-          final attendance = attendanceProvider.currentAttendance!;
-          final timestamp = attendance['timestamp']?.toString();
-          if (timestamp != null) {
-            setState(() {
-              _todayCheckIn = DateTime.tryParse(timestamp);
-              _isClockedIn = true;
-              _calculateTodayHours();
-            });
-            await prefs.setBool('is_clocked_in', true);
-            await prefs.setString('clock_in_time', timestamp);
-            await BackgroundTimerService.startBackgroundTimer();
-          }
-        }
-      }
+      } 
     } catch (e) {
       // Silently fail
     }
   }
 
   void _calculateTodayHours() {
-    if (_todayCheckIn != null && _todayCheckOut != null) {
-      final duration = _todayCheckOut!.difference(_todayCheckIn!);
-      final totalSeconds = duration.inSeconds;
-      final hours = duration.inMinutes / 60.0;
-      setState(() {
-        _todayWorkingHours = hours;
-        _todayTimeFormatted = _formatTime(totalSeconds);
-      });
-    } else if (_todayCheckIn != null && _isClockedIn) {
-      // Still clocked in, calculate from check-in to now
-      final duration = DateTime.now().difference(_todayCheckIn!);
-      final totalSeconds = duration.inSeconds;
-      final hours = duration.inMinutes / 60.0;
-      setState(() {
-        _todayWorkingHours = hours;
-        _todayTimeFormatted = _formatTime(totalSeconds);
-      });
-    } else {
+    if (_todayCheckIn == null) {
       setState(() {
         _todayWorkingHours = 0.0;
         _todayTimeFormatted = "0:00:00";
       });
+      return;
     }
+
+    DateTime endTime;
+    
+    // If we have a checkout time, use that. 
+    // If not, and we are clocked in, use NOW.
+    if (_todayCheckOut != null) {
+      endTime = _todayCheckOut!;
+    } else if (_isClockedIn) {
+      endTime = DateTime.now();
+    } else {
+      return;
+    }
+
+    // Determine the difference
+    final duration = endTime.difference(_todayCheckIn!);
+    
+    // Safety check for negative duration (if device time is changed manually)
+    final totalSeconds = duration.isNegative ? 0 : duration.inSeconds;
+    
+    // Calculate decimal hours (e.g. 0.42)
+    final hours = totalSeconds / 3600.0; 
+
+    setState(() {
+      _todayWorkingHours = hours;
+      _todayTimeFormatted = _formatTime(totalSeconds);
+    });
   }
 
   String _formatTime(int totalSeconds) {
@@ -289,9 +284,8 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
       final employeeId = user['id']?.toString() ?? user['employeeId']?.toString() ?? '';
       if (employeeId.isEmpty) return;
 
-      // Get project details from selected project or referenceNo
-      // Match the logic from ClockInOutCard.jsx - find by referenceNo first, then by projectName
       String refNo = _referenceNo.trim();
+      String? projectName;
       String? projectNo;
       String? taskNo;
       String? variation;
@@ -299,59 +293,47 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
       String? subDivisionList;
       String? allotatedHours;
       String? desciplineCode;
-      String? projectName;
       String? designation;
       String? tlName;
       
       Map<String, dynamic> selectedProjectData = {};
       
-      // First try to find by referenceNo (like ClockInOutCard.jsx does)
       if (refNo.isNotEmpty) {
         try {
           selectedProjectData = _projects.firstWhere(
             (p) => p['referenceNo']?.toString() == refNo,
             orElse: () => {},
           );
-        } catch (e) {
-          // Not found by referenceNo, continue
-        }
+        } catch (e) {}
       }
       
-      // If not found by referenceNo, try by projectName
       if (selectedProjectData.isEmpty && _selectedProject.isNotEmpty) {
         try {
           selectedProjectData = _projects.firstWhere(
             (p) => p['projectName']?.toString() == _selectedProject,
             orElse: () => {},
           );
-        } catch (e) {
-          // Not found, continue
-        }
+        } catch (e) {}
       }
       
       if (selectedProjectData.isNotEmpty) {
-        // Match frontend ClockInOutCard.jsx exactly
         refNo = selectedProjectData['referenceNo']?.toString() ?? refNo;
         projectName = selectedProjectData['projectName']?.toString() ?? _selectedProject;
         projectNo = selectedProjectData['projectNo']?.toString();
         taskNo = selectedProjectData['taskJobNo']?.toString() ?? selectedProjectData['taskNo']?.toString();
         variation = selectedProjectData['variation']?.toString();
         subDivision = selectedProjectData['subDivision']?.toString();
-        subDivisionList = selectedProjectData['subDivision']?.toString(); // Use subDivision for subDivisionList
+        subDivisionList = selectedProjectData['subDivision']?.toString();
         allotatedHours = selectedProjectData['allotatedHours']?.toString();
         desciplineCode = selectedProjectData['desciplineCode']?.toString();
         designation = selectedProjectData['designation']?.toString();
-        // Match frontend: ClockInOutCard.jsx sends selectedProject.tlName (line 228)
         tlName = selectedProjectData['tlName']?.toString();
       } else {
-        // Use provided values if project not found
         projectName = _selectedProject;
       }
 
-      // Ensure employeeName is not empty
       final empName = user['employeeName']?.toString().trim() ?? 
-                     user['name']?.toString().trim() ?? 
-                     '';
+                     user['name']?.toString().trim() ?? '';
       
       if (empName.isEmpty) {
         if (mounted) {
@@ -365,7 +347,6 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
         return;
       }
 
-      // Match frontend ClockInOutCard.jsx exactly - build projectDetails object and spread it
       final Map<String, dynamic> projectDetails = {};
       if (selectedProjectData.isNotEmpty) {
         projectDetails['referenceNo'] = refNo.isNotEmpty ? refNo.trim() : '';
@@ -380,11 +361,10 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
         if (designation != null && designation!.isNotEmpty) projectDetails['designation'] = designation!.trim();
       }
 
-      // Match frontend: employeeNo: user?.id, tlName: selectedProject.tlName
       final result = await _apiService.clockIn(
         employeeId: employeeId,
         employeeName: empName,
-        employeeNo: employeeId, // Match frontend: employeeNo: user?.id
+        employeeNo: employeeId,
         projectName: projectDetails['projectName'] ?? ((projectName?.isNotEmpty ?? false) ? projectName!.trim() : (_selectedProject.isNotEmpty ? _selectedProject.trim() : '')),
         referenceNo: projectDetails['referenceNo'] ?? (refNo.isNotEmpty ? refNo.trim() : ''),
         areaOfWork: _selectedAreaOfWork.isNotEmpty ? _selectedAreaOfWork.trim() : '',
@@ -396,20 +376,15 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
         allotatedHours: projectDetails['allotatedHours'],
         desciplineCode: projectDetails['desciplineCode'],
         designation: projectDetails['designation'],
-        tlName: tlName, // Match frontend: tlName: selectedProject.tlName
+        tlName: tlName,
       );
 
       if (mounted) {
-        // Store work detail ID from response
         final workDetailId = result['id']?.toString() ?? 
                            result['workDetailId']?.toString();
         
-        // Get clock-in time from response or use current time
-        final clockInTime = result['clockInTime']?.toString() ?? 
-                          result['clockIn']?.toString();
-        final DateTime checkInDateTime = clockInTime != null 
-            ? (DateTime.tryParse(clockInTime) ?? DateTime.now())
-            : DateTime.now();
+        // IMPORTANT: Use DateTime.now() (local time) for immediate UI feedback
+        final DateTime checkInDateTime = DateTime.now();
 
         setState(() {
           _workDetailId = workDetailId;
@@ -421,9 +396,10 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
           _referenceNo = '';
           _referenceNoController.clear();
           _selectedAreaOfWork = '';
+          _todayWorkingHours = 0.0;
+          _todayTimeFormatted = "0:00:00";
         });
         
-        // Save clock-in state to SharedPreferences for background service
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool('is_clocked_in', true);
         await prefs.setString('clock_in_time', checkInDateTime.toIso8601String());
@@ -431,7 +407,6 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
           await prefs.setString('work_detail_id', workDetailId);
         }
         
-        // Start background timer
         await BackgroundTimerService.startBackgroundTimer();
         
         _calculateTodayHours();
@@ -466,7 +441,6 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
       final employeeId = user['id']?.toString() ?? user['employeeId']?.toString() ?? '';
       if (employeeId.isEmpty) return;
 
-      // If workDetailId is not set, try to find it from today's work details
       String? workDetailId = _workDetailId;
       if (workDetailId == null || workDetailId.isEmpty) {
         try {
@@ -487,9 +461,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
             workDetailId = todayWork['id']?.toString() ?? 
                          todayWork['workDetailId']?.toString();
           }
-        } catch (e) {
-          // Silently fail, will show error below
-        }
+        } catch (e) {}
       }
 
       if (workDetailId == null || workDetailId.isEmpty) {
@@ -507,48 +479,49 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
         return;
       }
 
-      // Match frontend: clockOutTime: new Date().toISOString()
+      // Send UTC time to backend for consistent calculation
       final result = await _apiService.clockOut(
         employeeId: employeeId,
         workDetailId: workDetailId,
-        clockOutTime: DateTime.now().toIso8601String(), // Match frontend
+        clockOutTime: DateTime.now().toUtc().toIso8601String(),
       );
 
       if (mounted) {
-        // Match frontend: result.data?.totalHours || todayHours.toFixed(2)
         final totalHours = result['totalHours']?.toString() ?? 
                           result['hours']?.toString() ?? 
                           _todayWorkingHours.toStringAsFixed(2);
         
-        // Get clock-out time from response or use current time
         final clockOutTime = result['clockOutTime']?.toString() ?? 
-                            result['clockOut']?.toString();
-        final checkOutDateTime = clockOutTime != null 
-            ? DateTime.tryParse(clockOutTime) 
-            : DateTime.now();
+                            result['clockOut']?.toString() ??
+                            result['approvedDate']?.toString();
+        
+        DateTime checkOutDateTime = DateTime.now();
+        if (clockOutTime != null && clockOutTime.isNotEmpty) {
+          final parsed = DateTime.tryParse(clockOutTime);
+          if (parsed != null) {
+            checkOutDateTime = parsed.isUtc ? parsed.toLocal() : parsed;
+          }
+        }
 
         setState(() {
           _todayCheckOut = checkOutDateTime;
           _isClockedIn = false;
           _showClockOutDialog = false;
-          _workDetailId = null; // Reset after successful checkout
+          _workDetailId = null;
         });
         
-        // Clear clock-in state from SharedPreferences
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove('is_clocked_in');
         await prefs.remove('clock_in_time');
         await prefs.remove('work_detail_id');
         await prefs.remove('current_working_hours');
         
-        // Stop background timer
         await BackgroundTimerService.stopBackgroundTimer();
         
         _calculateTodayHours();
         _hoursUpdateTimer?.cancel();
         _updateTimeManagementScreen();
         
-        // Match frontend success message format: "Clocked out successfully. Total hours: X hours"
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Clocked out successfully. Total hours: $totalHours hours'),
@@ -571,9 +544,6 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
   }
 
   Future<void> _updateTimeManagementScreen() async {
-    // This method updates the time management screen with current hours
-    // Only updates existing work details - does not create new ones
-    // (clockIn/clockOut already handle creation)
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final user = authProvider.user;
@@ -584,7 +554,6 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
 
       final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
       
-      // Check if work detail exists for today
       final workDetails = await _apiService.getWorkDetails(employeeId: employeeId);
       final todayWork = workDetails.firstWhere(
         (w) {
@@ -597,18 +566,13 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
         orElse: () => {},
       );
 
-      // Only update if work detail exists (don't create new ones)
-      // clockIn/clockOut already handle creation
       if (todayWork.isNotEmpty && todayWork['id'] != null) {
-        // Update existing work detail with current hours
         await _apiService.updateWorkDetails(todayWork['id'], {
           'hours': _todayWorkingHours,
           'totalHours': _todayWorkingHours,
         });
       }
-      // If work detail doesn't exist, clockIn/clockOut will create it
     } catch (e) {
-      // Silently fail - this is a background update
       debugPrint('Update time management screen error: $e');
     }
   }
@@ -651,7 +615,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
         }
       }
 
-      // Calculate comp-off from approved comp-off details
+      // Calculate comp-off
       if (compOffDetails.isNotEmpty) {
         final approvedCompOff = compOffDetails
             .where((item) => (item['leaveStatus'] ?? '').toString().toLowerCase() == 'approved')
@@ -678,10 +642,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
         };
       });
 
-      // Load timesheet for current week
       await _loadTimesheet();
-      
-      // Check today's attendance after loading data
       _checkTodayAttendance();
     } catch (e) {
       if (mounted) {
@@ -704,7 +665,6 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
 
       final employeeId = user['id']?.toString() ?? user['employeeId']?.toString();
       
-      // Calculate week dates
       final now = DateTime.now();
       final startOfYear = DateTime(now.year, 1, 1);
       final daysSinceStart = now.difference(startOfYear).inDays;
@@ -733,9 +693,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
     final now = DateTime.now();
     final startOfYear = DateTime(now.year, 1, 1);
     final daysSinceStart = now.difference(startOfYear).inDays;
-    // Match backend calculation: Math.ceil((daysSinceStart + startOfYear.getDay() + 1) / 7)
-    // startOfYear.weekday returns 1-7 (Monday=1, Sunday=7), but we need 0-6 (Sunday=0)
-    final dayOfWeek = startOfYear.weekday % 7; // Convert to 0-6 format (Sunday=0)
+    final dayOfWeek = startOfYear.weekday % 7; 
     return ((daysSinceStart + dayOfWeek + 1) / 7).ceil();
   }
 
@@ -965,7 +923,8 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '(${_todayWorkingHours.toStringAsFixed(2)}h)',
+                            // FIXED: Show Minutes (e.g., "25m") instead of Decimal Hours (e.g., "0.42h")
+                            '(${(_todayWorkingHours * 60).toStringAsFixed(0)}m)',
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.grey[600],
@@ -981,9 +940,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                       child: _isClockedIn
                           ? ElevatedButton.icon(
                               onPressed: () async {
-                                // Verify we have work detail ID before showing dialog
                                 if (_workDetailId == null || _workDetailId!.isEmpty) {
-                                  // Try to find it first
                                   try {
                                     final authProvider = Provider.of<AuthProvider>(context, listen: false);
                                     final user = authProvider.user;
@@ -1012,9 +969,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                                         }
                                       }
                                     }
-                                  } catch (e) {
-                                    // Silently fail
-                                  }
+                                  } catch (e) {}
                                 }
                                 
                                 if (_workDetailId == null || _workDetailId!.isEmpty) {
@@ -1136,7 +1091,6 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
         ),
       ),
         ),
-        // Dialogs overlay
         if (_showClockInDialog) _buildClockInDialog(),
         if (_showClockOutDialog) _buildClockOutDialog(),
       ],
@@ -1226,7 +1180,6 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
       );
     }
 
-    // Process timesheet data
     final Map<String, Map<String, List<String>>> dateWiseData = {};
     
     for (var item in _timesheetData) {
@@ -1250,7 +1203,6 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
       }
     }
 
-    // Build table
     final now = DateTime.now();
     final startOfYear = DateTime(now.year, 1, 1);
     final selectedWeek = _selectedWeek > 0 ? _selectedWeek : _getCurrentWeekNumber();
@@ -1294,7 +1246,6 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
   }
 
   Widget _buildClockInDialog() {
-    // Validate selected values when dialog opens
     if (_selectedProject.isNotEmpty && !_projects.any((p) => p['projectName']?.toString() == _selectedProject)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         setState(() => _selectedProject = '');
@@ -1328,7 +1279,6 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            // Project Selection
             DropdownButtonFormField<String>(
               value: _selectedProject.isEmpty || !_projects.any((p) => p['projectName']?.toString() == _selectedProject)
                   ? null
@@ -1342,7 +1292,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                 ..._projects
                     .where((project) => project['projectName']?.toString().isNotEmpty == true)
                     .map((project) => project['projectName']?.toString() ?? '')
-                    .toSet() // Remove duplicate project names
+                    .toSet()
                     .map((projectName) {
                       return DropdownMenuItem(
                         value: projectName,
@@ -1371,7 +1321,6 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
               },
             ),
             const SizedBox(height: 16),
-            // Reference Number
             TextField(
               controller: _referenceNoController,
               decoration: const InputDecoration(
@@ -1381,7 +1330,6 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
               onChanged: (value) => setState(() => _referenceNo = value),
             ),
             const SizedBox(height: 16),
-            // Area of Work
             DropdownButtonFormField<String>(
               value: _selectedAreaOfWork.isEmpty || 
                       !_areaOfWorkList.any((area) => area['areaofwork']?.toString() == _selectedAreaOfWork)
@@ -1396,7 +1344,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                 ..._areaOfWorkList
                     .where((area) => area['areaofwork']?.toString().isNotEmpty == true)
                     .map((area) => area['areaofwork']?.toString() ?? '')
-                    .toSet() // Remove duplicate area names
+                    .toSet()
                     .map((areaName) {
                       return DropdownMenuItem(
                         value: areaName,
@@ -1408,7 +1356,6 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
               onChanged: (value) => setState(() => _selectedAreaOfWork = value ?? ''),
             ),
             const SizedBox(height: 24),
-            // Buttons
             Row(
               children: [
                 Expanded(
@@ -1488,14 +1435,13 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                     ),
                   ),
                   Text(
-                    '(${_todayWorkingHours.toStringAsFixed(2)}h)',
+                    '(${(_todayWorkingHours * 60).toStringAsFixed(0)}m)',
                     style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 24),
-            // Buttons
             Row(
               children: [
                 Expanded(
@@ -1539,4 +1485,3 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
     );
   }
 }
-
