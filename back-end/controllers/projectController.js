@@ -494,6 +494,8 @@ export const clockIn = asyncHandler(async (req, res) => {
   const finalDiscipline = empData.discipline || '';
 
   // 4. Time and Date Calculation
+  // clockInTime from mobile app is in UTC (ISO format with 'Z')
+  // Store as UTC in database for global consistency
   const currentDateTime = clockInTime || new Date().toISOString();
   // Ensure we compare DATE only parts for the "already clocked in" check
   const checkDate = date || new Date().toISOString().split('T')[0];
@@ -612,13 +614,17 @@ export const clockIn = asyncHandler(async (req, res) => {
   };
 
   // 9. Execute Insert
+  // Convert currentDateTime (ISO string in UTC) to MySQL DATETIME format (YYYY-MM-DD HH:MM:SS)
+  // This stores UTC time in database (e.g., 08:59:36 UTC = 14:29 local time for UTC+5:30)
+  const clockInTimeStr = currentDateTime.replace('T', ' ').substring(0, 19);
+  
   const insertSql = `
     INSERT INTO workdetails (
       employeeName, userName, referenceNo, projectName, tlName, taskNo,
       areaofWork, variation, subDivision, totalHours, weekNumber,
       projectNo, employeeNo, designation, discipline, subDivisionList,
-      status, sentDate, allotatedHours, desciplineCode
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      status, sentDate, allotatedHours, desciplineCode, clockInTime
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   const insertParams = [
@@ -641,7 +647,8 @@ export const clockIn = asyncHandler(async (req, res) => {
     dbValues.status,
     dbValues.sentDate,
     dbValues.allotatedHours,
-    dbValues.desciplineCode
+    dbValues.desciplineCode,
+    clockInTimeStr // Store clock-in datetime
   ];
 
   console.log('Clock In - Inserting for:', finalUserName);
@@ -675,8 +682,12 @@ export const clockOut = asyncHandler(async (req, res) => {
   const userName = employee[0].userName;
   
   // Check if work detail exists and belongs to employee
+  // Use DATE_FORMAT to get raw string values for clockInTime and clockOutTime
   const checkSql = `
-    SELECT * FROM workdetails 
+    SELECT *,
+           DATE_FORMAT(clockInTime, '%Y-%m-%d %H:%i:%s') as clockInTimeRaw,
+           DATE_FORMAT(clockOutTime, '%Y-%m-%d %H:%i:%s') as clockOutTimeRaw
+    FROM workdetails 
     WHERE id = ? 
     AND userName = ?
     AND (status = 'active' OR status IS NULL OR status = '')
@@ -701,10 +712,16 @@ export const clockOut = asyncHandler(async (req, res) => {
     }
     
     // If it's a MySQL DATETIME format (YYYY-MM-DD HH:MM:SS), parse it
-    // MySQL DATETIME doesn't include timezone, so we'll treat it as UTC
+    // CRITICAL: MySQL DATETIME is stored as UTC in our system, so treat it as UTC
     if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(dateStr)) {
-      // MySQL DATETIME format - append 'Z' to treat as UTC
-      return new Date(dateStr.replace(' ', 'T') + 'Z');
+      // MySQL DATETIME format - explicitly parse as UTC
+      // Split into date and time parts
+      const [datePart, timePart] = dateStr.split(' ');
+      const [year, month, day] = datePart.split('-').map(Number);
+      const [hour, minute, second] = timePart.split(':').map(Number);
+      
+      // Create UTC date explicitly
+      return new Date(Date.UTC(year, month - 1, day, hour, minute, second || 0));
     }
     
     // Try parsing as-is
@@ -716,45 +733,116 @@ export const clockOut = asyncHandler(async (req, res) => {
     return null;
   };
   
-  // Use sentDate field (which contains the clock-in time) if clockInTime doesn't exist
-  let clockInDate;
-  if (workDetail[0].clockInTime) {
-    clockInDate = parseDate(workDetail[0].clockInTime);
-  } else if (workDetail[0].sentDate) {
-    clockInDate = parseDate(workDetail[0].sentDate);
+  // CRITICAL: Use raw clockInTime and clockOutTime values directly for calculation
+  // Get raw string values from database to avoid timezone conversion issues
+  // Prefer clockInTimeRaw (formatted string) over clockInTime (Date object)
+  const rawClockInTime = workDetail[0].clockInTimeRaw || workDetail[0].clockInTime;
+  const rawClockOutTime = clockOutTime; // From request (ISO string)
+  
+  // Convert raw values to strings for consistent parsing
+  let clockInTimeStr = rawClockInTime;
+  let clockOutTimeStr = rawClockOutTime;
+  
+  // Handle different data types from database
+  if (rawClockInTime instanceof Date) {
+    // If MySQL returned it as Date object, convert to ISO string
+    clockInTimeStr = rawClockInTime.toISOString();
+  } else if (typeof rawClockInTime === 'string') {
+    // If it's already a string, use as-is
+    clockInTimeStr = rawClockInTime;
+  } else {
+    // Fallback to sentDate if clockInTime is not available
+    if (workDetail[0].sentDate) {
+      clockInTimeStr = workDetail[0].sentDate instanceof Date 
+        ? workDetail[0].sentDate.toISOString()
+        : workDetail[0].sentDate.toString();
+    } else {
+      return sendError(res, "Clock-in time not found in database", 400);
+    }
   }
   
-  // If parsing failed, use current time as fallback (shouldn't happen in normal cases)
-  if (!clockInDate || isNaN(clockInDate.getTime())) {
-    console.error('Failed to parse clock-in date:', {
-      clockInTime: workDetail[0].clockInTime,
-      sentDate: workDetail[0].sentDate
+  // Ensure clockOutTime is a string
+  if (typeof clockOutTimeStr !== 'string') {
+    clockOutTimeStr = clockOutTimeStr.toString();
+  }
+  
+  // Parse both times as UTC ISO strings for accurate calculation
+  // Both should be in ISO format (YYYY-MM-DDTHH:MM:SS.sssZ)
+  let clockInDate, clockOutDate;
+  
+  // Parse clockInTime - handle MySQL DATETIME format if needed
+  if (clockInTimeStr.includes('T') && (clockInTimeStr.includes('Z') || clockInTimeStr.includes('+') || clockInTimeStr.includes('-'))) {
+    // Already in ISO format
+    clockInDate = new Date(clockInTimeStr);
+  } else if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(clockInTimeStr)) {
+    // MySQL DATETIME format - parse as UTC explicitly
+    const [datePart, timePart] = clockInTimeStr.split(' ');
+    const [year, month, day] = datePart.split('-').map(Number);
+    const [hour, minute, second] = timePart.split(':').map(Number);
+    clockInDate = new Date(Date.UTC(year, month - 1, day, hour, minute, second || 0));
+  } else {
+    clockInDate = new Date(clockInTimeStr);
+  }
+  
+  // Parse clockOutTime - should be ISO string from request
+  clockOutDate = new Date(clockOutTimeStr);
+  
+  // Validate both dates
+  if (isNaN(clockInDate.getTime())) {
+    return sendError(res, "Invalid clock-in time format", 400);
+  }
+  if (isNaN(clockOutDate.getTime())) {
+    return sendError(res, "Invalid clock-out time format", 400);
+  }
+  
+  // Calculate difference using raw timestamps (both in UTC milliseconds)
+  const clockInTimestamp = clockInDate.getTime();
+  const clockOutTimestamp = clockOutDate.getTime();
+  const diffMs = clockOutTimestamp - clockInTimestamp;
+  
+  // Safety check: if negative or invalid, return error
+  if (diffMs < 0) {
+    console.error('Invalid time calculation: clock-out is before clock-in', {
+      rawClockInTime: rawClockInTime,
+      rawClockOutTime: rawClockOutTime,
+      clockInTimeStr: clockInTimeStr,
+      clockOutTimeStr: clockOutTimeStr,
+      clockInTimestamp: clockInTimestamp,
+      clockOutTimestamp: clockOutTimestamp,
+      diffMs: diffMs
     });
-    return sendError(res, "Invalid clock-in date found. Please contact administrator.", 400);
+    return sendError(res, "Clock-out time cannot be before clock-in time", 400);
   }
   
-  // Parse clock-out time (should be ISO string from frontend)
-  const clockOut = parseDate(clockOutTime) || new Date();
+  // Calculate total seconds and hours from raw datetime difference
+  const totalSeconds = Math.floor(diffMs / 1000);
+  const totalHours = totalSeconds / 3600.0;
   
-  // Ensure clockOut is valid
-  if (isNaN(clockOut.getTime())) {
-    return sendError(res, "Invalid clock-out time", 400);
-  }
-  
-  // Calculate difference in milliseconds, then convert to hours
-  // Both dates should now be in UTC for accurate comparison
-  const diffMs = clockOut.getTime() - clockInDate.getTime();
-  const totalHours = Math.max(0, diffMs / (1000 * 60 * 60)); // Convert to hours
+  // Log calculation using raw values
+  console.log('=== Hours Calculation (Using Raw Values) ===');
+  console.log('Raw clockInTime from DB:', rawClockInTime, 'Type:', typeof rawClockInTime);
+  console.log('Raw clockOutTime from Request:', rawClockOutTime, 'Type:', typeof rawClockOutTime);
+  console.log('clockInTimeStr (parsed):', clockInTimeStr);
+  console.log('clockOutTimeStr (parsed):', clockOutTimeStr);
+  console.log('clockInDate (UTC):', clockInDate.toISOString());
+  console.log('clockOutDate (UTC):', clockOutDate.toISOString());
+  console.log('clockInTimestamp (ms):', clockInTimestamp);
+  console.log('clockOutTimestamp (ms):', clockOutTimestamp);
+  console.log('Difference (ms):', diffMs);
+  console.log('Difference (seconds):', totalSeconds);
+  console.log('Difference (hours):', totalHours.toFixed(6));
+  console.log('Difference (formatted):', `${Math.floor(totalSeconds / 3600)}h ${Math.floor((totalSeconds % 3600) / 60)}m ${totalSeconds % 60}s`);
+  console.log('=== End Calculation ===');
   
   // Determine which day of the week (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
-  const dayOfWeek = clockOut.getDay();
+  const dayOfWeek = clockOutDate.getUTCDay();
   const dayFields = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const dayField = dayFields[dayOfWeek];
   
-  // Get current week number
-  const startOfYear = new Date(clockOut.getFullYear(), 0, 1);
-  const daysSinceStart = Math.floor((clockOut - startOfYear) / (1000 * 60 * 60 * 24));
-  const weekNumber = Math.ceil((daysSinceStart + startOfYear.getDay() + 1) / 7);
+  // Get current week number using UTC date
+  const startOfYear = new Date(Date.UTC(clockOutDate.getUTCFullYear(), 0, 1));
+  const daysSinceStart = Math.floor((clockOutDate.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24));
+  const weekNumber = Math.ceil((daysSinceStart + startOfYear.getUTCDay() + 1) / 7);
   
   // Update work detail - set status to completed, calculate hours, and update day field
   // Build dynamic SQL for day field update - use backticks for column names
@@ -775,12 +863,16 @@ export const clockOut = asyncHandler(async (req, res) => {
   
   // Use backticks for column name to handle reserved words
   // Note: description column doesn't exist in workdetails table, so it's removed
+  // Convert clockOut to MySQL DATETIME format (YYYY-MM-DD HH:MM:SS) for database storage
+  const clockOutTimeForDB = clockOutDate.toISOString().replace('T', ' ').substring(0, 19);
+  
   const sql = `
     UPDATE workdetails 
     SET totalHours = ?,
         status = 'completed',
         weekNumber = ?,
-        \`${dayField}\` = ?
+        \`${dayField}\` = ?,
+        clockOutTime = ?
     WHERE id = ?
   `;
   
@@ -788,6 +880,7 @@ export const clockOut = asyncHandler(async (req, res) => {
     totalHours.toFixed(2),
     String(weekNumber),
     totalHours.toFixed(2),
+    clockOutTimeForDB, // Store clock-out datetime
     workDetailId
   ]);
   
@@ -795,7 +888,17 @@ export const clockOut = asyncHandler(async (req, res) => {
   const getSql = "SELECT * FROM workdetails WHERE id = ?";
   const updated = await query(getSql, [workDetailId]);
   
-  return sendSuccess(res, updated[0], "Clocked out successfully");
+  const result = updated[0] || {};
+  
+  // Ensure clockOutTime is included in response (from clockOutTime column)
+  if (result.clockOutTime) {
+    result.clockOutTime = result.clockOutTime;
+  }
+  
+  // Include calculated totalHours in response
+  result.totalHours = totalHours.toFixed(2);
+  
+  return sendSuccess(res, result, "Clocked out successfully");
 });
 
 export const getBioDetails = asyncHandler(async (req, res) => {
