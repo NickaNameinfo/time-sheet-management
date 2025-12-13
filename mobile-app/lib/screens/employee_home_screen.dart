@@ -72,8 +72,67 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
     try {
       final projects = await _apiService.getProjects();
       final areaOfWork = await _apiService.getAreaOfWork();
+      
+      // Get current user ID to filter assigned projects
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final user = authProvider.user;
+      final employeeId = user?['id']?.toString() ?? user?['employeeId']?.toString();
+      
+      // Filter projects to show only assigned projects
+      List<dynamic> assignedProjects = [];
+      if (employeeId != null && projects != null) {
+        final userId = int.tryParse(employeeId);
+        if (userId != null) {
+          assignedProjects = projects.where((project) {
+            // Check if project has assignedEmployees
+            if (project['assignedEmployees'] == null) return false;
+            
+            dynamic assignedEmployees = project['assignedEmployees'];
+            List<int> assignedIds = [];
+            
+            // Handle different formats: string (JSON), array, or null
+            if (assignedEmployees is String) {
+              try {
+                // Try parsing as JSON array string like "[25,23]" or "[25, 23]"
+                String cleaned = assignedEmployees.trim();
+                if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
+                  cleaned = cleaned.substring(1, cleaned.length - 1);
+                }
+                assignedIds = cleaned
+                    .split(',')
+                    .map((id) => int.tryParse(id.trim()))
+                    .whereType<int>()
+                    .toList();
+              } catch (e) {
+                // If parsing fails, try splitting by comma directly
+                assignedIds = assignedEmployees
+                    .split(',')
+                    .map((id) => int.tryParse(id.trim()))
+                    .whereType<int>()
+                    .toList();
+              }
+            } else if (assignedEmployees is List) {
+              assignedIds = assignedEmployees.map((id) {
+                if (id is int) return id;
+                if (id is String) return int.tryParse(id);
+                return null;
+              }).whereType<int>().toList();
+            }
+            
+            // Check if current user ID is in the assigned employees list
+            return assignedIds.contains(userId);
+          }).toList();
+        } else {
+          // If employeeId is not a valid integer, show all projects (fallback)
+          assignedProjects = projects;
+        }
+      } else {
+        // If no employeeId, show all projects (fallback)
+        assignedProjects = projects ?? [];
+      }
+      
       setState(() {
-        _projects = projects;
+        _projects = assignedProjects;
         _areaOfWorkList = areaOfWork;
       });
     } catch (e) {

@@ -11,6 +11,7 @@ import {
   deleteDesignation,
   getAreaOfWork,
   createAreaOfWork,
+  updateAreaOfWork,
   deleteAreaOfWork,
   getVariations,
   createVariation,
@@ -38,6 +39,7 @@ router.delete("/designation/delete/:id", deleteDesignation);
 // Area of Work
 router.get("/areaofwork", getAreaOfWork);
 router.post("/create/areaofwork", createAreaOfWork);
+router.put("/areaofwork/update/:id", updateAreaOfWork);
 router.delete("/areaofwork/delete/:id", deleteAreaOfWork);
 
 // Variation

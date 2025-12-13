@@ -125,18 +125,21 @@ const EmployeeHome = () => {
         (item) => item.status === 'active' || (!item.status && item.totalHours === null)
       );
       if (activeClockIn) {
+        // Use clockInTime column (preferred) or sentDate as fallback
+        const clockInTime = activeClockIn.clockInTime || activeClockIn.sentDate;
         setTodayClockStatus({
           id: activeClockIn.id,
-          clockInTime: activeClockIn.sentDate,
+          clockInTime: clockInTime,
           status: 'active',
         });
-        // Calculate initial hours immediately if clocked in
-        if (activeClockIn.sentDate) {
-          const clockInTime = new Date(activeClockIn.sentDate);
-          const now = new Date();
-          const diffMs = Math.max(0, now - clockInTime);
+        // Calculate initial hours immediately if clocked in using UTC
+        if (clockInTime) {
+          const clockInDate = new Date(clockInTime);
+          const nowUtc = new Date();
+          // Calculate difference in UTC milliseconds
+          const diffMs = Math.max(0, nowUtc.getTime() - clockInDate.getTime());
           const totalSeconds = Math.floor(diffMs / 1000);
-          const hours = diffMs / (1000 * 60 * 60);
+          const hours = totalSeconds / 3600.0; // Use seconds for accurate calculation
           setTodayHours(hours);
           setTodayTimeFormatted(formatTime(totalSeconds));
         }
@@ -146,8 +149,9 @@ const EmployeeHome = () => {
           (item) => item.status === 'completed' && item.totalHours
         );
         if (completedToday) {
-          const clockInTime = completedToday.sentDate;
-          const clockOutTime = completedToday.approvedDate || completedToday.clockOutTime || completedToday.sentDate;
+          // Use clockInTime and clockOutTime columns (preferred) for accurate calculation
+          const clockInTime = completedToday.clockInTime || completedToday.sentDate;
+          const clockOutTime = completedToday.clockOutTime || completedToday.approvedDate;
           
           setTodayClockStatus({
             id: completedToday.id,
@@ -156,30 +160,26 @@ const EmployeeHome = () => {
             status: 'completed',
           });
           
-          // Use backend totalHours, but verify with frontend calculation if both times are available
-          let hours = parseFloat(completedToday.totalHours) || 0;
-          
-          // Verify calculation if we have both clock-in and clock-out times
-          if (clockInTime && clockOutTime && clockInTime !== clockOutTime) {
+          // Calculate hours using check-in and check-out datetime (most accurate)
+          let hours = 0;
+          if (clockInTime && clockOutTime) {
             try {
-              const clockIn = new Date(clockInTime);
-              const clockOut = new Date(clockOutTime);
-              if (!isNaN(clockIn.getTime()) && !isNaN(clockOut.getTime())) {
-                const diffMs = clockOut.getTime() - clockIn.getTime();
-                const calculatedHours = Math.max(0, diffMs / (1000 * 60 * 60));
-                // Use frontend calculation if backend seems incorrect (more than 1 hour difference)
-                if (Math.abs(calculatedHours - hours) > 1) {
-                  console.warn('Time calculation mismatch:', {
-                    backend: hours,
-                    frontend: calculatedHours,
-                    diff: Math.abs(calculatedHours - hours)
-                  });
-                  hours = calculatedHours; // Use frontend calculation
-                }
+              const clockInDate = new Date(clockInTime);
+              const clockOutDate = new Date(clockOutTime);
+              if (!isNaN(clockInDate.getTime()) && !isNaN(clockOutDate.getTime())) {
+                // Calculate difference in UTC milliseconds
+                const diffMs = clockOutDate.getTime() - clockInDate.getTime();
+                const totalSeconds = Math.max(0, Math.floor(diffMs / 1000));
+                hours = totalSeconds / 3600.0; // Use seconds for accurate calculation
               }
             } catch (e) {
-              console.error('Error verifying time calculation:', e);
+              console.error('Error calculating hours from datetime:', e);
+              // Fallback to backend totalHours
+              hours = parseFloat(completedToday.totalHours) || 0;
             }
+          } else {
+            // Fallback to backend totalHours if datetime not available
+            hours = parseFloat(completedToday.totalHours) || 0;
           }
           
           setTodayHours(hours);
@@ -201,13 +201,14 @@ const EmployeeHome = () => {
   // Update today's hours every second if clocked in (real-time timer)
   useEffect(() => {
     if (todayClockStatus?.status === 'active' && todayClockStatus?.clockInTime) {
-      // Calculate immediately
+      // Calculate immediately using UTC for accuracy
       const calculateHours = () => {
-        const clockInTime = new Date(todayClockStatus.clockInTime);
-        const now = new Date();
-        const diffMs = Math.max(0, now - clockInTime);
+        const clockInDate = new Date(todayClockStatus.clockInTime);
+        const nowUtc = new Date();
+        // Calculate difference in UTC milliseconds
+        const diffMs = Math.max(0, nowUtc.getTime() - clockInDate.getTime());
         const totalSeconds = Math.floor(diffMs / 1000);
-        const hours = diffMs / (1000 * 60 * 60);
+        const hours = totalSeconds / 3600.0; // Use seconds for accurate calculation
         
         setTodayHours(hours);
         setTodayTimeFormatted(formatTime(totalSeconds));
@@ -221,13 +222,30 @@ const EmployeeHome = () => {
 
       return () => clearInterval(interval);
     } else if (todayClockStatus?.status === 'completed') {
-      // For completed clock-out, format the hours
-      const totalSeconds = Math.floor(todayHours * 3600);
-      setTodayTimeFormatted(formatTime(totalSeconds));
+      // For completed clock-out, calculate from clockInTime and clockOutTime
+      if (todayClockStatus.clockInTime && todayClockStatus.clockOutTime) {
+        try {
+          const clockInDate = new Date(todayClockStatus.clockInTime);
+          const clockOutDate = new Date(todayClockStatus.clockOutTime);
+          const diffMs = clockOutDate.getTime() - clockInDate.getTime();
+          const totalSeconds = Math.max(0, Math.floor(diffMs / 1000));
+          const hours = totalSeconds / 3600.0;
+          setTodayHours(hours);
+          setTodayTimeFormatted(formatTime(totalSeconds));
+        } catch (e) {
+          // Fallback to existing hours
+          const totalSeconds = Math.floor(todayHours * 3600);
+          setTodayTimeFormatted(formatTime(totalSeconds));
+        }
+      } else {
+        // Fallback to existing hours
+        const totalSeconds = Math.floor(todayHours * 3600);
+        setTodayTimeFormatted(formatTime(totalSeconds));
+      }
     } else {
       setTodayTimeFormatted("0:00:00");
     }
-  }, [todayClockStatus, formatTime]);
+  }, [todayClockStatus, formatTime, todayHours]);
 
   // Fetch projects and area of work for clock-in form
   const { data: projects } = useApi(apiService.getProjects);
@@ -560,15 +578,7 @@ const EmployeeHome = () => {
 
   // Handle clock in
   const handleClockIn = async () => {
-    if (!clockInData.projectName && !clockInData.referenceNo) {
-      setSnackbar({
-        open: true,
-        message: "Please select a project or enter reference number",
-        severity: "warning",
-      });
-      return;
-    }
-
+    // Project and reference number are now optional - all users can clock in
     // Get project details if project or referenceNo is provided
     // Match the logic from TimeManagement.jsx - find by referenceNo first, then by projectName
     let projectDetails = {};
@@ -601,15 +611,17 @@ const EmployeeHome = () => {
       };
     }
 
+    // Send UTC time for clock-in to match backend and ensure accurate calculation
+    // All fields are optional - users can clock in without project information
     const result = await clockIn({
       employeeId: user?.id,
       employeeName: user?.employeeName || user?.name,
-      projectName: projectDetails.projectName || clockInData.projectName,
-      referenceNo: projectDetails.referenceNo || clockInData.referenceNo,
-      areaOfWork: clockInData.areaOfWork,
+      projectName: projectDetails.projectName || clockInData.projectName || "",
+      referenceNo: projectDetails.referenceNo || clockInData.referenceNo || "",
+      areaOfWork: clockInData.areaOfWork || "",
       ...projectDetails, // Spread all project details
       date: new Date().toISOString().split('T')[0],
-      clockInTime: new Date().toISOString(),
+      clockInTime: new Date().toISOString(), // UTC time in ISO format
     });
 
     if (result.success) {
@@ -641,10 +653,11 @@ const EmployeeHome = () => {
       return;
     }
 
+    // Send UTC time for clock-out to match backend and ensure accurate calculation
     const result = await clockOut({
       employeeId: user?.id,
       workDetailId: todayClockStatus.id,
-      clockOutTime: new Date().toISOString(),
+      clockOutTime: new Date().toISOString(), // UTC time in ISO format
     });
 
     if (result.success) {
@@ -913,6 +926,9 @@ const EmployeeHome = () => {
         </DialogTitle>
         <DialogContent>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              All fields are optional. You can clock in without selecting a project.
+            </Typography>
             <FormControl fullWidth>
               <InputLabel>Project Name (Optional)</InputLabel>
               <Select
@@ -940,6 +956,7 @@ const EmployeeHome = () => {
               value={clockInData.referenceNo}
               onChange={(e) => setClockInData({ ...clockInData, referenceNo: e.target.value })}
               fullWidth
+              helperText="Optional - Enter if you know the project reference number"
             />
             <FormControl fullWidth>
               <InputLabel>Area of Work (Optional)</InputLabel>

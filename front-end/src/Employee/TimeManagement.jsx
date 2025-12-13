@@ -118,7 +118,7 @@ const TimeManagement = () => {
 
     return () => {
       window.removeEventListener('workDetailsUpdated', handleWorkDetailsUpdate);
-      clearInterval(interval);
+      // clearInterval(interval); // Commented out since interval is disabled
     };
   }, [user?.id, refetchWorkDetails]);
 
@@ -143,10 +143,52 @@ const TimeManagement = () => {
     (params) => apiService.updateWorkDetails(params.id, params.data)
   );
 
-  // Get reference numbers from projects
+  // Filter projects to show only assigned projects
+  const assignedProjects = useMemo(() => {
+    if (!projects || !user?.id) return [];
+    
+    const projectsList = Array.isArray(projects) 
+      ? projects 
+      : projects?.Result || projects?.data?.Result || [];
+    
+    return projectsList.filter((project) => {
+      // Check if project has assignedEmployees
+      if (!project.assignedEmployees) return false;
+      
+      let assignedIds = [];
+      
+      // Handle different formats: string (JSON), array, or null
+      if (typeof project.assignedEmployees === 'string') {
+        try {
+          assignedIds = JSON.parse(project.assignedEmployees);
+        } catch (e) {
+          // If parsing fails, try splitting by comma
+          assignedIds = project.assignedEmployees.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+        }
+      } else if (Array.isArray(project.assignedEmployees)) {
+        assignedIds = project.assignedEmployees.map(id => parseInt(id)).filter(id => !isNaN(id));
+      }
+      
+      // Check if current user ID is in the assigned employees list
+      const userId = parseInt(user.id);
+      return assignedIds.includes(userId);
+    });
+  }, [projects, user?.id]);
+
+  // Get reference numbers from assigned projects only
   const referenceNoList = useMemo(
-    () => (projects || []).map((item) => item.referenceNo),
-    [projects]
+    () => assignedProjects.map((item) => item.referenceNo),
+    [assignedProjects]
+  );
+
+  // Get project options for selection (with both project name and reference number)
+  const projectOptions = useMemo(
+    () => assignedProjects.map((item) => ({
+      label: `${item.projectName} (${item.referenceNo})`,
+      value: item.referenceNo,
+      project: item,
+    })),
+    [assignedProjects]
   );
 
   // Use leave list directly (already filtered by backend)
@@ -321,20 +363,43 @@ const TimeManagement = () => {
       setCurrentIndex(index);
       const updatedData = [...formData];
 
-      if (name === "referenceNo") {
-        const project = projects?.find((item) => item.referenceNo === value);
+      if (name === "referenceNo" || name === "projectName") {
+        // Find project by reference number or project name
+        let project = null;
+        
+        if (name === "referenceNo") {
+          // If reference number is selected, find by reference number
+          project = assignedProjects?.find((item) => item.referenceNo === value);
+        } else if (name === "projectName") {
+          // If project name is selected, find by project name
+          project = assignedProjects?.find((item) => item.projectName === value);
+        }
+        
         if (project) {
+          // Auto-populate all project details when project is selected
           updatedData[index] = {
             ...formData[index],
-            referenceNo: value,
+            referenceNo: project.referenceNo,
             projectName: project.projectName,
-            tlName: project.tlID,
+            projectNo: project.projectNo,
+            tlName: project.tlID || project.tlName,
             userName: user?.id,
-            taskNo: project.taskJobNo,
-            subDivisionList: project.subDivision,
+            taskNo: project.taskJobNo || project.taskNo,
+            subDivisionList: project.subDivision || project.subDivisionList,
             allotatedHours: project.allotatedHours,
             desciplineCode: project.desciplineCode,
-            projectNo: project.projectNo,
+            // Keep existing values for fields that user might have already filled
+            areaofWork: formData[index]?.areaofWork || "",
+            variation: formData[index]?.variation || "",
+            subDivision: formData[index]?.subDivision || "",
+            monday: formData[index]?.monday || "",
+            tuesday: formData[index]?.tuesday || "",
+            wednesday: formData[index]?.wednesday || "",
+            thursday: formData[index]?.thursday || "",
+            friday: formData[index]?.friday || "",
+            saturday: formData[index]?.saturday || "",
+            sunday: formData[index]?.sunday || "",
+            totalHours: formData[index]?.totalHours || "0.0",
           };
         }
       } else {
@@ -346,7 +411,7 @@ const TimeManagement = () => {
 
       setFormData(updatedData);
     },
-    [formData, projects]
+    [formData, assignedProjects, user?.id]
   );
 
   // Add new row
@@ -702,13 +767,23 @@ const TimeManagement = () => {
                       <TableCell>
                         <FormControl fullWidth size="small">
                           <Autocomplete
-                            options={referenceNoList || []}
-                            value={row.referenceNo || null}
+                            options={projectOptions || []}
+                            getOptionLabel={(option) => typeof option === 'string' ? option : option.label || option.value || ""}
+                            value={projectOptions.find(opt => opt.value === row.referenceNo) || null}
                             disabled={isFieldDisabled(index, !!row.id)}
-                            onChange={(e, value) => handleOnChange("referenceNo", value, index)}
+                            onChange={(e, selectedOption) => {
+                              if (selectedOption) {
+                                handleOnChange("referenceNo", selectedOption.value, index);
+                              } else {
+                                // Clear project when deselected
+                                handleOnChange("referenceNo", "", index);
+                              }
+                            }}
                             renderInput={(params) => (
                               <TextField
                                 {...params}
+                                label="Select Project"
+                                placeholder="Search by project name or reference number"
                                 error={!!errorMessage?.[index]?.referenceNo}
                                 size="small"
                               />
@@ -726,6 +801,7 @@ const TimeManagement = () => {
                           variant="outlined"
                           disabled
                           value={row.projectName || ""}
+                          placeholder="Auto-filled from project selection"
                         />
                       </TableCell>
                       <TableCell>

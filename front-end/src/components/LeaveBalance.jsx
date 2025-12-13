@@ -45,6 +45,7 @@ import {
 } from "@mui/icons-material";
 import ErrorMessage from "./ErrorMessage";
 import Loading from "./Loading";
+import ClockInOutCard from "./ClockInOutCard";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
@@ -157,6 +158,11 @@ const LeaveBalance = () => {
 
   return (
     <Box sx={{ p: 3, bgcolor: "grey.50", minHeight: "100vh" }}>
+      {/* Clock In/Out Card - Available for all users including HR */}
+      <Box sx={{ mb: 3 }}>
+        <ClockInOutCard />
+      </Box>
+      
       {/* Header */}
       <Box sx={{ mb: 4 }}>
         <Box

@@ -85,22 +85,219 @@ export const deleteDesignation = asyncHandler(async (req, res) => {
 
 // Area of Work
 export const getAreaOfWork = asyncHandler(async (req, res) => {
-  const sql = "SELECT * FROM areaofwork";
-  const results = await query(sql);
-  return sendSuccess(res, results);
+  try {
+    // Check if areaofwork_projects table exists
+    const checkTableSql = `
+      SELECT COUNT(*) as count 
+      FROM information_schema.tables 
+      WHERE table_schema = DATABASE() 
+      AND table_name = 'areaofwork_projects'
+    `;
+    const tableCheck = await query(checkTableSql);
+    const tableExists = tableCheck[0]?.count > 0;
+
+    let results;
+    
+    if (tableExists) {
+      // Get all areas of work with their associated projects
+      const sql = `
+        SELECT 
+          a.*,
+          GROUP_CONCAT(
+            JSON_OBJECT(
+              'id', p.id,
+              'projectName', p.projectName,
+              'projectNo', p.projectNo,
+              'referenceNo', p.referenceNo
+            )
+            SEPARATOR '|||'
+          ) as projects
+        FROM areaofwork a
+        LEFT JOIN areaofwork_projects ap ON a.id = ap.areaofwork_id
+        LEFT JOIN project p ON ap.project_id = p.id
+        GROUP BY a.id
+        ORDER BY a.created_at DESC
+      `;
+      results = await query(sql);
+    } else {
+      // Fallback: Get areas of work without project associations
+      const sql = "SELECT * FROM areaofwork ORDER BY created_at DESC";
+      results = await query(sql);
+    }
+    
+    // Parse the projects JSON strings into arrays
+    const formattedResults = results.map((row) => {
+      const areaOfWork = {
+        id: row.id,
+        areaofwork: row.areaofwork,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        projects: []
+      };
+      
+      if (row.projects) {
+        try {
+          // Split by ||| and parse each JSON object
+          const projectStrings = row.projects.split('|||');
+          areaOfWork.projects = projectStrings.map(projectStr => {
+            try {
+              return JSON.parse(projectStr);
+            } catch (e) {
+              return null;
+            }
+          }).filter(p => p !== null);
+        } catch (e) {
+          console.error('Error parsing projects:', e);
+          areaOfWork.projects = [];
+        }
+      }
+      
+      return areaOfWork;
+    });
+    
+    return sendSuccess(res, formattedResults);
+  } catch (error) {
+    // If there's an error, fall back to simple query
+    console.warn('Error fetching area of work with projects, falling back to simple query:', error.message);
+    const sql = "SELECT * FROM areaofwork ORDER BY created_at DESC";
+    const results = await query(sql);
+    const formattedResults = results.map((row) => ({
+      id: row.id,
+      areaofwork: row.areaofwork,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      projects: []
+    }));
+    return sendSuccess(res, formattedResults);
+  }
 });
 
 export const createAreaOfWork = asyncHandler(async (req, res) => {
-  const sql = "INSERT INTO areaofwork (`areaofwork`) VALUES (?)";
-  const values = [req.body.areaofwork];
-  await query(sql, [values]);
-  return sendSuccess(res, null, "Area of work created successfully");
+  const { areaofwork, projectIds } = req.body;
+  
+  if (!areaofwork || !areaofwork.trim()) {
+    return sendError(res, "Area of work is required", 400);
+  }
+  
+  // Insert the area of work
+  const insertSql = "INSERT INTO areaofwork (`areaofwork`) VALUES (?)";
+  const insertResult = await query(insertSql, [areaofwork.trim()]);
+  const areaOfWorkId = insertResult.insertId;
+  
+  // If project IDs are provided, create associations (only if table exists)
+  if (projectIds && Array.isArray(projectIds) && projectIds.length > 0) {
+    try {
+      // Check if table exists
+      const checkTableSql = `
+        SELECT COUNT(*) as count 
+        FROM information_schema.tables 
+        WHERE table_schema = DATABASE() 
+        AND table_name = 'areaofwork_projects'
+      `;
+      const tableCheck = await query(checkTableSql);
+      const tableExists = tableCheck[0]?.count > 0;
+
+      if (tableExists) {
+        // Validate that all project IDs exist
+        const projectIdsStr = projectIds.map(id => parseInt(id)).filter(id => !isNaN(id));
+        
+        if (projectIdsStr.length > 0) {
+          // Check if projects exist
+          const checkSql = `SELECT id FROM project WHERE id IN (${projectIdsStr.map(() => '?').join(',')})`;
+          const existingProjects = await query(checkSql, projectIdsStr);
+          
+          if (existingProjects.length !== projectIdsStr.length) {
+            // Some projects don't exist, but continue with existing ones
+            console.warn('Some project IDs do not exist');
+          }
+          
+          // Insert associations for existing projects
+          const validProjectIds = existingProjects.map(p => p.id);
+          if (validProjectIds.length > 0) {
+            const insertAssociationsSql = `
+              INSERT INTO areaofwork_projects (areaofwork_id, project_id) 
+              VALUES ${validProjectIds.map(() => '(?, ?)').join(', ')}
+            `;
+            const associationValues = validProjectIds.flatMap(projectId => [areaOfWorkId, projectId]);
+            await query(insertAssociationsSql, associationValues);
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Error creating project associations (table may not exist):', error.message);
+      // Continue without associations if table doesn't exist
+    }
+  }
+  
+  return sendSuccess(res, { id: areaOfWorkId }, "Area of work created successfully");
+});
+
+export const updateAreaOfWork = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { areaofwork, projectIds } = req.body;
+  
+  if (!areaofwork || !areaofwork.trim()) {
+    return sendError(res, "Area of work is required", 400);
+  }
+  
+  // Update the area of work
+  const updateSql = "UPDATE areaofwork SET `areaofwork` = ? WHERE id = ?";
+  await query(updateSql, [areaofwork.trim(), id]);
+  
+  // Update project associations if table exists and projectIds provided
+  if (projectIds && Array.isArray(projectIds)) {
+    try {
+      // Check if table exists
+      const checkTableSql = `
+        SELECT COUNT(*) as count 
+        FROM information_schema.tables 
+        WHERE table_schema = DATABASE() 
+        AND table_name = 'areaofwork_projects'
+      `;
+      const tableCheck = await query(checkTableSql);
+      const tableExists = tableCheck[0]?.count > 0;
+
+      if (tableExists) {
+        // Delete existing associations
+        const deleteSql = "DELETE FROM areaofwork_projects WHERE areaofwork_id = ?";
+        await query(deleteSql, [id]);
+        
+        // Add new associations
+        const projectIdsStr = projectIds.map(id => parseInt(id)).filter(id => !isNaN(id));
+        
+        if (projectIdsStr.length > 0) {
+          // Check if projects exist
+          const checkSql = `SELECT id FROM project WHERE id IN (${projectIdsStr.map(() => '?').join(',')})`;
+          const existingProjects = await query(checkSql, projectIdsStr);
+          
+          // Insert associations for existing projects
+          const validProjectIds = existingProjects.map(p => p.id);
+          if (validProjectIds.length > 0) {
+            const insertAssociationsSql = `
+              INSERT INTO areaofwork_projects (areaofwork_id, project_id) 
+              VALUES ${validProjectIds.map(() => '(?, ?)').join(', ')}
+            `;
+            const associationValues = validProjectIds.flatMap(projectId => [id, projectId]);
+            await query(insertAssociationsSql, associationValues);
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Error updating project associations:', error.message);
+      // Continue even if associations fail
+    }
+  }
+  
+  return sendSuccess(res, { id }, "Area of work updated successfully");
 });
 
 export const deleteAreaOfWork = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  
+  // Delete the area of work (cascade will automatically delete associations)
   const sql = "DELETE FROM areaofwork WHERE id = ?";
   await query(sql, [id]);
+  
   return sendSuccess(res, null, "Area of work deleted successfully");
 });
 
