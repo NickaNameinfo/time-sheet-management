@@ -22,7 +22,8 @@
     "create-project-plans": "node scripts/create-project-plans-table.js",
     "add-project-status": "node scripts/add-project-status-column.js",
     "add-project-description": "node scripts/add-project-description-column.js",
-    "create-app-settings": "node scripts/create-app-settings-table.js"
+    "create-app-settings": "node scripts/create-app-settings-table.js",
+    "add-missing-menu-permissions": "node scripts/add-missing-menu-permissions.js"
   },
   "keywords": [],
   "author": "",
