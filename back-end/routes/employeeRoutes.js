@@ -27,10 +27,16 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-router.post("/create", upload.single("employeeImage"), createEmployee);
+// Handle multiple file uploads (employeeImage and id_proof)
+const uploadFields = upload.fields([
+  { name: "employeeImage", maxCount: 1 },
+  { name: "id_proof", maxCount: 1 },
+]);
+
+router.post("/create", uploadFields, createEmployee);
 router.get("/getEmployee", getEmployees);
 router.get("/get/:id", getEmployeeById);
-router.put("/update/:id", upload.single("employeeImage"), updateEmployee);
+router.put("/update/:id", uploadFields, updateEmployee);
 router.delete("/delete/:id", deleteEmployee);
 router.get("/employeeCount", getEmployeeCount);
 

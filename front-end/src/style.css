@@ -620,3 +620,81 @@ ul.updateslist li {
 .MuiAutocomplete-endAdornment {
   display: none;
 }
+
+/* Print Styles - One Item Per Page */
+@media print {
+  /* Force page break after each item */
+  .print-item,
+  .invoice-item,
+  .label-item,
+  .billing-item {
+    page-break-after: always;
+    page-break-inside: avoid;
+    break-after: page;
+    break-inside: avoid;
+  }
+  
+  /* Ensure each item starts on a new page (except first) */
+  .print-item:not(:first-child),
+  .invoice-item:not(:first-child),
+  .label-item:not(:first-child),
+  .billing-item:not(:first-child) {
+    page-break-before: always;
+    break-before: page;
+  }
+  
+  /* Prevent breaking within an item */
+  .print-item *,
+  .invoice-item *,
+  .label-item *,
+  .billing-item * {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  
+  /* Set page size and margins */
+  @page {
+    size: 50mm 25mm; /* Custom label size: 50mm x 25mm */
+    margin: 0mm; /* No margins for labels */
+  }
+  
+  /* Alternative: Use custom page size for labels specifically */
+  @page label-page {
+    size: 50mm 25mm;
+    margin: 0mm;
+  }
+  
+  .label-item {
+    page: label-page;
+    width: 50mm;
+    height: 25mm;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  
+  /* Ensure label content fits within the small size */
+  .label-item * {
+    max-width: 100%;
+    font-size: 8pt !important; /* Smaller font for small labels */
+  }
+  
+  /* Hide non-essential elements when printing */
+  .no-print {
+    display: none !important;
+  }
+  
+  /* Hide items that should not be printed */
+  .hide-print {
+    display: none !important;
+  }
+  
+  /* Show only selected items for printing */
+  .print-only {
+    display: block !important;
+  }
+  
+  /* When printing, hide all items except those with print-selected class */
+  .label-item:not(.print-selected) {
+    display: none !important;
+  }
+}

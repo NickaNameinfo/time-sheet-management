@@ -28,6 +28,10 @@ import {
   CalendarToday,
   AccessTime,
   People,
+  CheckCircle,
+  PauseCircle,
+  Cancel,
+  PlayArrow,
 } from "@mui/icons-material";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
@@ -121,6 +125,8 @@ function AddProject() {
         startDate: res?.data?.Result?.startDate,
         targetDate: res?.data?.Result?.targetDate,
         allotatedHours: res?.data?.Result?.allotatedHours,
+        status: res?.data?.Result?.status || 'active',
+        description: res?.data?.Result?.description || '',
       };
       Object.keys(tempData).forEach((key) => {
         setValue(key, tempData[key]);
@@ -522,6 +528,86 @@ function AddProject() {
                               <AccessTime sx={{ mr: 1, color: "text.secondary" }} />
                             ),
                           }}
+                        />
+                      )}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth>
+                      <InputLabel>Project Status</InputLabel>
+                      <Controller
+                        name="status"
+                        control={control}
+                        defaultValue="active"
+                        render={({ field }) => (
+                          <Select
+                            {...field}
+                            label="Project Status"
+                            renderValue={(value) => {
+                              const statusConfig = {
+                                active: { label: "Active", icon: <PlayArrow />, color: "success" },
+                                on_hold: { label: "On Hold", icon: <PauseCircle />, color: "warning" },
+                                completed: { label: "Completed", icon: <CheckCircle />, color: "info" },
+                                cancelled: { label: "Cancelled", icon: <Cancel />, color: "error" },
+                              };
+                              const config = statusConfig[value] || statusConfig.active;
+                              return (
+                                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                  {config.icon}
+                                  <Typography>{config.label}</Typography>
+                                </Box>
+                              );
+                            }}
+                          >
+                            <MenuItem value="active">
+                              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                <PlayArrow sx={{ color: "success.main" }} />
+                                <Typography>Active</Typography>
+                              </Box>
+                            </MenuItem>
+                            <MenuItem value="on_hold">
+                              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                <PauseCircle sx={{ color: "warning.main" }} />
+                                <Typography>On Hold</Typography>
+                              </Box>
+                            </MenuItem>
+                            <MenuItem value="completed">
+                              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                <CheckCircle sx={{ color: "info.main" }} />
+                                <Typography>Completed</Typography>
+                              </Box>
+                            </MenuItem>
+                            <MenuItem value="cancelled">
+                              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                <Cancel sx={{ color: "error.main" }} />
+                                <Typography>Cancelled</Typography>
+                              </Box>
+                            </MenuItem>
+                          </Select>
+                        )}
+                      />
+                      <FormHelperText>
+                        Current status of the project
+                      </FormHelperText>
+                    </FormControl>
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <Controller
+                      name="description"
+                      control={control}
+                      defaultValue=""
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth
+                          label="Project Description"
+                          multiline
+                          rows={4}
+                          placeholder="Enter a detailed description about this project..."
+                          error={Boolean(errors.description)}
+                          helperText={errors.description?.message || "Provide details about the project scope, objectives, and requirements"}
                         />
                       )}
                     />

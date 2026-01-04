@@ -20,12 +20,16 @@ export const createEmployee = asyncHandler(async (req, res) => {
     hashedPassword = await bcrypt.hash(req.body.password.toString(), 10);
   }
 
-  const imageFilename = req.file
-    ? req.file.filename
+  const imageFilename = req.files?.employeeImage
+    ? req.files.employeeImage[0].filename
     : req.body.employeeImage || "default-image-filename.jpg";
 
+  const idProofFilename = req.files?.id_proof
+    ? req.files.id_proof[0].filename
+    : req.body.id_proof || null;
+
   const sql =
-    "INSERT INTO employee (`employeeName`, `EMPID`, `employeeEmail`, `userName`, `password`, `role`, `discipline`, `designation`, `date`, `employeeImage`, `employeeStatus`, `relievingDate`, `permanentDate`) VALUES (?)";
+    "INSERT INTO employee (`employeeName`, `EMPID`, `employeeEmail`, `userName`, `password`, `role`, `discipline`, `designation`, `date`, `employeeImage`, `id_proof`, `employeeStatus`, `relievingDate`, `permanentDate`, `salary`, `father_name`, `mother_name`, `parent_contact`, `parent_address`) VALUES (?)";
 
   const values = [
     req.body.employeeName,
@@ -38,9 +42,15 @@ export const createEmployee = asyncHandler(async (req, res) => {
     req.body.designation,
     req.body.date,
     imageFilename,
+    idProofFilename,
     req.body.employeeStatus,
     req.body.relievingDate,
     req.body.permanentDate,
+    req.body.salary || null,
+    req.body.father_name || null,
+    req.body.mother_name || null,
+    req.body.parent_contact || null,
+    req.body.parent_address || null,
   ];
 
   await query(sql, [values]);
@@ -115,9 +125,14 @@ export const updateEmployee = asyncHandler(async (req, res) => {
     values.push(req.body.date);
   }
 
-  if (req.file || req.body.employeeImage) {
+  if (req.files?.employeeImage || req.body.employeeImage) {
     updateSql += ", `employeeImage`=?";
-    values.push(req.file ? req.file.filename : req.body.employeeImage);
+    values.push(req.files?.employeeImage ? req.files.employeeImage[0].filename : req.body.employeeImage);
+  }
+
+  if (req.files?.id_proof || req.body.id_proof) {
+    updateSql += ", `id_proof`=?";
+    values.push(req.files?.id_proof ? req.files.id_proof[0].filename : req.body.id_proof);
   }
 
   if (req.body.employeeStatus) {
@@ -133,6 +148,31 @@ export const updateEmployee = asyncHandler(async (req, res) => {
   if (req.body.permanentDate) {
     updateSql += ", `permanentDate`=?";
     values.push(req.body.permanentDate);
+  }
+
+  if (req.body.salary !== undefined) {
+    updateSql += ", `salary`=?";
+    values.push(req.body.salary || null);
+  }
+
+  if (req.body.father_name !== undefined) {
+    updateSql += ", `father_name`=?";
+    values.push(req.body.father_name || null);
+  }
+
+  if (req.body.mother_name !== undefined) {
+    updateSql += ", `mother_name`=?";
+    values.push(req.body.mother_name || null);
+  }
+
+  if (req.body.parent_contact !== undefined) {
+    updateSql += ", `parent_contact`=?";
+    values.push(req.body.parent_contact || null);
+  }
+
+  if (req.body.parent_address !== undefined) {
+    updateSql += ", `parent_address`=?";
+    values.push(req.body.parent_address || null);
   }
 
   updateSql += " WHERE `id`=?";

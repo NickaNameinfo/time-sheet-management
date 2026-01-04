@@ -172,7 +172,8 @@ export const getProductivityMetrics = asyncHandler(async (req, res) => {
   `;
   const params = [];
 
-  if (employeeId) {
+  // Only filter by employeeId if it's provided and not empty
+  if (employeeId && employeeId !== "" && employeeId !== "undefined" && employeeId !== "null") {
     sql += " AND pm.employee_id = ?";
     params.push(employeeId);
   }

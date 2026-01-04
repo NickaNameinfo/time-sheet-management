@@ -10,6 +10,7 @@ import {
   getLeaveAccruals,
   uploadLeaveDocument,
   getLeaveDocuments,
+  updateLeaveBalance,
 } from "../controllers/leaveBalanceController.js";
 import { verifyUser } from "../middleware/auth.js";
 
@@ -28,6 +29,7 @@ const upload = multer({ storage });
 
 router.get("/leave/balance", verifyUser, getLeaveBalance);
 router.post("/leave/balance/initialize", verifyUser, initializeLeaveBalance);
+router.put("/leave/balance/update", verifyUser, updateLeaveBalance);
 router.post("/leave/accrue", verifyUser, accrueLeave);
 router.post("/leave/use", verifyUser, useLeave);
 router.get("/leave/accruals", verifyUser, getLeaveAccruals);

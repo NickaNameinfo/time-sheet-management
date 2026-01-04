@@ -24,6 +24,14 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Collapse,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
 } from "@mui/material";
 import {
   AccountBalance,
@@ -36,6 +44,11 @@ import {
   AccessTime,
   Refresh,
   Folder,
+  Info,
+  ExpandMore,
+  ExpandLess,
+  Delete,
+  Edit,
 } from "@mui/icons-material";
 import ErrorMessage from "./ErrorMessage";
 import Loading from "./Loading";
@@ -53,6 +66,9 @@ const BudgetTracking = () => {
   // Fetch projects list
   const { data: projectsData } = useApi(apiService.getProjects);
   
+  // Fetch app settings for default currency and other settings
+  const { data: appSettings } = useApi(apiService.getAppSettings);
+  
   // Parse projects data
   const projects = useMemo(() => {
     if (!projectsData) return [];
@@ -69,11 +85,24 @@ const BudgetTracking = () => {
   
   const [budgetDialog, setBudgetDialog] = useState(false);
   const [costDialog, setCostDialog] = useState(false);
+  const [deleteBudgetDialog, setDeleteBudgetDialog] = useState(false);
+  const [deleteCostDialog, setDeleteCostDialog] = useState(false);
+  const [editingBudget, setEditingBudget] = useState(null);
+  const [editingCost, setEditingCost] = useState(null);
+  const [budgetToDelete, setBudgetToDelete] = useState(null);
+  const [costToDelete, setCostToDelete] = useState(null);
   const [budgetData, setBudgetData] = useState({
     budgetAmount: 0,
     budgetHours: 0,
-    currency: "AED",
+    currency: appSettings?.currency || "AED",
   });
+  
+  // Update budgetData currency when appSettings loads
+  useEffect(() => {
+    if (appSettings?.currency && !budgetData.currency) {
+      setBudgetData(prev => ({ ...prev, currency: appSettings.currency }));
+    }
+  }, [appSettings?.currency]);
   const [costData, setCostData] = useState({
     costDate: new Date().toISOString().split("T")[0],
     employeeCost: 0,
@@ -81,6 +110,8 @@ const BudgetTracking = () => {
     materialCost: 0,
     hoursSpent: 0,
   });
+  const [budgetDetailsExpanded, setBudgetDetailsExpanded] = useState(false);
+  const [profitabilityDetailsExpanded, setProfitabilityDetailsExpanded] = useState(false);
 
   // Only make API calls if projectId exists
   const { data: budgetDataRaw, loading: budgetLoading, error: budgetError, refetch: refetchBudget } = useApi(
@@ -116,6 +147,25 @@ const BudgetTracking = () => {
     !!projectId
   );
 
+  // Fetch project costs for detailed breakdown
+  const { data: projectCostsRaw, loading: costsLoading, refetch: refetchCosts } = useApi(
+    () => {
+      if (!projectId) {
+        return Promise.resolve({ data: { Status: "Success", Result: [] } });
+      }
+      return apiService.getProjectCosts(projectId);
+    },
+    [projectId],
+    !!projectId
+  );
+
+  // Parse project costs
+  const projectCosts = useMemo(() => {
+    if (!projectCostsRaw) return [];
+    if (Array.isArray(projectCostsRaw)) return projectCostsRaw;
+    return projectCostsRaw?.Result || projectCostsRaw?.data?.Result || [];
+  }, [projectCostsRaw]);
+
   // Parse API responses
   const budget = useMemo(() => {
     if (!budgetDataRaw) return [];
@@ -145,24 +195,43 @@ const BudgetTracking = () => {
     }
     return apiService.setProjectBudget(projectId, data);
   });
+  const { mutate: updateBudget, loading: updatingBudget } = useMutation((params) => {
+    return apiService.updateProjectBudget(params.id, params.data);
+  });
+  const { mutate: deleteBudget, loading: deletingBudget } = useMutation((id) => {
+    return apiService.deleteProjectBudget(id);
+  });
   const { mutate: trackCost, loading: trackingCost } = useMutation((data) => {
     if (!projectId) {
       return Promise.reject(new Error("Please select a project"));
     }
     return apiService.trackProjectCost(projectId, data);
   });
+  const { mutate: updateCost, loading: updatingCost } = useMutation((params) => {
+    return apiService.updateProjectCost(params.id, params.data);
+  });
+  const { mutate: deleteCost, loading: deletingCost } = useMutation((id) => {
+    return apiService.deleteProjectCost(id);
+  });
 
   const handleSetBudget = async () => {
-    const result = await setBudget(budgetData);
+    let result;
+    if (editingBudget) {
+      result = await updateBudget({ id: editingBudget.id, data: budgetData });
+    } else {
+      result = await setBudget(budgetData);
+    }
+    
     if (result.success) {
       setBudgetDialog(false);
-      setBudgetData({ budgetAmount: 0, budgetHours: 0, currency: "AED" });
+      setEditingBudget(null);
+      setBudgetData({ budgetAmount: 0, budgetHours: 0, currency: appSettings?.currency || "AED" });
       refetchBudget();
       refetchVsActual();
       refetchProfitability();
       setSnackbar({
         open: true,
-        message: "Budget set successfully",
+        message: editingBudget ? "Budget updated successfully" : "Budget set successfully",
         severity: "success",
       });
     } else {
@@ -174,10 +243,51 @@ const BudgetTracking = () => {
     }
   };
 
+  const handleEditBudget = (budget) => {
+    setEditingBudget(budget);
+    setBudgetData({
+      budgetAmount: parseFloat(budget.budget_amount || 0),
+      budgetHours: parseFloat(budget.budget_hours || 0),
+      currency: budget.currency || appSettings?.currency || "AED",
+    });
+    setBudgetDialog(true);
+  };
+
+  const handleDeleteBudget = async () => {
+    if (budgetToDelete) {
+      const result = await deleteBudget(budgetToDelete.id);
+      if (result.success) {
+        setDeleteBudgetDialog(false);
+        setBudgetToDelete(null);
+        refetchBudget();
+        refetchVsActual();
+        refetchProfitability();
+        setSnackbar({
+          open: true,
+          message: "Budget deleted successfully",
+          severity: "success",
+        });
+      } else {
+        setSnackbar({
+          open: true,
+          message: result.error || "Failed to delete budget",
+          severity: "error",
+        });
+      }
+    }
+  };
+
   const handleTrackCost = async () => {
-    const result = await trackCost(costData);
+    let result;
+    if (editingCost) {
+      result = await updateCost({ id: editingCost.id, data: costData });
+    } else {
+      result = await trackCost(costData);
+    }
+    
     if (result.success) {
       setCostDialog(false);
+      setEditingCost(null);
       setCostData({
         costDate: new Date().toISOString().split("T")[0],
         employeeCost: 0,
@@ -188,9 +298,10 @@ const BudgetTracking = () => {
       refetchBudget();
       refetchVsActual();
       refetchProfitability();
+      refetchCosts();
       setSnackbar({
         open: true,
-        message: "Cost tracked successfully",
+        message: editingCost ? "Cost updated successfully" : "Cost tracked successfully",
         severity: "success",
       });
     } else {
@@ -199,6 +310,43 @@ const BudgetTracking = () => {
         message: result.error || "Failed to track cost",
         severity: "error",
       });
+    }
+  };
+
+  const handleEditCost = (cost) => {
+    setEditingCost(cost);
+    setCostData({
+      costDate: cost.cost_date ? cost.cost_date.split('T')[0] : new Date().toISOString().split("T")[0],
+      employeeCost: parseFloat(cost.employee_cost || 0),
+      overheadCost: parseFloat(cost.overhead_cost || 0),
+      materialCost: parseFloat(cost.material_cost || 0),
+      hoursSpent: parseFloat(cost.hours_spent || 0),
+    });
+    setCostDialog(true);
+  };
+
+  const handleDeleteCost = async () => {
+    if (costToDelete) {
+      const result = await deleteCost(costToDelete.id);
+      if (result.success) {
+        setDeleteCostDialog(false);
+        setCostToDelete(null);
+        refetchBudget();
+        refetchVsActual();
+        refetchProfitability();
+        refetchCosts();
+        setSnackbar({
+          open: true,
+          message: "Cost deleted successfully",
+          severity: "success",
+        });
+      } else {
+        setSnackbar({
+          open: true,
+          message: result.error || "Failed to delete cost",
+          severity: "error",
+        });
+      }
     }
   };
 
@@ -325,14 +473,28 @@ const BudgetTracking = () => {
             <Button
               variant="outlined"
               startIcon={<Add />}
-              onClick={() => setCostDialog(true)}
+              onClick={() => {
+                setEditingCost(null);
+                setCostData({
+                  costDate: new Date().toISOString().split("T")[0],
+                  employeeCost: 0,
+                  overheadCost: 0,
+                  materialCost: 0,
+                  hoursSpent: 0,
+                });
+                setCostDialog(true);
+              }}
             >
               Track Cost
             </Button>
             <Button
               variant="contained"
               startIcon={<AccountBalance />}
-              onClick={() => setBudgetDialog(true)}
+              onClick={() => {
+                setEditingBudget(null);
+                setBudgetData({ budgetAmount: 0, budgetHours: 0, currency: appSettings?.currency || "AED" });
+                setBudgetDialog(true);
+              }}
               sx={{
                 background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                 "&:hover": {
@@ -347,15 +509,112 @@ const BudgetTracking = () => {
       </Box>
 
       <Grid container spacing={3}>
-        {/* Budget vs Actual */}
-        <Grid item xs={12} md={6}>
+        {/* Information Box */}
+        <Grid item xs={12} md={4}>
           <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)", height: "100%" }}>
             <CardContent>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
-                <AccountBalance color="primary" />
+                <Info color="primary" />
                 <Typography variant="h6" fontWeight="bold">
-                  Budget vs Actual
+                  How It Works
                 </Typography>
+              </Box>
+              
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <Box>
+                  <Typography variant="subtitle2" fontWeight="bold" color="primary" gutterBottom>
+                    📊 Set Budget
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    Define the total budget amount and budget hours for your project. This sets the baseline for tracking.
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontStyle: "italic" }}>
+                    • Budget Amount: Total financial budget allocated<br/>
+                    • Budget Hours: Total hours allocated for the project
+                  </Typography>
+                </Box>
+
+                <Divider />
+
+                <Box>
+                  <Typography variant="subtitle2" fontWeight="bold" color="primary" gutterBottom>
+                    💰 Track Cost
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    Record actual costs incurred on specific dates. Track different cost types separately.
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontStyle: "italic" }}>
+                    • Employee Cost: Labor costs for employees<br/>
+                    • Overhead Cost: Administrative and indirect costs<br/>
+                    • Material Cost: Materials and supplies<br/>
+                    • Hours Spent: Actual hours worked on the project
+                  </Typography>
+                </Box>
+
+                <Divider />
+
+                <Box>
+                  <Typography variant="subtitle2" fontWeight="bold" color="primary" gutterBottom>
+                    📈 Budget vs Actual
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    Compares your budgeted amount against actual costs spent.
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontStyle: "italic" }}>
+                    <strong>Variance = Budget - Actual</strong><br/>
+                    • Positive variance = Under budget ✅<br/>
+                    • Negative variance = Over budget ⚠️<br/>
+                    • Progress bar shows budget utilization
+                  </Typography>
+                </Box>
+
+                <Divider />
+
+                <Box>
+                  <Typography variant="subtitle2" fontWeight="bold" color="primary" gutterBottom>
+                    💵 Profitability
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    Calculates project profitability based on revenue and costs.
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontStyle: "italic" }}>
+                    <strong>Profit = Revenue - Total Cost</strong><br/>
+                    • Margin = (Profit / Revenue) × 100%<br/>
+                    • ROI = (Profit / Cost) × 100%<br/>
+                    • Status: Profitable or Loss Making
+                  </Typography>
+                </Box>
+
+                <Divider />
+
+                <Alert severity="info" sx={{ mt: 1 }}>
+                  <Typography variant="caption">
+                    <strong>Tip:</strong> Set your budget first, then track costs regularly to monitor project financial health in real-time.
+                  </Typography>
+                </Alert>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Budget vs Actual */}
+        <Grid item xs={12} md={4}>
+          <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)", height: "100%" }}>
+            <CardContent>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <AccountBalance color="primary" />
+                  <Typography variant="h6" fontWeight="bold">
+                    Budget vs Actual
+                  </Typography>
+                </Box>
+                <IconButton
+                  onClick={() => setBudgetDetailsExpanded(!budgetDetailsExpanded)}
+                  size="small"
+                  sx={{ color: "primary.main" }}
+                >
+                  {budgetDetailsExpanded ? <ExpandLess /> : <ExpandMore />}
+                </IconButton>
               </Box>
               {budgetVsActualData && Object.keys(budgetVsActualData).length > 0 ? (
                 <Box>
@@ -366,7 +625,7 @@ const BudgetTracking = () => {
                           Budget
                         </Typography>
                         <Typography variant="h6" fontWeight="bold">
-                          {budgetVsActualData.budget?.amount || 0} {budgetVsActualData.budget?.currency || "AED"}
+                          {appSettings?.currency_symbol || ""}{budgetVsActualData.budget?.amount || 0} {budgetVsActualData.budget?.currency || appSettings?.currency || "AED"}
                         </Typography>
                       </Box>
                     </Grid>
@@ -376,7 +635,7 @@ const BudgetTracking = () => {
                           Actual
                         </Typography>
                         <Typography variant="h6" fontWeight="bold">
-                          {budgetVsActualData.actual?.cost || 0} {budgetVsActualData.budget?.currency || "AED"}
+                          {appSettings?.currency_symbol || ""}{budgetVsActualData.actual?.cost || 0} {budgetVsActualData.budget?.currency || appSettings?.currency || "AED"}
                         </Typography>
                       </Box>
                     </Grid>
@@ -414,6 +673,129 @@ const BudgetTracking = () => {
                       {(variance.amount || 0) >= 0 ? "Under Budget" : "Over Budget"}
                     </Alert>
                   </Box>
+
+                  {/* Detailed Breakdown */}
+                  <Collapse in={budgetDetailsExpanded} timeout="auto" unmountOnExit>
+                    <Divider sx={{ my: 2 }} />
+                    <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                      Detailed Breakdown
+                    </Typography>
+                    <TableContainer component={Paper} sx={{ mt: 2, borderRadius: 2 }}>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow sx={{ bgcolor: "grey.100" }}>
+                            <TableCell fontWeight="bold">Category</TableCell>
+                            <TableCell align="right" fontWeight="bold">Budget</TableCell>
+                            <TableCell align="right" fontWeight="bold">Actual</TableCell>
+                            <TableCell align="right" fontWeight="bold">Variance</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          <TableRow>
+                            <TableCell>Budget Amount</TableCell>
+                            <TableCell align="right">
+                              {appSettings?.currency_symbol || ""}{budgetVsActualData.budget?.amount || 0}
+                            </TableCell>
+                            <TableCell align="right">
+                              {appSettings?.currency_symbol || ""}{budgetVsActualData.actual?.cost || 0}
+                            </TableCell>
+                            <TableCell align="right" sx={{ 
+                              color: (variance.amount || 0) >= 0 ? "success.main" : "error.main",
+                              fontWeight: "bold"
+                            }}>
+                              {appSettings?.currency_symbol || ""}{variance.amount || 0}
+                            </TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell>Budget Hours</TableCell>
+                            <TableCell align="right">
+                              {budgetVsActualData.budget?.hours || 0} hrs
+                            </TableCell>
+                            <TableCell align="right">
+                              {budgetVsActualData.actual?.hours || 0} hrs
+                            </TableCell>
+                            <TableCell align="right" sx={{ 
+                              color: (budgetVsActualData.variance?.hours || 0) >= 0 ? "success.main" : "error.main",
+                              fontWeight: "bold"
+                            }}>
+                              {budgetVsActualData.variance?.hours || 0} hrs
+                            </TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell>Utilization</TableCell>
+                            <TableCell align="right" colSpan={3}>
+                              <LinearProgress
+                                variant="determinate"
+                                value={Math.min(
+                                  ((budgetVsActualData.actual?.cost || 0) / 
+                                   (budgetVsActualData.budget?.amount || 1)) * 100,
+                                  100
+                                )}
+                                color={(variance.amount || 0) >= 0 ? "success" : "error"}
+                                sx={{ height: 8, borderRadius: 4 }}
+                              />
+                              <Typography variant="caption" sx={{ mt: 0.5, display: "block" }}>
+                                {Math.min(
+                                  ((budgetVsActualData.actual?.cost || 0) / 
+                                   (budgetVsActualData.budget?.amount || 1)) * 100,
+                                  100
+                                ).toFixed(2)}% of budget used
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+
+                    {/* Cost Breakdown by Type */}
+                    {projectCosts.length > 0 && (
+                      <Box sx={{ mt: 2 }}>
+                        <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                          Cost Breakdown by Type
+                        </Typography>
+                        <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
+                          <Table size="small">
+                            <TableHead>
+                              <TableRow sx={{ bgcolor: "grey.100" }}>
+                                <TableCell fontWeight="bold">Cost Type</TableCell>
+                                <TableCell align="right" fontWeight="bold">Amount</TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              <TableRow>
+                                <TableCell>Employee Cost</TableCell>
+                                <TableCell align="right">
+                                  {appSettings?.currency_symbol || ""}
+                                  {projectCosts.reduce((sum, cost) => sum + parseFloat(cost.employee_cost || 0), 0).toFixed(2)}
+                                </TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell>Overhead Cost</TableCell>
+                                <TableCell align="right">
+                                  {appSettings?.currency_symbol || ""}
+                                  {projectCosts.reduce((sum, cost) => sum + parseFloat(cost.overhead_cost || 0), 0).toFixed(2)}
+                                </TableCell>
+                              </TableRow>
+                              <TableRow>
+                                <TableCell>Material Cost</TableCell>
+                                <TableCell align="right">
+                                  {appSettings?.currency_symbol || ""}
+                                  {projectCosts.reduce((sum, cost) => sum + parseFloat(cost.material_cost || 0), 0).toFixed(2)}
+                                </TableCell>
+                              </TableRow>
+                              <TableRow sx={{ bgcolor: "grey.50" }}>
+                                <TableCell sx={{ fontWeight: "bold" }}>Total Cost</TableCell>
+                                <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                                  {appSettings?.currency_symbol || ""}
+                                  {projectCosts.reduce((sum, cost) => sum + parseFloat(cost.total_cost || 0), 0).toFixed(2)}
+                                </TableCell>
+                              </TableRow>
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+                      </Box>
+                    )}
+                  </Collapse>
                 </Box>
               ) : (
                 <Alert severity="info">No budget data available. Set a budget to get started.</Alert>
@@ -423,14 +805,23 @@ const BudgetTracking = () => {
         </Grid>
 
         {/* Profitability */}
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} md={4}>
           <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)", height: "100%" }}>
             <CardContent>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
-                <TrendingUp color="primary" />
-                <Typography variant="h6" fontWeight="bold">
-                  Profitability
-                </Typography>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <TrendingUp color="primary" />
+                  <Typography variant="h6" fontWeight="bold">
+                    Profitability
+                  </Typography>
+                </Box>
+                <IconButton
+                  onClick={() => setProfitabilityDetailsExpanded(!profitabilityDetailsExpanded)}
+                  size="small"
+                  sx={{ color: "primary.main" }}
+                >
+                  {profitabilityDetailsExpanded ? <ExpandLess /> : <ExpandMore />}
+                </IconButton>
               </Box>
               {profit && Object.keys(profit).length > 0 ? (
                 <Box>
@@ -441,7 +832,7 @@ const BudgetTracking = () => {
                           Revenue
                         </Typography>
                         <Typography variant="h6" fontWeight="bold">
-                          {profit.revenue || 0} {profit.currency || "AED"}
+                          {appSettings?.currency_symbol || ""}{profit.revenue || 0} {profit.currency || appSettings?.currency || "AED"}
                         </Typography>
                       </Box>
                     </Grid>
@@ -451,7 +842,7 @@ const BudgetTracking = () => {
                           Cost
                         </Typography>
                         <Typography variant="h6" fontWeight="bold">
-                          {profit.cost || 0} {profit.currency || "AED"}
+                          {appSettings?.currency_symbol || ""}{profit.cost || 0} {profit.currency || appSettings?.currency || "AED"}
                         </Typography>
                       </Box>
                     </Grid>
@@ -464,7 +855,7 @@ const BudgetTracking = () => {
                       color={(profit.profit || 0) >= 0 ? "success.main" : "error.main"}
                       gutterBottom
                     >
-                      {(profit.profit || 0) >= 0 ? "+" : ""}{profit.profit || 0} {profit.currency || "AED"}
+                      {(profit.profit || 0) >= 0 ? "+" : ""}{appSettings?.currency_symbol || ""}{profit.profit || 0} {profit.currency || appSettings?.currency || "AED"}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" gutterBottom>
                       Margin: {profit.margin || "0.00"}% | ROI: {profit.roi || "0.00"}%
@@ -477,6 +868,119 @@ const BudgetTracking = () => {
                       {profit.status === "profitable" ? "Profitable" : "Loss Making"}
                     </Alert>
                   </Box>
+
+                  {/* Detailed Profitability Breakdown */}
+                  <Collapse in={profitabilityDetailsExpanded} timeout="auto" unmountOnExit>
+                    <Divider sx={{ my: 2 }} />
+                    <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                      Detailed Analysis
+                    </Typography>
+                    <TableContainer component={Paper} sx={{ mt: 2, borderRadius: 2 }}>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow sx={{ bgcolor: "grey.100" }}>
+                            <TableCell fontWeight="bold">Metric</TableCell>
+                            <TableCell align="right" fontWeight="bold">Value</TableCell>
+                            <TableCell align="right" fontWeight="bold">Percentage</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          <TableRow>
+                            <TableCell>Total Revenue</TableCell>
+                            <TableCell align="right">
+                              {appSettings?.currency_symbol || ""}{profit.revenue || 0}
+                            </TableCell>
+                            <TableCell align="right">100%</TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell>Total Cost</TableCell>
+                            <TableCell align="right">
+                              {appSettings?.currency_symbol || ""}{profit.cost || 0}
+                            </TableCell>
+                            <TableCell align="right">
+                              {profit.revenue > 0 
+                                ? ((profit.cost / profit.revenue) * 100).toFixed(2) 
+                                : "0.00"}%
+                            </TableCell>
+                          </TableRow>
+                          <TableRow sx={{ bgcolor: (profit.profit || 0) >= 0 ? "success.light" : "error.light" }}>
+                            <TableCell sx={{ fontWeight: "bold" }}>Net Profit</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                              {appSettings?.currency_symbol || ""}{profit.profit || 0}
+                            </TableCell>
+                            <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                              {profit.margin || "0.00"}%
+                            </TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell>Profit Margin</TableCell>
+                            <TableCell align="right" colSpan={2}>
+                              <LinearProgress
+                                variant="determinate"
+                                value={Math.abs(parseFloat(profit.margin || 0))}
+                                color={(profit.profit || 0) >= 0 ? "success" : "error"}
+                                sx={{ height: 8, borderRadius: 4 }}
+                              />
+                              <Typography variant="caption" sx={{ mt: 0.5, display: "block" }}>
+                                {profit.margin || "0.00"}% margin
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell>Return on Investment (ROI)</TableCell>
+                            <TableCell align="right" colSpan={2}>
+                              <Typography 
+                                variant="body1" 
+                                fontWeight="bold"
+                                color={(profit.roi || 0) >= 0 ? "success.main" : "error.main"}
+                              >
+                                {profit.roi || "0.00"}%
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {(profit.roi || 0) >= 0 
+                                  ? `For every ${appSettings?.currency_symbol || ""}1 invested, you gain ${appSettings?.currency_symbol || ""}${((parseFloat(profit.roi || 0) / 100) + 1).toFixed(2)}`
+                                  : `For every ${appSettings?.currency_symbol || ""}1 invested, you lose ${appSettings?.currency_symbol || ""}${Math.abs((parseFloat(profit.roi || 0) / 100) - 1).toFixed(2)}`
+                                }
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+
+                    {/* Revenue vs Cost Comparison */}
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                        Revenue vs Cost Breakdown
+                      </Typography>
+                      <Grid container spacing={2} sx={{ mt: 1 }}>
+                        <Grid item xs={6}>
+                          <Box sx={{ p: 2, bgcolor: "success.light", borderRadius: 2, color: "white", textAlign: "center" }}>
+                            <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                              Revenue Share
+                            </Typography>
+                            <Typography variant="h6" fontWeight="bold">
+                              {profit.revenue > 0 
+                                ? ((profit.revenue / (profit.revenue + Math.abs(profit.cost || 0))) * 100).toFixed(1)
+                                : "0"}%
+                            </Typography>
+                          </Box>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Box sx={{ p: 2, bgcolor: "error.light", borderRadius: 2, color: "white", textAlign: "center" }}>
+                            <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                              Cost Share
+                            </Typography>
+                            <Typography variant="h6" fontWeight="bold">
+                              {profit.revenue > 0 
+                                ? ((Math.abs(profit.cost || 0) / (profit.revenue + Math.abs(profit.cost || 0))) * 100).toFixed(1)
+                                : "0"}%
+                            </Typography>
+                          </Box>
+                        </Grid>
+                      </Grid>
+                    </Box>
+                  </Collapse>
                 </Box>
               ) : (
                 <Alert severity="info">No profitability data available</Alert>
@@ -486,10 +990,154 @@ const BudgetTracking = () => {
         </Grid>
       </Grid>
 
+      {/* Budgets List Table */}
+      {budget.length > 0 && (
+        <Card sx={{ mt: 3, borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
+          <CardContent>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+              <Typography variant="h6" fontWeight="bold">
+                Budget History
+              </Typography>
+            </Box>
+            <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
+              <Table>
+                <TableHead>
+                  <TableRow sx={{ bgcolor: "primary.main" }}>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Budget Amount</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Budget Hours</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Currency</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Created Date</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {budget.map((budgetItem) => (
+                    <TableRow key={budgetItem.id} hover>
+                      <TableCell>
+                        {appSettings?.currency_symbol || ""}{parseFloat(budgetItem.budget_amount || 0).toFixed(2)}
+                      </TableCell>
+                      <TableCell>{parseFloat(budgetItem.budget_hours || 0).toFixed(2)} hrs</TableCell>
+                      <TableCell>{budgetItem.currency || "AED"}</TableCell>
+                      <TableCell>
+                        {budgetItem.created_at 
+                          ? new Date(budgetItem.created_at).toLocaleDateString()
+                          : "N/A"}
+                      </TableCell>
+                      <TableCell>
+                        <Box sx={{ display: "flex", gap: 0.5 }}>
+                          <IconButton
+                            size="small"
+                            color="primary"
+                            onClick={() => handleEditBudget(budgetItem)}
+                            sx={{ "&:hover": { bgcolor: "primary.light", color: "white" } }}
+                          >
+                            <Edit fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => {
+                              setBudgetToDelete(budgetItem);
+                              setDeleteBudgetDialog(true);
+                            }}
+                            sx={{ "&:hover": { bgcolor: "error.light", color: "white" } }}
+                          >
+                            <Delete fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Costs List Table */}
+      {projectCosts.length > 0 && (
+        <Card sx={{ mt: 3, borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
+          <CardContent>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+              <Typography variant="h6" fontWeight="bold">
+                Tracked Costs
+              </Typography>
+            </Box>
+            <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
+              <Table>
+                <TableHead>
+                  <TableRow sx={{ bgcolor: "primary.main" }}>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Date</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }} align="right">Employee Cost</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }} align="right">Overhead Cost</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }} align="right">Material Cost</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }} align="right">Total Cost</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }} align="right">Hours Spent</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {projectCosts.map((cost) => (
+                    <TableRow key={cost.id} hover>
+                      <TableCell>
+                        {cost.cost_date 
+                          ? new Date(cost.cost_date).toLocaleDateString()
+                          : "N/A"}
+                      </TableCell>
+                      <TableCell align="right">
+                        {appSettings?.currency_symbol || ""}{parseFloat(cost.employee_cost || 0).toFixed(2)}
+                      </TableCell>
+                      <TableCell align="right">
+                        {appSettings?.currency_symbol || ""}{parseFloat(cost.overhead_cost || 0).toFixed(2)}
+                      </TableCell>
+                      <TableCell align="right">
+                        {appSettings?.currency_symbol || ""}{parseFloat(cost.material_cost || 0).toFixed(2)}
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                        {appSettings?.currency_symbol || ""}{parseFloat(cost.total_cost || 0).toFixed(2)}
+                      </TableCell>
+                      <TableCell align="right">{parseFloat(cost.hours_spent || 0).toFixed(2)} hrs</TableCell>
+                      <TableCell>
+                        <Box sx={{ display: "flex", gap: 0.5 }}>
+                          <IconButton
+                            size="small"
+                            color="primary"
+                            onClick={() => handleEditCost(cost)}
+                            sx={{ "&:hover": { bgcolor: "primary.light", color: "white" } }}
+                          >
+                            <Edit fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => {
+                              setCostToDelete(cost);
+                              setDeleteCostDialog(true);
+                            }}
+                            sx={{ "&:hover": { bgcolor: "error.light", color: "white" } }}
+                          >
+                            <Delete fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Set Budget Dialog */}
       <Dialog
         open={budgetDialog}
-        onClose={() => setBudgetDialog(false)}
+        onClose={() => {
+          setBudgetDialog(false);
+          setEditingBudget(null);
+          setBudgetData({ budgetAmount: 0, budgetHours: 0, currency: appSettings?.currency || "AED" });
+        }}
         maxWidth="sm"
         fullWidth
         PaperProps={{ sx: { borderRadius: 3 } }}
@@ -497,9 +1145,13 @@ const BudgetTracking = () => {
         <DialogTitle>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <Typography variant="h6" fontWeight="bold">
-              Set Project Budget
+              {editingBudget ? "Edit Project Budget" : "Set Project Budget"}
             </Typography>
-            <IconButton onClick={() => setBudgetDialog(false)} size="small">
+            <IconButton onClick={() => {
+              setBudgetDialog(false);
+              setEditingBudget(null);
+              setBudgetData({ budgetAmount: 0, budgetHours: 0, currency: appSettings?.currency || "AED" });
+            }} size="small">
               <Close />
             </IconButton>
           </Box>
@@ -530,20 +1182,36 @@ const BudgetTracking = () => {
                 startAdornment: <AccessTime sx={{ mr: 1, color: "text.secondary" }} />,
               }}
             />
-            <TextField
-              label="Currency"
-              value={budgetData.currency}
-              onChange={(e) => setBudgetData({ ...budgetData, currency: e.target.value })}
-              fullWidth
-            />
+            <FormControl fullWidth>
+              <InputLabel>Currency</InputLabel>
+              <Select
+                value={budgetData.currency || appSettings?.currency || "AED"}
+                label="Currency"
+                onChange={(e) => setBudgetData({ ...budgetData, currency: e.target.value })}
+              >
+                <MenuItem value="AED">AED - UAE Dirham</MenuItem>
+                <MenuItem value="INR">INR - Indian Rupee</MenuItem>
+                <MenuItem value="USD">USD - US Dollar</MenuItem>
+                <MenuItem value="GBP">GBP - British Pound</MenuItem>
+                <MenuItem value="SAR">SAR - Saudi Riyal</MenuItem>
+                <MenuItem value="QAR">QAR - Qatari Riyal</MenuItem>
+                <MenuItem value="KWD">KWD - Kuwaiti Dinar</MenuItem>
+                <MenuItem value="BHD">BHD - Bahraini Dinar</MenuItem>
+                <MenuItem value="OMR">OMR - Omani Rial</MenuItem>
+              </Select>
+            </FormControl>
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setBudgetDialog(false)}>Cancel</Button>
+          <Button onClick={() => {
+            setBudgetDialog(false);
+            setEditingBudget(null);
+            setBudgetData({ budgetAmount: 0, budgetHours: 0, currency: appSettings?.currency || "AED" });
+          }}>Cancel</Button>
           <Button
             onClick={handleSetBudget}
             variant="contained"
-            disabled={settingBudget}
+            disabled={settingBudget || updatingBudget}
             startIcon={<CheckCircle />}
             sx={{
               background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
@@ -552,7 +1220,7 @@ const BudgetTracking = () => {
               },
             }}
           >
-            {settingBudget ? "Setting..." : "Set Budget"}
+            {settingBudget || updatingBudget ? (editingBudget ? "Updating..." : "Setting...") : (editingBudget ? "Update Budget" : "Set Budget")}
           </Button>
         </DialogActions>
       </Dialog>
@@ -560,7 +1228,17 @@ const BudgetTracking = () => {
       {/* Track Cost Dialog */}
       <Dialog
         open={costDialog}
-        onClose={() => setCostDialog(false)}
+        onClose={() => {
+          setCostDialog(false);
+          setEditingCost(null);
+          setCostData({
+            costDate: new Date().toISOString().split("T")[0],
+            employeeCost: 0,
+            overheadCost: 0,
+            materialCost: 0,
+            hoursSpent: 0,
+          });
+        }}
         maxWidth="sm"
         fullWidth
         PaperProps={{ sx: { borderRadius: 3 } }}
@@ -568,9 +1246,19 @@ const BudgetTracking = () => {
         <DialogTitle>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <Typography variant="h6" fontWeight="bold">
-              Track Project Cost
+              {editingCost ? "Edit Project Cost" : "Track Project Cost"}
             </Typography>
-            <IconButton onClick={() => setCostDialog(false)} size="small">
+            <IconButton onClick={() => {
+              setCostDialog(false);
+              setEditingCost(null);
+              setCostData({
+                costDate: new Date().toISOString().split("T")[0],
+                employeeCost: 0,
+                overheadCost: 0,
+                materialCost: 0,
+                hoursSpent: 0,
+              });
+            }} size="small">
               <Close />
             </IconButton>
           </Box>
@@ -636,11 +1324,21 @@ const BudgetTracking = () => {
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setCostDialog(false)}>Cancel</Button>
+          <Button onClick={() => {
+            setCostDialog(false);
+            setEditingCost(null);
+            setCostData({
+              costDate: new Date().toISOString().split("T")[0],
+              employeeCost: 0,
+              overheadCost: 0,
+              materialCost: 0,
+              hoursSpent: 0,
+            });
+          }}>Cancel</Button>
           <Button
             onClick={handleTrackCost}
             variant="contained"
-            disabled={trackingCost}
+            disabled={trackingCost || updatingCost}
             startIcon={<CheckCircle />}
             sx={{
               background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
@@ -649,7 +1347,107 @@ const BudgetTracking = () => {
               },
             }}
           >
-            {trackingCost ? "Tracking..." : "Track Cost"}
+            {trackingCost || updatingCost ? (editingCost ? "Updating..." : "Tracking...") : (editingCost ? "Update Cost" : "Track Cost")}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Budget Confirmation Dialog */}
+      <Dialog
+        open={deleteBudgetDialog}
+        onClose={() => {
+          setDeleteBudgetDialog(false);
+          setBudgetToDelete(null);
+        }}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Delete color="error" />
+            <Typography variant="h6">Confirm Delete Budget</Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete this budget?
+            <br />
+            <br />
+            <strong>Budget Amount:</strong> {appSettings?.currency_symbol || ""}{budgetToDelete?.budget_amount || 0}
+            <br />
+            <strong>Budget Hours:</strong> {budgetToDelete?.budget_hours || 0} hrs
+            <br />
+            <br />
+            This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => {
+            setDeleteBudgetDialog(false);
+            setBudgetToDelete(null);
+          }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteBudget}
+            variant="contained"
+            color="error"
+            startIcon={<Delete />}
+            disabled={deletingBudget}
+          >
+            {deletingBudget ? "Deleting..." : "Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Cost Confirmation Dialog */}
+      <Dialog
+        open={deleteCostDialog}
+        onClose={() => {
+          setDeleteCostDialog(false);
+          setCostToDelete(null);
+        }}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Delete color="error" />
+            <Typography variant="h6">Confirm Delete Cost</Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete this cost entry?
+            <br />
+            <br />
+            <strong>Date:</strong> {costToDelete?.cost_date ? new Date(costToDelete.cost_date).toLocaleDateString() : "N/A"}
+            <br />
+            <strong>Total Cost:</strong> {appSettings?.currency_symbol || ""}{parseFloat(costToDelete?.total_cost || 0).toFixed(2)}
+            <br />
+            <strong>Hours Spent:</strong> {parseFloat(costToDelete?.hours_spent || 0).toFixed(2)} hrs
+            <br />
+            <br />
+            This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => {
+            setDeleteCostDialog(false);
+            setCostToDelete(null);
+          }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteCost}
+            variant="contained"
+            color="error"
+            startIcon={<Delete />}
+            disabled={deletingCost}
+          >
+            {deletingCost ? "Deleting..." : "Delete"}
           </Button>
         </DialogActions>
       </Dialog>

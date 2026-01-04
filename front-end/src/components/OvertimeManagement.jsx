@@ -48,7 +48,24 @@ const OvertimeManagement = () => {
   const [calculationResult, setCalculationResult] = useState(null);
 
   const { data: employees, loading: employeesLoading } = useApi(apiService.getEmployees);
-  const { data: otRules, loading: rulesLoading } = useApi(apiService.getOTRules);
+  
+  // Fetch app settings to get the country
+  const { data: appSettings, loading: appSettingsLoading } = useApi(
+    () => apiService.getAppSettings(),
+    []
+  );
+
+  // Fetch OT rules - use country from app settings if available
+  const { data: otRules, loading: rulesLoading, refetch: refetchOTRules } = useApi(
+    () => {
+      const country = appSettings?.country;
+      return country 
+        ? apiService.getOTRules({ country })
+        : apiService.getOTRules();
+    },
+    [appSettings?.country]
+  );
+
   const { data: otRecords, loading: recordsLoading, refetch: refetchRecords } = useApi(
     () => apiService.getOTRecords({ startDate: startDate.format("YYYY-MM-DD"), endDate: endDate.format("YYYY-MM-DD") }),
     [],
@@ -99,7 +116,7 @@ const OvertimeManagement = () => {
     }
   };
 
-  if (employeesLoading || rulesLoading) {
+  if (employeesLoading || rulesLoading || appSettingsLoading) {
     return <Loading message="Loading overtime data..." />;
   }
 
@@ -137,11 +154,21 @@ const OvertimeManagement = () => {
       {/* OT Rules Card */}
       <Card sx={{ mb: 3, borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
         <CardContent>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-            <Settings color="primary" />
-            <Typography variant="h6" fontWeight="bold">
-              Overtime Rules
-            </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Settings color="primary" />
+              <Typography variant="h6" fontWeight="bold">
+                Overtime Rules
+              </Typography>
+            </Box>
+            {appSettings?.country && (
+              <Chip 
+                label={`Country: ${appSettings.country}`} 
+                color="primary" 
+                variant="outlined"
+                size="small"
+              />
+            )}
           </Box>
           {otRules && otRules.length > 0 ? (
             <Grid container spacing={2}>
@@ -187,7 +214,10 @@ const OvertimeManagement = () => {
               </Grid>
             </Grid>
           ) : (
-            <Alert severity="info">No OT rules configured. Please configure OT rules first.</Alert>
+            <Alert severity="info">
+              No OT rules configured for {appSettings?.country || "the selected country"}. 
+              Please configure OT rules in Settings → Overtime Rules.
+            </Alert>
           )}
         </CardContent>
       </Card>
@@ -298,8 +328,13 @@ const OvertimeManagement = () => {
                       Estimated Amount
                     </Typography>
                     <Typography variant="h6" fontWeight="bold">
-                      AED {calculationResult.estimatedOTAmount?.toFixed(2)}
+                      {appSettings?.currency_symbol || appSettings?.currency || "AED"} {calculationResult.estimatedOTAmount?.toFixed(2)}
                     </Typography>
+                    {appSettings?.currency && (
+                      <Typography variant="caption" sx={{ opacity: 0.8, display: "block", mt: 0.5 }}>
+                        ({appSettings.currency})
+                      </Typography>
+                    )}
                   </Grid>
                 </Grid>
               </CardContent>
@@ -347,7 +382,7 @@ const OvertimeManagement = () => {
                         <TableCell>{record.ot_type}</TableCell>
                         <TableCell>
                           <Typography fontWeight="bold" color="success.main">
-                            AED {parseFloat(record.ot_amount || 0).toFixed(2)}
+                            {appSettings?.currency_symbol || appSettings?.currency || "AED"} {parseFloat(record.ot_amount || 0).toFixed(2)}
                           </Typography>
                         </TableCell>
                         <TableCell>

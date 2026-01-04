@@ -155,6 +155,17 @@ export const apiService = {
   updateProjectCompletion: (projectId, completion) =>
     api.put(`/project/update/completion/${projectId}`, { completion }),
   deleteProject: (id) => api.delete(`/project/delete/${id}`),
+  
+  // Project Planning
+  createProjectPlan: (data) => api.post("/project-plan/create", data),
+  getProjectPlans: (params) => api.get("/project-plan", { params }),
+  getProjectPlan: (id) => api.get(`/project-plan/${id}`),
+  updateProjectPlan: (id, data) => api.put(`/project-plan/${id}`, data),
+  assignEmployeesToPlan: (id, data) => api.put(`/project-plan/${id}/assign-employees`, data),
+  getProjectEmployees: (projectId) => api.get(`/project/${projectId}/employees`),
+  getEmployeeAssignedProjects: (params) => api.get("/project-plan/employee/assigned", { params }),
+  deleteProjectPlan: (id) => api.delete(`/project-plan/${id}`),
+  
   addWorkDetails: (data) => api.post("/project/addWorkDetails", data),
   updateWorkDetails: (id, data) => api.put(`/project/updateWorkDetails/${id}`, data),
   getWorkDetails: (params) => api.get("/getWorkDetails", { params }),
@@ -182,6 +193,24 @@ export const apiService = {
   createDiscipline: (data) => api.post("/create/discipline", data),
   deleteDiscipline: (id) => api.delete(`/discipline/delete/${id}`),
   getDesignations: () => api.get("/designation"),
+  
+  // Menu Permissions
+  getMenuPermissions: (params) => api.get("/menu-permissions", { params }),
+  getMenuPermissionsByRole: (role) => api.get("/menu-permissions/role", { params: { role } }),
+  updateMenuPermission: (id, data) => api.put(`/menu-permissions/${id}`, data),
+  bulkUpdateMenuPermissions: (data) => api.put("/menu-permissions/bulk", data),
+  
+  // Employee Menu Permissions
+  getEmployeeMenuPermissions: (params) => api.get("/menu-permissions/employee", { params }),
+  updateEmployeeMenuPermission: (data) => api.post("/menu-permissions/employee", data),
+  bulkUpdateEmployeeMenuPermissions: (data) => api.put("/menu-permissions/employee/bulk", data),
+  deleteEmployeeMenuPermission: (params) => api.delete("/menu-permissions/employee", { params }),
+  
+  // Roles
+  getRoles: () => api.get("/roles"),
+  createRole: (data) => api.post("/create/role", data),
+  updateRole: (id, data) => api.put(`/role/update/${id}`, data),
+  deleteRole: (id) => api.delete(`/role/delete/${id}`),
   createDesignation: (data) => api.post("/create/designation", data),
   deleteDesignation: (id) => api.delete(`/designation/delete/${id}`),
   getAreaOfWork: () => api.get("/areaofwork"),
@@ -196,7 +225,7 @@ export const apiService = {
   sendNotification: (data) => api.post("/sendNotification", data),
 
   // Phase 1 & 2: Overtime
-  getOTRules: () => api.get("/overtime/rules"),
+  getOTRules: (params) => api.get("/overtime/rules", { params }),
   createOTRule: (data) => api.post("/overtime/rules", data),
   calculateOvertime: (data) => api.post("/overtime/calculate", data),
   getOTRecords: (params) => api.get("/overtime/records", { params }),
@@ -206,6 +235,7 @@ export const apiService = {
   // Leave Balance
   getLeaveBalance: (params) => api.get("/leave/balance", { params }),
   initializeLeaveBalance: (data) => api.post("/leave/balance/initialize", data),
+  updateLeaveBalance: (data) => api.put("/leave/balance/update", data),
   accrueLeave: (data) => api.post("/leave/accrue", data),
   useLeave: (data) => api.post("/leave/use", data),
   getLeaveAccruals: (params) => api.get("/leave/accruals", { params }),
@@ -241,7 +271,11 @@ export const apiService = {
   // Budget
   getProjectBudget: (projectId) => api.get(`/projects/${projectId}/budget`),
   setProjectBudget: (projectId, data) => api.post(`/projects/${projectId}/budget`, data),
+  updateProjectBudget: (id, data) => api.put(`/projects/budget/${id}`, data),
+  deleteProjectBudget: (id) => api.delete(`/projects/budget/${id}`),
   trackProjectCost: (projectId, data) => api.post(`/projects/${projectId}/costs`, data),
+  updateProjectCost: (id, data) => api.put(`/projects/costs/${id}`, data),
+  deleteProjectCost: (id) => api.delete(`/projects/costs/${id}`),
   getProjectCosts: (projectId, params) => api.get(`/projects/${projectId}/costs`, { params }),
   getBudgetVsActual: (projectId) => api.get(`/projects/${projectId}/budget-vs-actual`),
   getProfitabilityReport: (projectId) => api.get(`/projects/${projectId}/profitability`),
@@ -252,9 +286,12 @@ export const apiService = {
   updateClient: (id, data) => api.put(`/clients/${id}`, data),
   getBillingRates: (params) => api.get("/billing/rates", { params }),
   createBillingRate: (data) => api.post("/billing/rates", data),
+  updateBillingRate: (id, data) => api.put(`/billing/rates/${id}`, data),
+  deleteBillingRate: (id) => api.delete(`/billing/rates/${id}`),
   generateInvoice: (data) => api.post("/invoices/generate", data),
   getInvoices: (params) => api.get("/invoices", { params }),
   getInvoiceDetails: (id) => api.get(`/invoices/${id}`),
+  updateInvoice: (id, data) => api.put(`/invoices/${id}`, data),
   recordPayment: (invoiceId, data) => api.post(`/invoices/${invoiceId}/payments`, data),
 
   // Productivity
@@ -279,6 +316,10 @@ export const apiService = {
   generateAndSendReport: (scheduleId) => api.post(`/reports/send/${scheduleId}`),
   generateReport: (params) => api.get("/reports/generate", { params }),
   sendReport: (data) => api.post("/reports/generate", data),
+
+  // App Settings
+  getAppSettings: () => api.get("/settings/app-settings"),
+  updateAppSettings: (data) => api.put("/settings/app-settings", data),
 };
 
 export default api;

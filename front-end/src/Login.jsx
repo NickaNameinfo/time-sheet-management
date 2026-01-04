@@ -20,7 +20,26 @@ function Login() {
   const Submit = async (data) => {
     setError("");
     setLoading(true);
-    const result = await login(data, "admin");
+    
+    // Try admin login first
+    let result = await login(data, "admin");
+    
+    // If admin login fails, try other login types (HR, TeamLead, Employee)
+    if (!result.success) {
+      console.log("Admin login failed, trying HR login...");
+      result = await login(data, "hr");
+    }
+    
+    if (!result.success) {
+      console.log("HR login failed, trying TeamLead login...");
+      result = await login(data, "teamLead");
+    }
+    
+    if (!result.success) {
+      console.log("TeamLead login failed, trying Employee login...");
+      result = await login(data, "employee");
+    }
+    
     setLoading(false);
 
     if (!result.success) {

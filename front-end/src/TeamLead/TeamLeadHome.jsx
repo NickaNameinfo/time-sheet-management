@@ -8,11 +8,23 @@ import {
   Button,
   IconButton,
   Tooltip,
+  Chip,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Collapse,
 } from "@mui/material";
 import {
   Folder,
   CheckCircle,
   Refresh,
+  ExpandMore,
+  ExpandLess,
+  Assignment,
 } from "@mui/icons-material";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
@@ -26,6 +38,8 @@ function TeamLeadHome() {
   const [rowData, setRowData] = useState([]);
   const [projectWorkHours, setProjectWorkHours] = React.useState(null);
   const [workDetails, setWorkDetails] = useState([]);
+  const [expandedProjects, setExpandedProjects] = useState({});
+  const [projectTimesheetData, setProjectTimesheetData] = useState({});
   const token = localStorage.getItem("token");
   axios.defaults.withCredentials = true;
 
@@ -55,6 +69,19 @@ function TeamLeadHome() {
   React.useEffect(() => {
     onGetWorkDetails();
   }, []);
+
+  React.useEffect(() => {
+    // Group work details by project name for timesheet display
+    const grouped = {};
+    workDetails.forEach((work) => {
+      const projectName = work.projectName;
+      if (!grouped[projectName]) {
+        grouped[projectName] = [];
+      }
+      grouped[projectName].push(work);
+    });
+    setProjectTimesheetData(grouped);
+  }, [workDetails]);
 
   React.useEffect(() => {
     const projectData = workDetails.reduce((acc, entry) => {
@@ -104,6 +131,67 @@ function TeamLeadHome() {
       { field: "targetDate", minWidth: 170 },
       { field: "taskJobNo", minWidth: 170 },
       {
+        field: "timesheetCount",
+        headerName: "Timesheet Entries",
+        minWidth: 150,
+        cellRenderer: (params) => {
+          const projectName = params.data.projectName;
+          const timesheets = projectTimesheetData[projectName] || [];
+          const totalHours = timesheets.reduce((sum, ts) => sum + (parseFloat(ts.totalHours) || 0), 0);
+          return (
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+              <Chip 
+                label={`${timesheets.length} entries`} 
+                size="small" 
+                color="primary" 
+                variant="outlined"
+              />
+              <Typography variant="caption" color="text.secondary">
+                {totalHours.toFixed(2)} hrs total
+              </Typography>
+            </Box>
+          );
+        },
+      },
+      {
+        field: "viewTimesheets",
+        headerName: "View Details",
+        minWidth: 120,
+        filter: false,
+        sortable: false,
+        cellRenderer: (params) => {
+          const projectName = params.data.projectName;
+          const timesheets = projectTimesheetData[projectName] || [];
+          const isExpanded = expandedProjects[params.data.id];
+          
+          return (
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <Tooltip title={isExpanded ? "Hide Timesheet Details" : "Show Timesheet Details"}>
+                <IconButton
+                  size="small"
+                  color="primary"
+                  onClick={() => {
+                    setExpandedProjects(prev => ({
+                      ...prev,
+                      [params.data.id]: !prev[params.data.id]
+                    }));
+                  }}
+                  disabled={timesheets.length === 0}
+                  sx={{
+                    "&:hover": {
+                      bgcolor: "primary.light",
+                      color: "white",
+                    },
+                  }}
+                >
+                  {isExpanded ? <ExpandLess /> : <ExpandMore />}
+                </IconButton>
+              </Tooltip>
+            </Box>
+          );
+        },
+      },
+      {
         headerName: "Action",
         pinned: "right",
         minWidth: 120,
@@ -132,7 +220,7 @@ function TeamLeadHome() {
         ),
       },
     ],
-    []
+    [projectTimesheetData, expandedProjects]
   );
 
   const autoGroupColumnDef = useMemo(
@@ -242,6 +330,14 @@ function TeamLeadHome() {
             </Typography>
             <Typography variant="body2" color="text.secondary">
               View and manage projects assigned to your team
+              {rowData.length > 0 && (
+                <Chip 
+                  label={`${rowData.length} Projects Involved`} 
+                  size="small" 
+                  color="primary" 
+                  sx={{ ml: 2 }}
+                />
+              )}
             </Typography>
           </Box>
           <Button
@@ -276,13 +372,95 @@ function TeamLeadHome() {
                 rowGroupPanelShow={"always"}
                 pivotPanelShow={"always"}
                 pagination={true}
+                paginationPageSize={20}
                 onGridReady={onGridReady}
                 onSelectionChanged={onSelectionChanged}
+                getRowId={(params) => params.data.id}
               />
             </div>
           </Box>
         </CardContent>
       </Card>
+
+      {/* Timesheet Details for Expanded Projects */}
+      {rowData.map((project) => {
+        if (!expandedProjects[project.id]) return null;
+        const timesheets = projectTimesheetData[project.projectName] || [];
+        
+        return (
+          <Card key={project.id} sx={{ mt: 2, borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
+            <CardContent>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+                <Assignment color="primary" />
+                <Typography variant="h6" fontWeight="bold">
+                  Timesheet Details - {project.projectName}
+                </Typography>
+                <Chip 
+                  label={`${timesheets.length} entries`} 
+                  size="small" 
+                  color="primary"
+                />
+              </Box>
+              {timesheets.length > 0 ? (
+                <TableContainer component={Paper} sx={{ maxHeight: 400 }}>
+                  <Table size="small" stickyHeader>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell><strong>Employee</strong></TableCell>
+                        <TableCell><strong>Week</strong></TableCell>
+                        <TableCell><strong>Reference No</strong></TableCell>
+                        <TableCell><strong>Total Hours</strong></TableCell>
+                        <TableCell><strong>Status</strong></TableCell>
+                        <TableCell><strong>Sent Date</strong></TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {timesheets.map((ts, idx) => (
+                        <TableRow key={idx} hover>
+                          <TableCell>{ts.employeeName || "N/A"}</TableCell>
+                          <TableCell>Week {ts.weekNumber || "N/A"}</TableCell>
+                          <TableCell>{ts.referenceNo || "N/A"}</TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={ts.totalHours || "0"} 
+                              size="small" 
+                              color="info"
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={ts.status || "pending"}
+                              size="small"
+                              color={
+                                ts.status === "approved"
+                                  ? "success"
+                                  : ts.status === "rejected"
+                                  ? "error"
+                                  : "warning"
+                              }
+                              variant={ts.status === "approved" ? "filled" : "outlined"}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            {ts.sentDate
+                              ? new Date(ts.sentDate).toLocaleDateString()
+                              : "N/A"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              ) : (
+                <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
+                  No timesheet entries found for this project.
+                </Typography>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
     </Box>
   );
 }

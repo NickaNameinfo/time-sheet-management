@@ -132,14 +132,32 @@ const EmployeeHome = () => {
           clockInTime: clockInTime,
           status: 'active',
         });
-        // Calculate initial hours immediately if clocked in using UTC
+        // Calculate initial hours immediately if clocked in
         if (clockInTime) {
-          const clockInDate = new Date(clockInTime);
-          const nowUtc = new Date();
-          // Calculate difference in UTC milliseconds
-          const diffMs = Math.max(0, nowUtc.getTime() - clockInDate.getTime());
+          // Parse clock-in time - handle both UTC ISO strings and MySQL DATETIME format
+          let clockInDate;
+          if (typeof clockInTime === 'string') {
+            // If it's an ISO string with 'Z' or timezone, parse directly
+            if (clockInTime.includes('T') && (clockInTime.includes('Z') || clockInTime.includes('+') || clockInTime.includes('-'))) {
+              clockInDate = new Date(clockInTime);
+            } else {
+              // MySQL DATETIME format (YYYY-MM-DD HH:MM:SS) - backend stores as UTC
+              // Convert to ISO format with UTC indicator
+              const mysqlDateTime = clockInTime.replace(' ', 'T');
+              clockInDate = new Date(mysqlDateTime + 'Z');
+            }
+          } else {
+            clockInDate = new Date(clockInTime);
+          }
+          
+          // Get current time (local time)
+          const now = new Date();
+          
+          // Calculate difference in milliseconds
+          const diffMs = Math.max(0, now.getTime() - clockInDate.getTime());
           const totalSeconds = Math.floor(diffMs / 1000);
-          const hours = totalSeconds / 3600.0; // Use seconds for accurate calculation
+          const hours = totalSeconds / 3600.0;
+          
           setTodayHours(hours);
           setTodayTimeFormatted(formatTime(totalSeconds));
         }
@@ -201,14 +219,32 @@ const EmployeeHome = () => {
   // Update today's hours every second if clocked in (real-time timer)
   useEffect(() => {
     if (todayClockStatus?.status === 'active' && todayClockStatus?.clockInTime) {
-      // Calculate immediately using UTC for accuracy
+      // Calculate immediately for accuracy
       const calculateHours = () => {
-        const clockInDate = new Date(todayClockStatus.clockInTime);
-        const nowUtc = new Date();
-        // Calculate difference in UTC milliseconds
-        const diffMs = Math.max(0, nowUtc.getTime() - clockInDate.getTime());
+        // Parse clock-in time - handle both UTC ISO strings and MySQL DATETIME format
+        let clockInDate;
+        const clockInTime = todayClockStatus.clockInTime;
+        if (typeof clockInTime === 'string') {
+          // If it's an ISO string with 'Z' or timezone, parse directly
+          if (clockInTime.includes('T') && (clockInTime.includes('Z') || clockInTime.includes('+') || clockInTime.includes('-'))) {
+            clockInDate = new Date(clockInTime);
+          } else {
+            // MySQL DATETIME format (YYYY-MM-DD HH:MM:SS) - backend stores as UTC
+            // Convert to ISO format with UTC indicator
+            const mysqlDateTime = clockInTime.replace(' ', 'T');
+            clockInDate = new Date(mysqlDateTime + 'Z');
+          }
+        } else {
+          clockInDate = new Date(clockInTime);
+        }
+        
+        // Get current time (local time)
+        const now = new Date();
+        
+        // Calculate difference in milliseconds
+        const diffMs = Math.max(0, now.getTime() - clockInDate.getTime());
         const totalSeconds = Math.floor(diffMs / 1000);
-        const hours = totalSeconds / 3600.0; // Use seconds for accurate calculation
+        const hours = totalSeconds / 3600.0;
         
         setTodayHours(hours);
         setTodayTimeFormatted(formatTime(totalSeconds));
@@ -247,10 +283,27 @@ const EmployeeHome = () => {
     }
   }, [todayClockStatus, formatTime, todayHours]);
 
-  // Fetch projects and area of work for clock-in form
+  // Fetch assigned projects from project plans and regular projects
+  const { data: assignedProjectsFromPlans, loading: assignedProjectsLoading } = useApi(
+    () => {
+      if (!user?.id) return Promise.resolve({ data: { Status: "Success", Result: [] } });
+      return apiService.getEmployeeAssignedProjects({ employee_id: user.id });
+    },
+    [user?.id],
+    !!user?.id
+  );
+  
   const { data: projects } = useApi(apiService.getProjects);
   const { data: areaOfWork } = useApi(apiService.getAreaOfWork);
 
+  // Process assigned projects from project plans
+  const assignedProjectsList = useMemo(() => {
+    if (!assignedProjectsFromPlans) return [];
+    if (Array.isArray(assignedProjectsFromPlans)) return assignedProjectsFromPlans;
+    return assignedProjectsFromPlans?.Result || assignedProjectsFromPlans?.data?.Result || [];
+  }, [assignedProjectsFromPlans]);
+
+  // Process regular projects list
   const projectsList = useMemo(() => {
     if (!projects) return [];
     if (Array.isArray(projects)) return projects;
@@ -581,17 +634,22 @@ const EmployeeHome = () => {
     // Project and reference number are now optional - all users can clock in
     // Get project details if project or referenceNo is provided
     // Match the logic from TimeManagement.jsx - find by referenceNo first, then by projectName
+    // Prefer assigned projects from plans, then fallback to regular projects
     let projectDetails = {};
     let selectedProject = null;
     
     if (clockInData.referenceNo) {
-      // Find by referenceNo (like TimeManagement.jsx does)
-      selectedProject = projectsList.find(
+      // Find by referenceNo in assigned projects first, then regular projects
+      selectedProject = assignedProjectsList.find(
+        (p) => p.referenceNo === clockInData.referenceNo
+      ) || projectsList.find(
         (p) => p.referenceNo === clockInData.referenceNo
       );
     } else if (clockInData.projectName) {
       // Fallback to projectName
-      selectedProject = projectsList.find(
+      selectedProject = assignedProjectsList.find(
+        (p) => p.projectName === clockInData.projectName
+      ) || projectsList.find(
         (p) => p.projectName === clockInData.projectName
       );
     }
@@ -605,7 +663,7 @@ const EmployeeHome = () => {
         variation: selectedProject.variation,
         subDivision: selectedProject.subDivision,
         subDivisionList: selectedProject.subDivision,
-        allotatedHours: selectedProject.allotatedHours,
+        allotatedHours: selectedProject.allotted_hours || selectedProject.allotatedHours, // Use allotted_hours from plan if available
         desciplineCode: selectedProject.desciplineCode,
         // Note: tlName will be extracted by backend from project.tlID or employee's team lead
       };
@@ -737,12 +795,22 @@ const EmployeeHome = () => {
                 )}
                 {todayClockStatus?.clockInTime && (
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                    Clock In: {new Date(todayClockStatus.clockInTime).toLocaleTimeString()}
+                    Clock In: {new Date(todayClockStatus.clockInTime).toLocaleTimeString('en-US', { 
+                      hour: '2-digit', 
+                      minute: '2-digit', 
+                      second: '2-digit',
+                      hour12: false 
+                    })}
                   </Typography>
                 )}
                 {todayClockStatus?.clockOutTime && (
                   <Typography variant="body2" color="text.secondary">
-                    Clock Out: {new Date(todayClockStatus.clockOutTime).toLocaleTimeString()}
+                    Clock Out: {new Date(todayClockStatus.clockOutTime).toLocaleTimeString('en-US', { 
+                      hour: '2-digit', 
+                      minute: '2-digit', 
+                      second: '2-digit',
+                      hour12: false 
+                    })}
                   </Typography>
                 )}
               </Box>
@@ -935,21 +1003,57 @@ const EmployeeHome = () => {
                 value={clockInData.projectName}
                 label="Project Name (Optional)"
                 onChange={(e) => {
-                  const selectedProject = projectsList.find(p => p.projectName === e.target.value);
+                  // Find in assigned projects first, then regular projects
+                  const selectedProject = assignedProjectsList.find(p => p.projectName === e.target.value) 
+                    || projectsList.find(p => p.projectName === e.target.value);
                   setClockInData({
                     ...clockInData,
                     projectName: e.target.value,
                     referenceNo: selectedProject?.referenceNo || clockInData.referenceNo,
                   });
                 }}
+                disabled={assignedProjectsLoading}
               >
                 <MenuItem value="">None</MenuItem>
-                {projectsList.map((project) => (
-                  <MenuItem key={project.id} value={project.projectName}>
-                    {project.projectName}
-                  </MenuItem>
-                ))}
+                {assignedProjectsList.length > 0 ? (
+                  // Show only assigned projects from plans with allotted hours
+                  assignedProjectsList.map((project) => (
+                    <MenuItem key={project.project_id || project.id} value={project.projectName}>
+                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                        <Typography variant="body2">{project.projectName}</Typography>
+                        {project.allotted_hours && (
+                          <Chip 
+                            label={`${project.allotted_hours}h`} 
+                            size="small" 
+                            color="primary" 
+                            variant="outlined"
+                            sx={{ ml: 1, fontSize: '0.7rem' }}
+                          />
+                        )}
+                      </Box>
+                    </MenuItem>
+                  ))
+                ) : (
+                  // Show message when no assigned projects
+                  !assignedProjectsLoading && (
+                    <MenuItem value="" disabled>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                        No assigned projects from project plans
+                      </Typography>
+                    </MenuItem>
+                  )
+                )}
               </Select>
+              {assignedProjectsList.length > 0 && (
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                  Showing assigned projects from project plans
+                </Typography>
+              )}
+              {assignedProjectsList.length === 0 && !assignedProjectsLoading && (
+                <Typography variant="caption" color="warning.main" sx={{ mt: 0.5 }}>
+                  No projects assigned in project plans. Please contact your manager.
+                </Typography>
+              )}
             </FormControl>
             <TextField
               label="Reference Number (Optional)"

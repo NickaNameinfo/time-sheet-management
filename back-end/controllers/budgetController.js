@@ -197,6 +197,126 @@ export const getBudgetVsActual = asyncHandler(async (req, res) => {
   });
 });
 
+// Update Project Budget by ID
+export const updateProjectBudget = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { budgetAmount, budgetHours, currency, budgetType, startDate, endDate } = req.body;
+
+  if (!budgetAmount || !budgetHours) {
+    return sendError(res, "budgetAmount and budgetHours are required", 400);
+  }
+
+  // Check if budget exists
+  const checkSql = "SELECT id FROM project_budgets WHERE id = ?";
+  const existing = await query(checkSql, [id]);
+
+  if (existing.length === 0) {
+    return sendError(res, "Budget not found", 404);
+  }
+
+  const updateSql = `
+    UPDATE project_budgets SET
+      budget_amount = ?,
+      budget_hours = ?,
+      currency = ?,
+      budget_type = ?,
+      start_date = ?,
+      end_date = ?,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `;
+  await query(updateSql, [
+    budgetAmount,
+    budgetHours,
+    currency || "AED",
+    budgetType || "total",
+    startDate,
+    endDate,
+    id,
+  ]);
+
+  return sendSuccess(res, null, "Budget updated successfully");
+});
+
+// Delete Project Budget
+export const deleteProjectBudget = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const checkSql = "SELECT id FROM project_budgets WHERE id = ?";
+  const existing = await query(checkSql, [id]);
+
+  if (existing.length === 0) {
+    return sendError(res, "Budget not found", 404);
+  }
+
+  const deleteSql = "DELETE FROM project_budgets WHERE id = ?";
+  await query(deleteSql, [id]);
+
+  return sendSuccess(res, null, "Budget deleted successfully");
+});
+
+// Update Project Cost
+export const updateProjectCost = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { costDate, employeeCost, overheadCost, materialCost, hoursSpent } = req.body;
+
+  if (!costDate) {
+    return sendError(res, "costDate is required", 400);
+  }
+
+  // Check if cost exists
+  const checkSql = "SELECT id FROM project_costs WHERE id = ?";
+  const existing = await query(checkSql, [id]);
+
+  if (existing.length === 0) {
+    return sendError(res, "Cost not found", 404);
+  }
+
+  const totalCost =
+    parseFloat(employeeCost || 0) +
+    parseFloat(overheadCost || 0) +
+    parseFloat(materialCost || 0);
+
+  const updateSql = `
+    UPDATE project_costs SET
+      cost_date = ?,
+      employee_cost = ?,
+      overhead_cost = ?,
+      material_cost = ?,
+      total_cost = ?,
+      hours_spent = ?
+    WHERE id = ?
+  `;
+  await query(updateSql, [
+    costDate,
+    employeeCost || 0,
+    overheadCost || 0,
+    materialCost || 0,
+    totalCost,
+    hoursSpent || 0,
+    id,
+  ]);
+
+  return sendSuccess(res, null, "Cost updated successfully");
+});
+
+// Delete Project Cost
+export const deleteProjectCost = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const checkSql = "SELECT id FROM project_costs WHERE id = ?";
+  const existing = await query(checkSql, [id]);
+
+  if (existing.length === 0) {
+    return sendError(res, "Cost not found", 404);
+  }
+
+  const deleteSql = "DELETE FROM project_costs WHERE id = ?";
+  await query(deleteSql, [id]);
+
+  return sendSuccess(res, null, "Cost deleted successfully");
+});
+
 // Get Profitability Report
 export const getProfitabilityReport = asyncHandler(async (req, res) => {
   const { projectId } = req.params;

@@ -7,6 +7,7 @@ import Dashboard from "./Admin/Dashboard";
 import Employee from "./Admin/Employee";
 import Leads from "./Admin/Leads";
 import Projects from "./Admin/Projects";
+import ProjectPlanning from "./Admin/ProjectPlanning";
 import Profile from "./Employee/Profile";
 import Home from "./Admin/Home";
 import AddEmployee from "./Admin/AddEmployee";
@@ -47,6 +48,10 @@ import { Discipline } from "./Admin/Discipline";
 import { Designation } from "./Admin/Designation";
 import { Areaofwork } from "./Admin/Areaofwork";
 import { Variations } from "./Admin/Variations";
+import { Roles } from "./Admin/Roles";
+import MenuPermissions from "./Admin/Settings/MenuPermissions";
+import OvertimeRules from "./Admin/Settings/OvertimeRules";
+import AppSettings from "./Admin/Settings/AppSettings";
 import CompOff from "./Employee/CompOff";
 import CompOffLIst from "./Admin/compOffLIst";
 import ConsolidatedReport from "./Admin/Reports/ConsolidatedReport";
@@ -84,9 +89,14 @@ function App() {
           <Route path="/Dashboard/Areaofwork" element={<Areaofwork />}></Route>
           <Route path="/Dashboard/Variations" element={<Variations />}></Route>
           <Route path="/Dashboard/Designation" element={<Designation />}></Route>
+          <Route path="/Dashboard/Roles" element={<Roles />}></Route>
+          <Route path="/Dashboard/Settings/MenuPermissions" element={<MenuPermissions />}></Route>
+          <Route path="/Dashboard/Settings/OvertimeRules" element={<OvertimeRules />}></Route>
+          <Route path="/Dashboard/Settings/AppSettings" element={<AppSettings />}></Route>
           <Route path="/Dashboard/lead" element={<Leads />}></Route>
           <Route path="/Dashboard/hr" element={<Hr />}></Route>
           <Route path="/Dashboard/projects" element={<Projects />}></Route>
+          <Route path="/Dashboard/project-planning" element={<ProjectPlanning />}></Route>
           <Route path="/Dashboard/leaves" element={<Leaves />}></Route>
           <Route path="/Dashboard/CompOffList" element={<CompOffLIst />}></Route>
           <Route path="/Dashboard/profile" element={<Profile />}></Route>

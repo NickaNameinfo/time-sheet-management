@@ -56,14 +56,23 @@ const ProductivityDashboard = () => {
 
   const { data: employeesData } = useApi(apiService.getEmployees);
   const { data: metricsData, loading: metricsLoading, refetch: refetchMetrics } = useApi(
-    () =>
-      apiService.getProductivityMetrics({
-        employeeId: selectedEmployee,
+    () => {
+      const params = {
         startDate: startDate.format("YYYY-MM-DD"),
         endDate: endDate.format("YYYY-MM-DD"),
-      }),
+      };
+      // Only include employeeId if a specific employee is selected (not empty string)
+      if (selectedEmployee && selectedEmployee !== "" && selectedEmployee !== "undefined" && selectedEmployee !== "null") {
+        params.employeeId = selectedEmployee;
+      }
+      // Filter out any undefined/null/empty values
+      const cleanParams = Object.fromEntries(
+        Object.entries(params).filter(([_, value]) => value != null && value !== "" && value !== "undefined" && value !== "null")
+      );
+      return apiService.getProductivityMetrics(cleanParams);
+    },
     [selectedEmployee, startDate, endDate],
-    false
+    true
   );
 
   const { data: teamProductivityData, loading: teamLoading, refetch: refetchTeam } = useApi(
@@ -78,11 +87,14 @@ const ProductivityDashboard = () => {
   );
 
   const { data: trendsData, loading: trendsLoading } = useApi(
-    () =>
-      apiService.getProductivityTrends({
-        employeeId: selectedEmployee,
-        period,
-      }),
+    () => {
+      const params = { period };
+      // Only include employeeId if a specific employee is selected
+      if (selectedEmployee && selectedEmployee !== "") {
+        params.employeeId = selectedEmployee;
+      }
+      return apiService.getProductivityTrends(params);
+    },
     [selectedEmployee, period],
     false
   );
@@ -111,7 +123,7 @@ const ProductivityDashboard = () => {
   );
 
   const handleCalculate = async () => {
-    if (!selectedEmployee) {
+    if (!selectedEmployee || selectedEmployee === "") {
       setSnackbar({
         open: true,
         message: "Please select an employee",

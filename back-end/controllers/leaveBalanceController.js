@@ -200,3 +200,59 @@ export const getLeaveDocuments = asyncHandler(async (req, res) => {
   return sendSuccess(res, results);
 });
 
+// Update Leave Balance
+export const updateLeaveBalance = asyncHandler(async (req, res) => {
+  const { employeeId, leaveType, balance, accrued, used, year } = req.body;
+
+  if (!employeeId || !leaveType) {
+    return sendError(res, "employeeId and leaveType are required", 400);
+  }
+
+  const currentYear = year || new Date().getFullYear();
+
+  // Check if balance exists
+  const checkSql = `
+    SELECT id FROM leave_balances 
+    WHERE employee_id = ? AND leave_type = ? AND year = ?
+  `;
+  const existing = await query(checkSql, [employeeId, leaveType, currentYear]);
+
+  if (existing.length === 0) {
+    return sendError(res, "Leave balance not found. Please initialize it first.", 404);
+  }
+
+  // Build update query dynamically based on provided fields
+  const updateFields = [];
+  const updateValues = [];
+
+  if (balance !== undefined) {
+    updateFields.push("balance = ?");
+    updateValues.push(balance);
+  }
+  if (accrued !== undefined) {
+    updateFields.push("accrued = ?");
+    updateValues.push(accrued);
+  }
+  if (used !== undefined) {
+    updateFields.push("used = ?");
+    updateValues.push(used);
+  }
+
+  if (updateFields.length === 0) {
+    return sendError(res, "At least one field (balance, accrued, or used) must be provided", 400);
+  }
+
+  // Add WHERE clause values
+  updateValues.push(employeeId, leaveType, currentYear);
+
+  const updateSql = `
+    UPDATE leave_balances SET
+      ${updateFields.join(", ")}
+    WHERE employee_id = ? AND leave_type = ? AND year = ?
+  `;
+  
+  await query(updateSql, updateValues);
+
+  return sendSuccess(res, null, "Leave balance updated successfully");
+});
+

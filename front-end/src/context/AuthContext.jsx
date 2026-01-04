@@ -78,43 +78,79 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (loginData, loginType = "employee") => {
     try {
-      let response = await apiService.login(loginData)
-      if (response.data.Result || response.data.token) {
-        const token = response.data.Result.tokensss || response.data.Result.token;
-        console.log(token);
-        localStorage.setItem("token", token);
+      // Call appropriate login API based on login type
+      let response;
+      if (loginType === "hr") {
+        response = await apiService.hrLogin(loginData);
+      } else if (loginType === "teamLead" || loginType === "tl") {
+        response = await apiService.teamLeadLogin(loginData);
+      } else if (loginType === "admin") {
+        response = await apiService.adminLogin(loginData);
+      } else {
+        response = await apiService.login(loginData);
+      }
 
-        // Get user details
-        const dashboardResponse = await apiService.dashboard(token);
-        // Handle both response structures: response.data.Result or response.data directly
-        const apiRespone = dashboardResponse.data.Result || dashboardResponse.data;
-        if (apiRespone !== null && apiRespone !== undefined) {
-          setUser({
-            id: apiRespone.id,
-            userName: apiRespone.userName,
-            employeeName: apiRespone.employeeName,
-            employeeId: apiRespone.employeeId,
-            role: apiRespone.role,
-            tlName: apiRespone.tlName,
-            hrName: apiRespone.hrName,
-            designation: apiRespone.designation,
-            discipline: apiRespone.discipline,
-            dateOfJoining: apiRespone.dateOfJoining,
-          });
-          // Normalize roles - split by comma, trim whitespace, filter empty
-          const roleString = apiRespone.role || "";
-          const roleArray = roleString.split(",")
+      // Extract token from response
+      const token = response.data?.Result?.token || 
+                    response.data?.Result?.tokensss || 
+                    response.data?.token || 
+                    response.data?.tokensss;
+      
+      if (!token) {
+        return {
+          success: false,
+          error: response.data?.Error || "Login failed - no token received",
+        };
+      }
+
+      localStorage.setItem("token", token);
+
+      // Get user details from dashboard
+      const dashboardResponse = await apiService.dashboard(token);
+      const apiRespone = dashboardResponse.data?.Result || dashboardResponse.data;
+      
+      if (apiRespone !== null && apiRespone !== undefined) {
+        setUser({
+          id: apiRespone.id,
+          userName: apiRespone.userName,
+          employeeName: apiRespone.employeeName,
+          employeeId: apiRespone.employeeId,
+          role: apiRespone.role,
+          tlName: apiRespone.tlName,
+          hrName: apiRespone.hrName,
+          designation: apiRespone.designation,
+          discipline: apiRespone.discipline,
+          dateOfJoining: apiRespone.dateOfJoining,
+        });
+        
+        // Normalize roles - handle both string and array formats
+        let roleArray = [];
+        if (Array.isArray(apiRespone.role)) {
+          roleArray = apiRespone.role.map(role => role?.trim()).filter(role => role.length > 0);
+        } else if (typeof apiRespone.role === 'string') {
+          roleArray = apiRespone.role.split(",")
             .map(role => role.trim())
             .filter(role => role.length > 0);
-          setRoles(roleArray);
-          setIsAuthenticated(true);
-          return { success: true };
         }
+        
+        // Normalize role case: convert "hr" to "HR", "tl" to "TL", etc.
+        roleArray = roleArray.map(role => {
+          const normalized = role.toLowerCase();
+          if (normalized === 'hr') return 'HR';
+          if (normalized === 'tl' || normalized === 'teamlead') return 'TL';
+          if (normalized === 'admin') return 'Admin';
+          if (normalized === 'employee') return 'Employee';
+          return role; // Keep original if not recognized
+        });
+        
+        setRoles(roleArray);
+        setIsAuthenticated(true);
+        return { success: true };
       }
 
       return {
         success: false,
-        error: response.data.Error || "Login failed",
+        error: response.data?.Error || "Login failed",
       };
     } catch (error) {
       return {

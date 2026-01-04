@@ -65,12 +65,23 @@ export const updateClient = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const updateData = req.body;
 
+  // Map camelCase to snake_case for database columns
+  const fieldMapping = {
+    clientName: "client_name",
+    contactPerson: "contact_person",
+    paymentTerms: "payment_terms",
+    taxId: "tax_id",
+    isActive: "is_active",
+  };
+
   const fields = [];
   const values = [];
 
   Object.keys(updateData).forEach((key) => {
     if (updateData[key] !== undefined) {
-      fields.push(`${key} = ?`);
+      // Use mapped field name if exists, otherwise use key as-is
+      const dbField = fieldMapping[key] || key;
+      fields.push(`${dbField} = ?`);
       values.push(updateData[key]);
     }
   });
@@ -152,9 +163,68 @@ export const createBillingRate = asyncHandler(async (req, res) => {
   return sendSuccess(res, null, "Billing rate created successfully");
 });
 
+// Update Billing Rate
+export const updateBillingRate = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const updateData = req.body;
+
+  // Map camelCase to snake_case for database columns
+  const fieldMapping = {
+    employeeId: "employee_id",
+    designation: "designation",
+    disciplineCode: "discipline_code",
+    projectId: "project_id",
+    hourlyRate: "hourly_rate",
+    otRateMultiplier: "ot_rate_multiplier",
+    effectiveDate: "effective_date",
+    isActive: "is_active",
+  };
+
+  const fields = [];
+  const values = [];
+
+  Object.keys(updateData).forEach((key) => {
+    if (updateData[key] !== undefined && key !== "currency") {
+      // Use mapped field name if exists, otherwise use key as-is
+      const dbField = fieldMapping[key] || key;
+      fields.push(`${dbField} = ?`);
+      values.push(updateData[key]);
+    }
+  });
+
+  if (fields.length === 0) {
+    return sendError(res, "No fields to update", 400);
+  }
+
+  values.push(id);
+  const sql = `UPDATE billing_rates SET ${fields.join(", ")} WHERE id = ?`;
+  await query(sql, values);
+
+  return sendSuccess(res, null, "Billing rate updated successfully");
+});
+
+// Delete Billing Rate
+export const deleteBillingRate = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  // Check if billing rate exists
+  const checkSql = "SELECT id FROM billing_rates WHERE id = ?";
+  const existing = await query(checkSql, [id]);
+
+  if (existing.length === 0) {
+    return sendError(res, "Billing rate not found", 404);
+  }
+
+  // Delete the billing rate
+  const deleteSql = "DELETE FROM billing_rates WHERE id = ?";
+  await query(deleteSql, [id]);
+
+  return sendSuccess(res, null, "Billing rate deleted successfully");
+});
+
 // Generate Invoice
 export const generateInvoice = asyncHandler(async (req, res) => {
-  const { clientId, projectId, startDate, endDate, taxRate } = req.body;
+  const { clientId, projectId, startDate, endDate, taxRate, currency } = req.body;
 
   if (!clientId || !startDate || !endDate) {
     return sendError(res, "clientId, startDate, and endDate are required", 400);
@@ -246,12 +316,20 @@ export const generateInvoice = asyncHandler(async (req, res) => {
   const dueDate = new Date(invoiceDate);
   dueDate.setDate(dueDate.getDate() + 30);
 
+  // Get client currency if not provided
+  let invoiceCurrency = currency;
+  if (!invoiceCurrency) {
+    const clientSql = "SELECT currency FROM clients WHERE id = ?";
+    const clientResult = await query(clientSql, [clientId]);
+    invoiceCurrency = clientResult[0]?.currency || "AED";
+  }
+
   // Create invoice
   const invoiceSql = `
     INSERT INTO invoices (
       invoice_number, client_id, project_id, invoice_date, due_date,
-      subtotal, tax_rate, tax_amount, total_amount, status
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft')
+      subtotal, tax_rate, tax_amount, total_amount, status, currency
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?)
   `;
   const invoiceResult = await query(invoiceSql, [
     invoiceNumber,
@@ -263,6 +341,7 @@ export const generateInvoice = asyncHandler(async (req, res) => {
     taxRate || 0,
     taxAmount,
     totalAmount,
+    invoiceCurrency,
   ]);
 
   const invoiceId = invoiceResult.insertId;
@@ -370,6 +449,107 @@ export const getInvoiceDetails = asyncHandler(async (req, res) => {
     paidAmount: payments.reduce((sum, p) => sum + parseFloat(p.amount), 0),
     balance: parseFloat(invoices[0].total_amount) - payments.reduce((sum, p) => sum + parseFloat(p.amount), 0),
   });
+});
+
+// Update Invoice
+export const updateInvoice = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { 
+    clientId, 
+    projectId, 
+    invoiceDate, 
+    dueDate, 
+    subtotal, 
+    taxRate, 
+    taxAmount, 
+    totalAmount, 
+    currency,
+    status,
+    notes 
+  } = req.body;
+
+  // Check if invoice exists
+  const checkSql = "SELECT id FROM invoices WHERE id = ?";
+  const existing = await query(checkSql, [id]);
+  
+  if (existing.length === 0) {
+    return sendError(res, "Invoice not found", 404);
+  }
+
+  // Build update query dynamically
+  const updateFields = [];
+  const updateParams = [];
+
+  if (clientId !== undefined) {
+    updateFields.push("client_id = ?");
+    updateParams.push(clientId);
+  }
+  if (projectId !== undefined) {
+    updateFields.push("project_id = ?");
+    updateParams.push(projectId);
+  }
+  if (invoiceDate !== undefined) {
+    updateFields.push("invoice_date = ?");
+    updateParams.push(invoiceDate);
+  }
+  if (dueDate !== undefined) {
+    updateFields.push("due_date = ?");
+    updateParams.push(dueDate);
+  }
+  if (subtotal !== undefined) {
+    updateFields.push("subtotal = ?");
+    updateParams.push(subtotal);
+  }
+  if (taxRate !== undefined) {
+    updateFields.push("tax_rate = ?");
+    updateParams.push(taxRate);
+  }
+  if (taxAmount !== undefined) {
+    updateFields.push("tax_amount = ?");
+    updateParams.push(taxAmount);
+  }
+  if (totalAmount !== undefined) {
+    updateFields.push("total_amount = ?");
+    updateParams.push(totalAmount);
+  }
+  if (currency !== undefined) {
+    updateFields.push("currency = ?");
+    updateParams.push(currency);
+  }
+  if (status !== undefined) {
+    updateFields.push("status = ?");
+    updateParams.push(status);
+  }
+  if (notes !== undefined) {
+    updateFields.push("notes = ?");
+    updateParams.push(notes);
+  }
+
+  if (updateFields.length === 0) {
+    return sendError(res, "No fields provided for update", 400);
+  }
+
+  updateParams.push(id);
+  const updateSql = `UPDATE invoices SET ${updateFields.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
+  await query(updateSql, updateParams);
+
+  // Get updated invoice
+  const invoiceSql = `
+    SELECT i.*, c.client_name, c.contact_person, c.email, c.phone, c.address, p.projectName
+    FROM invoices i
+    LEFT JOIN clients c ON i.client_id = c.id
+    LEFT JOIN project p ON i.project_id = p.id
+    WHERE i.id = ?
+  `;
+  const invoice = await query(invoiceSql, [id]);
+
+  const itemsSql = "SELECT * FROM invoice_items WHERE invoice_id = ?";
+  const items = await query(itemsSql, [id]);
+
+  return sendSuccess(res, {
+    ...invoice[0],
+    items,
+  }, "Invoice updated successfully");
 });
 
 // Record Payment

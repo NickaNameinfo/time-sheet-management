@@ -14,6 +14,16 @@ import {
   clockIn,
   clockOut,
 } from "../controllers/projectController.js";
+import {
+  createProjectPlan,
+  getProjectPlans,
+  getProjectPlanById,
+  updateProjectPlan,
+  assignEmployeesToPlan,
+  getProjectEmployees,
+  getEmployeeAssignedProjects,
+  deleteProjectPlan,
+} from "../controllers/projectPlanController.js";
 
 const router = express.Router();
 
@@ -30,6 +40,16 @@ router.get("/getBioDetails", getBioDetails);
 router.post("/filterTimeSheet", filterTimeSheet);
 router.post("/project/workDetails/clockIn", clockIn);
 router.post("/project/workDetails/clockOut", clockOut);
+
+// Project Plan Routes
+router.post("/project-plan/create", createProjectPlan);
+router.get("/project-plan", getProjectPlans);
+router.get("/project-plan/:id", getProjectPlanById);
+router.put("/project-plan/:id", updateProjectPlan);
+router.put("/project-plan/:id/assign-employees", assignEmployeesToPlan);
+router.get("/project/:project_id/employees", getProjectEmployees);
+router.get("/project-plan/employee/assigned", getEmployeeAssignedProjects);
+router.delete("/project-plan/:id", deleteProjectPlan);
 
 export default router;
 

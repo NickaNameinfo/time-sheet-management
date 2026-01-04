@@ -212,7 +212,7 @@ const generatePDFPayroll = async (res, data, startDate, endDate) => {
 
 // Export to Tally Format
 export const exportToTally = asyncHandler(async (req, res) => {
-  const { startDate, endDate } = req.query;
+  const { startDate, endDate, employeeId } = req.query;
 
   if (!startDate || !endDate) {
     return sendError(res, "startDate and endDate are required", 400);
@@ -220,7 +220,7 @@ export const exportToTally = asyncHandler(async (req, res) => {
 
   // Get payroll data
   // workdetails table uses userName to link to employee, not employeeNo
-  const payrollSql = `
+  let payrollSql = `
     SELECT 
       e.EMPID,
       e.employeeName,
@@ -236,15 +236,24 @@ export const exportToTally = asyncHandler(async (req, res) => {
       AND wd.status = 'approved'
     LEFT JOIN ot_records ot ON e.id = ot.employee_id 
       AND ot.attendance_date BETWEEN ? AND ? AND ot.approval_status = 'approved'
-    GROUP BY e.id, e.EMPID, e.employeeName
+    WHERE 1=1
   `;
-
-  const data = await query(payrollSql, [
+  
+  const params = [
     startDate, endDate,
     startDate, endDate,
     startDate, endDate,
     startDate, endDate
-  ]);
+  ];
+
+  if (employeeId) {
+    payrollSql += " AND (e.id = ? OR e.EMPID = ?)";
+    params.push(employeeId, employeeId);
+  }
+
+  payrollSql += " GROUP BY e.id, e.EMPID, e.employeeName";
+
+  const data = await query(payrollSql, params);
 
   // Generate Tally-compatible format (CSV)
   let csv = "Employee ID,Employee Name,Total Hours,OT Hours,OT Amount\n";
@@ -259,7 +268,7 @@ export const exportToTally = asyncHandler(async (req, res) => {
 
 // Export to QuickBooks Format
 export const exportToQuickBooks = asyncHandler(async (req, res) => {
-  const { startDate, endDate } = req.query;
+  const { startDate, endDate, employeeId } = req.query;
 
   if (!startDate || !endDate) {
     return sendError(res, "startDate and endDate are required", 400);
@@ -272,7 +281,7 @@ export const exportToQuickBooks = asyncHandler(async (req, res) => {
 
   // Get payroll data
   // workdetails table uses userName to link to employee, not employeeNo
-  const payrollData = await query(`
+  let payrollSql = `
     SELECT 
       e.EMPID,
       e.employeeName,
@@ -289,8 +298,19 @@ export const exportToQuickBooks = asyncHandler(async (req, res) => {
       AND ot.attendance_date BETWEEN ? AND ? AND ot.approval_status = 'approved'
     LEFT JOIN billing_rates br ON (br.employee_id = e.id OR br.designation = e.designation)
       AND br.is_active = TRUE
-    GROUP BY e.id
-  `, [startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate]);
+    WHERE 1=1
+  `;
+  
+  const params = [startDate, endDate, startDate, endDate, startDate, endDate, startDate, endDate];
+
+  if (employeeId) {
+    payrollSql += " AND (e.id = ? OR e.EMPID = ?)";
+    params.push(employeeId, employeeId);
+  }
+
+  payrollSql += " GROUP BY e.id";
+
+  const payrollData = await query(payrollSql, params);
 
   payrollData.forEach((row) => {
     const totalPay = parseFloat(row.total_pay || 0) + parseFloat(row.ot_pay || 0);

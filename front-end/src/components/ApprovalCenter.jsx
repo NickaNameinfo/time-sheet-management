@@ -32,6 +32,7 @@ import {
   Select,
   MenuItem,
   Grid,
+  TablePagination,
 } from "@mui/material";
 import {
   CheckCircle,
@@ -66,7 +67,13 @@ const ApprovalCenter = () => {
     status: "",
     startDate: null,
     endDate: null,
+    employeeName: "",
+    projectName: "",
   });
+
+  // Pagination for history
+  const [historyPage, setHistoryPage] = useState(0);
+  const [historyRowsPerPage, setHistoryRowsPerPage] = useState(25);
 
   const { data: pendingApprovals, loading: pendingLoading, refetch: refetchPending } = useApi(
     () => apiService.getPendingApprovals({ approverId: user?.id }),
@@ -74,19 +81,62 @@ const ApprovalCenter = () => {
   );
 
   const { data: approvalHistoryData, loading: historyLoading, refetch: refetchHistory } = useApi(
-    () => apiService.getApprovalHistory(historyFilters),
+    () => apiService.getApprovalHistory({
+      entityType: historyFilters.entityType,
+      status: historyFilters.status,
+      startDate: historyFilters.startDate,
+      endDate: historyFilters.endDate,
+    }),
     [historyFilters.entityType, historyFilters.status, historyFilters.startDate, historyFilters.endDate]
   );
 
-  // Parse approval history data
+  // Fetch employees and projects for filter dropdowns
+  const { data: employeesData } = useApi(() => apiService.getEmployees(), []);
+  const { data: projectsData } = useApi(() => apiService.getProjects(), []);
+
+  const employees = useMemo(() => {
+    if (!employeesData) return [];
+    const data = Array.isArray(employeesData) ? employeesData : employeesData?.Result || [];
+    return data.map(emp => emp.employeeName).filter(Boolean).sort();
+  }, [employeesData]);
+
+  const projects = useMemo(() => {
+    if (!projectsData) return [];
+    const data = Array.isArray(projectsData) ? projectsData : projectsData?.Result || [];
+    return data.map(proj => proj.projectName).filter(Boolean).sort();
+  }, [projectsData]);
+
+  // Parse and enrich approval history data with entity details
   const approvalHistory = useMemo(() => {
     if (!approvalHistoryData) return [];
     // Handle both array and object with Result property
+    let parsedData = [];
     if (Array.isArray(approvalHistoryData)) {
-      return approvalHistoryData;
+      parsedData = approvalHistoryData;
+    } else {
+      parsedData = approvalHistoryData?.Result || approvalHistoryData?.data?.Result || approvalHistoryData?.data || [];
     }
-    return approvalHistoryData?.Result || approvalHistoryData?.data?.Result || [];
-  }, [approvalHistoryData]);
+    
+    // Filter by employee name and project name if filters are set
+    let filtered = parsedData;
+    
+    if (historyFilters.employeeName) {
+      filtered = filtered.filter(record => {
+        const entityEmployee = record.entityEmployeeName || '';
+        return entityEmployee.toLowerCase().includes(historyFilters.employeeName.toLowerCase());
+      });
+    }
+    
+    if (historyFilters.projectName) {
+      filtered = filtered.filter(record => {
+        const project = record.entityProjectName || '';
+        return project.toLowerCase().includes(historyFilters.projectName.toLowerCase());
+      });
+    }
+    
+    console.log(`Approval history parsed: ${parsedData.length} records, filtered: ${filtered.length} records`);
+    return filtered;
+  }, [approvalHistoryData, historyFilters.employeeName, historyFilters.projectName]);
 
   const { mutate: approveEntity, loading: approving } = useMutation((data) =>
     apiService.approveEntity(data.entityType, data.entityId, {
@@ -123,9 +173,9 @@ const ApprovalCenter = () => {
     }
   };
 
-  const handleBulkApprove = async () => {
+  const handleBulkAction = async (status) => {
     if (selectedItems.length === 0) {
-      alert("Please select items to approve");
+      alert(`Please select items to ${status}`);
       return;
     }
 
@@ -138,20 +188,50 @@ const ApprovalCenter = () => {
       return acc;
     }, {});
 
-    // Approve each group
+    // Process each group
+    let allSuccess = true;
+    const errors = [];
+    const results = [];
+
     for (const [entityType, entityIds] of Object.entries(grouped)) {
-      await bulkApprove({
+      const result = await bulkApprove({
         entityType,
         entityIds,
+        status: status,
         approverId: user?.id || 1,
-        comments: "Bulk approved",
+        comments: `Bulk ${status}`,
       });
+
+      if (result.success) {
+        // Check if all items in the result were successful
+        const resultData = result.data?.Result || result.data || [];
+        const failedItems = resultData.filter(r => !r.success || r.status === "error");
+        if (failedItems.length > 0) {
+          allSuccess = false;
+          errors.push(`${entityType}: ${failedItems.length} item(s) failed`);
+        }
+        results.push(...resultData);
+      } else {
+        allSuccess = false;
+        errors.push(`${entityType}: ${result.error || `Failed to ${status}`}`);
+      }
     }
 
-    setSelectedItems([]);
-    refetchPending();
-    alert("Bulk approval completed");
+    if (allSuccess) {
+      setSelectedItems([]);
+      refetchPending();
+      refetchHistory();
+      alert(`Bulk ${status} completed successfully! ${selectedItems.length} item(s) ${status}.`);
+    } else {
+      alert(`Bulk ${status} completed with errors:\n${errors.join("\n")}`);
+      // Still refresh to show updated status
+      refetchPending();
+      refetchHistory();
+    }
   };
+
+  const handleBulkApprove = () => handleBulkAction("approved");
+  const handleBulkReject = () => handleBulkAction("rejected");
 
   const toggleSelectItem = (item) => {
     const exists = selectedItems.find(
@@ -206,19 +286,36 @@ const ApprovalCenter = () => {
               Refresh
             </Button>
             {selectedItems.length > 0 && (
-              <Button
-                variant="contained"
-                onClick={handleBulkApprove}
-                disabled={bulkApproving}
-                sx={{
-                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                  "&:hover": {
-                    background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
-                  },
-                }}
-              >
-                Bulk Approve ({selectedItems.length})
-              </Button>
+              <Stack direction="row" spacing={1}>
+                <Button
+                  variant="contained"
+                  onClick={handleBulkApprove}
+                  disabled={bulkApproving}
+                  color="success"
+                  sx={{
+                    background: "linear-gradient(135deg, #4caf50 0%, #2e7d32 100%)",
+                    "&:hover": {
+                      background: "linear-gradient(135deg, #43a047 0%, #1b5e20 100%)",
+                    },
+                  }}
+                >
+                  Bulk Approve ({selectedItems.length})
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={handleBulkReject}
+                  disabled={bulkApproving}
+                  color="error"
+                  sx={{
+                    background: "linear-gradient(135deg, #f44336 0%, #c62828 100%)",
+                    "&:hover": {
+                      background: "linear-gradient(135deg, #e53935 0%, #b71c1c 100%)",
+                    },
+                  }}
+                >
+                  Bulk Reject ({selectedItems.length})
+                </Button>
+              </Stack>
             )}
           </Stack>
         </Box>
@@ -231,6 +328,7 @@ const ApprovalCenter = () => {
           // Refresh history when switching to history tab
           if (newValue === 3) {
             refetchHistory();
+            setHistoryPage(0); // Reset pagination when switching to history tab
           }
         }}
         sx={{
@@ -556,11 +654,21 @@ const ApprovalCenter = () => {
           <CardContent>
             {/* Filters */}
             <Box sx={{ mb: 3 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-                <FilterList color="primary" />
-                <Typography variant="h6" fontWeight="bold">
-                  Filters
-                </Typography>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <FilterList color="primary" />
+                  <Typography variant="h6" fontWeight="bold">
+                    Filters
+                  </Typography>
+                </Box>
+                {approvalHistory?.length > 0 && (
+                  <Chip
+                    label={`Total Records: ${approvalHistory.length}`}
+                    color="primary"
+                    variant="outlined"
+                    sx={{ fontWeight: "bold" }}
+                  />
+                )}
               </Box>
               <Grid container spacing={2}>
                 <Grid item xs={12} md={3}>
@@ -639,6 +747,44 @@ const ApprovalCenter = () => {
                     />
                   </LocalizationProvider>
                 </Grid>
+                <Grid item xs={12} md={3}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Employee</InputLabel>
+                    <Select
+                      value={historyFilters.employeeName}
+                      label="Employee"
+                      onChange={(e) =>
+                        setHistoryFilters({ ...historyFilters, employeeName: e.target.value })
+                      }
+                    >
+                      <MenuItem value="">All Employees</MenuItem>
+                      {employees.map((emp) => (
+                        <MenuItem key={emp} value={emp}>
+                          {emp}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} md={3}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Project</InputLabel>
+                    <Select
+                      value={historyFilters.projectName}
+                      label="Project"
+                      onChange={(e) =>
+                        setHistoryFilters({ ...historyFilters, projectName: e.target.value })
+                      }
+                    >
+                      <MenuItem value="">All Projects</MenuItem>
+                      {projects.map((proj) => (
+                        <MenuItem key={proj} value={proj}>
+                          {proj}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
                 <Grid item xs={12}>
                   <Button
                     variant="outlined"
@@ -648,7 +794,10 @@ const ApprovalCenter = () => {
                         status: "",
                         startDate: null,
                         endDate: null,
+                        employeeName: "",
+                        projectName: "",
                       });
+                      setHistoryPage(0);
                     }}
                     size="small"
                   >
@@ -664,6 +813,8 @@ const ApprovalCenter = () => {
                   <TableRow sx={{ bgcolor: "primary.main" }}>
                     <TableCell sx={{ color: "white", fontWeight: "bold" }}>Type</TableCell>
                     <TableCell sx={{ color: "white", fontWeight: "bold" }}>Entity ID</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Employee</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Project</TableCell>
                     <TableCell sx={{ color: "white", fontWeight: "bold" }}>Approver</TableCell>
                     <TableCell sx={{ color: "white", fontWeight: "bold" }}>Level</TableCell>
                     <TableCell sx={{ color: "white", fontWeight: "bold" }}>Status</TableCell>
@@ -673,56 +824,75 @@ const ApprovalCenter = () => {
                 </TableHead>
                 <TableBody>
                   {approvalHistory?.length > 0 ? (
-                    approvalHistory.map((history) => (
-                      <TableRow key={history.id} hover>
-                        <TableCell>
-                          <Chip label={history.entity_type} size="small" variant="outlined" />
-                        </TableCell>
-                        <TableCell>{history.entity_id}</TableCell>
-                        <TableCell>
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                            <Person sx={{ fontSize: 16, color: "text.secondary" }} />
-                            {history.employeeName || `ID: ${history.approver_id}`}
-                          </Box>
-                        </TableCell>
-                        <TableCell>{history.approval_level}</TableCell>
-                        <TableCell>
-                          <Chip
-                            label={history.status}
-                            color={
-                              history.status === "approved"
-                                ? "success"
-                                : history.status === "rejected"
-                                ? "error"
-                                : "warning"
-                            }
-                            size="small"
-                            variant={history.status === "approved" ? "filled" : "outlined"}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          {history.created_at
-                            ? new Date(history.created_at).toLocaleString()
-                            : "N/A"}
-                        </TableCell>
-                        <TableCell>
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                              maxWidth: 200,
-                            }}
-                          >
-                            {history.comments || "N/A"}
-                          </Typography>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    approvalHistory
+                      .slice(historyPage * historyRowsPerPage, historyPage * historyRowsPerPage + historyRowsPerPage)
+                      .map((history) => (
+                        <TableRow key={history.id} hover>
+                          <TableCell>
+                            <Chip label={history.entity_type} size="small" variant="outlined" />
+                          </TableCell>
+                          <TableCell>{history.entity_id}</TableCell>
+                          <TableCell>
+                            {history.entityEmployeeName ? (
+                              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                <Person sx={{ fontSize: 16, color: "text.secondary" }} />
+                                {history.entityEmployeeName}
+                              </Box>
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">N/A</Typography>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {history.entityProjectName ? (
+                              <Chip label={history.entityProjectName} size="small" color="info" variant="outlined" />
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">N/A</Typography>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                              <Person sx={{ fontSize: 16, color: "text.secondary" }} />
+                              {history.employeeName || history.approver_name || `ID: ${history.approver_id}`}
+                            </Box>
+                          </TableCell>
+                          <TableCell>{history.approval_level}</TableCell>
+                          <TableCell>
+                            <Chip
+                              label={history.status}
+                              color={
+                                history.status === "approved"
+                                  ? "success"
+                                  : history.status === "rejected"
+                                  ? "error"
+                                  : "warning"
+                              }
+                              size="small"
+                              variant={history.status === "approved" ? "filled" : "outlined"}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            {history.created_at
+                              ? new Date(history.created_at).toLocaleString()
+                              : "N/A"}
+                          </TableCell>
+                          <TableCell>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                                maxWidth: 200,
+                              }}
+                            >
+                              {history.comments || "N/A"}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                      <TableCell colSpan={9} align="center" sx={{ py: 4 }}>
                         <Typography color="text.secondary">
                           {historyLoading ? "Loading..." : "No approval history found"}
                         </Typography>
@@ -731,6 +901,22 @@ const ApprovalCenter = () => {
                   )}
                 </TableBody>
               </Table>
+              {approvalHistory?.length > 0 && (
+                <TablePagination
+                  component="div"
+                  count={approvalHistory.length}
+                  page={historyPage}
+                  onPageChange={(event, newPage) => setHistoryPage(newPage)}
+                  rowsPerPage={historyRowsPerPage}
+                  onRowsPerPageChange={(event) => {
+                    setHistoryRowsPerPage(parseInt(event.target.value, 10));
+                    setHistoryPage(0);
+                  }}
+                  rowsPerPageOptions={[10, 25, 50, 100]}
+                  labelRowsPerPage="Rows per page:"
+                  labelDisplayedRows={({ from, to, count }) => `${from}-${to} of ${count !== -1 ? count : `more than ${to}`}`}
+                />
+              )}
             </TableContainer>
           </CardContent>
         </Card>

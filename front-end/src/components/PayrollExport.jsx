@@ -1,12 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { apiService } from "../services/api";
+import { useApi } from "../hooks/useApi";
 import {
   Box,
   Button,
   Card,
   CardContent,
   Typography,
-  TextField,
   MenuItem,
   Select,
   FormControl,
@@ -15,6 +15,13 @@ import {
   Stack,
   Grid,
   Divider,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
 } from "@mui/material";
 import {
   FileDownload,
@@ -36,10 +43,28 @@ const PayrollExport = () => {
   const [format, setFormat] = useState("excel");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [payrollData, setPayrollData] = useState(null);
+
+  // Fetch employees list
+  const { data: employeesData, loading: employeesLoading } = useApi(apiService.getEmployees);
+
+  // Process employees data
+  const employees = useMemo(() => {
+    if (!employeesData) return [];
+    if (Array.isArray(employeesData)) return employeesData;
+    return employeesData?.Result || employeesData?.data || [];
+  }, [employeesData]);
+
+  // Get selected employee name for filename
+  const selectedEmployee = useMemo(() => {
+    if (!employeeId) return null;
+    return employees.find(emp => emp.id === parseInt(employeeId) || emp.EMPID === employeeId);
+  }, [employeeId, employees]);
 
   const handleExport = async (exportType) => {
     setLoading(true);
     setError(null);
+    setPayrollData(null);
 
     try {
       const params = {
@@ -51,32 +76,88 @@ const PayrollExport = () => {
         params.employeeId = employeeId;
       }
 
+      // Generate filename with employee name if selected
+      const employeeName = selectedEmployee 
+        ? `_${(selectedEmployee.employeeName || selectedEmployee.userName || "").replace(/[^a-zA-Z0-9]/g, "_")}`
+        : "";
+      const baseFilename = `payroll_${exportType || format}_${startDate.format("YYYY-MM-DD")}_${endDate.format("YYYY-MM-DD")}${employeeName}`;
+
       let response;
       if (exportType === "tally") {
         response = await apiService.exportToTally(params);
-      } else if (exportType === "quickbooks") {
-        response = await apiService.exportToQuickBooks(params);
-      } else {
-        params.format = format;
-        response = await apiService.generatePayrollSummary(params);
-      }
-
-      // Handle file download
-      if (exportType === "tally" || exportType === "quickbooks" || format !== "json") {
-        const blob = new Blob([response.data]);
+        // Tally export is always a blob (CSV)
+        const blob = new Blob([response.data], { type: "text/csv" });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `payroll_${exportType || format}_${startDate.format("YYYY-MM-DD")}_${endDate.format("YYYY-MM-DD")}.${exportType === "tally" ? "csv" : exportType === "quickbooks" ? "iif" : format === "excel" ? "xlsx" : "pdf"}`;
+        a.download = `${baseFilename}.csv`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
+        alert("Tally export completed successfully!");
+        setLoading(false);
+        return;
+      } else if (exportType === "quickbooks") {
+        response = await apiService.exportToQuickBooks(params);
+        // QuickBooks export is always a blob (IIF)
+        const blob = new Blob([response.data], { type: "text/plain" });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${baseFilename}.iif`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        alert("QuickBooks export completed successfully!");
+        setLoading(false);
+        return;
+      } else {
+        // Generate Payroll Summary
+        params.format = format;
+        response = await apiService.generatePayrollSummary(params);
       }
 
-      alert("Export completed successfully!");
+      // Handle response based on format
+      if (format === "json") {
+        // Display JSON data in a table
+        let data = null;
+        if (response.data?.Status === "Success" && response.data.Result) {
+          data = response.data.Result;
+        } else if (response.data?.Result) {
+          data = response.data.Result;
+        } else if (Array.isArray(response.data)) {
+          data = response.data;
+        } else if (response.data) {
+          data = response.data;
+        }
+        
+        if (data && Array.isArray(data) && data.length > 0) {
+          setPayrollData(data);
+        } else {
+          setError("No payroll data found for the selected period");
+        }
+      } else if (format === "excel" || format === "pdf") {
+        // Handle file download for Excel/PDF
+        const blob = new Blob([response.data], { 
+          type: format === "excel" 
+            ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            : "application/pdf"
+        });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${baseFilename}.${format === "excel" ? "xlsx" : "pdf"}`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        alert("Export completed successfully!");
+      }
     } catch (err) {
-      setError(err.response?.data?.Error || err.message || "Export failed");
+      console.error("Export error:", err);
+      setError(err.response?.data?.Error || err.response?.data?.error || err.message || "Export failed");
     } finally {
       setLoading(false);
     }
@@ -139,15 +220,24 @@ const PayrollExport = () => {
               </LocalizationProvider>
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <TextField
-                label="Employee ID (optional)"
-                value={employeeId}
-                onChange={(e) => setEmployeeId(e.target.value)}
-                fullWidth
-                InputProps={{
-                  startAdornment: <Person sx={{ mr: 1, color: "text.secondary" }} />,
-                }}
-              />
+              <FormControl fullWidth>
+                <InputLabel>Employee (Optional)</InputLabel>
+                <Select
+                  value={employeeId}
+                  onChange={(e) => setEmployeeId(e.target.value)}
+                  label="Employee (Optional)"
+                  disabled={employeesLoading}
+                >
+                  <MenuItem value="">
+                    <em>All Employees</em>
+                  </MenuItem>
+                  {employees.map((employee) => (
+                    <MenuItem key={employee.id || employee.EMPID} value={employee.id || employee.EMPID}>
+                      {employee.employeeName || employee.userName} ({employee.EMPID || employee.id || "N/A"})
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
               <FormControl fullWidth>
@@ -198,12 +288,98 @@ const PayrollExport = () => {
             </Button>
           </Stack>
 
+          {selectedEmployee && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              <Typography variant="body2">
+                <strong>Selected Employee:</strong> {selectedEmployee.employeeName || selectedEmployee.userName} 
+                ({selectedEmployee.EMPID || selectedEmployee.id})
+              </Typography>
+            </Alert>
+          )}
           <Alert severity="info" icon={<Refresh />}>
             Payroll summary includes regular hours, OT hours, and calculated amounts based on
-            billing rates.
+            billing rates. {selectedEmployee ? "Export will be filtered for the selected employee." : "Leave employee unselected to export all employees."}
           </Alert>
         </CardContent>
       </Card>
+
+      {/* Display Payroll Data Table for JSON format */}
+      {payrollData && payrollData.length > 0 && (
+        <Card sx={{ mt: 3, borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
+          <CardContent>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+              <Typography variant="h6" fontWeight="bold">
+                Payroll Summary Data
+              </Typography>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => setPayrollData(null)}
+              >
+                Close
+              </Button>
+            </Box>
+            <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
+              <Table>
+                <TableHead>
+                  <TableRow sx={{ bgcolor: "primary.main" }}>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Employee ID</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Employee Name</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Designation</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }} align="right">Regular Hours</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }} align="right">OT Hours</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }} align="right">Total Hours</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }} align="right">Hourly Rate</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }} align="right">Regular Pay</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }} align="right">OT Pay</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }} align="right">Total Pay</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {payrollData.map((row, index) => (
+                    <TableRow key={index} hover>
+                      <TableCell>{row.employeeId || "N/A"}</TableCell>
+                      <TableCell>{row.employeeName || "N/A"}</TableCell>
+                      <TableCell>{row.designation || "N/A"}</TableCell>
+                      <TableCell align="right">{parseFloat(row.regularHours || 0).toFixed(2)}</TableCell>
+                      <TableCell align="right">{parseFloat(row.otHours || 0).toFixed(2)}</TableCell>
+                      <TableCell align="right">{parseFloat(row.totalHours || 0).toFixed(2)}</TableCell>
+                      <TableCell align="right">{parseFloat(row.hourlyRate || 0).toFixed(2)}</TableCell>
+                      <TableCell align="right">{parseFloat(row.regularPay || 0).toFixed(2)}</TableCell>
+                      <TableCell align="right">{parseFloat(row.otPay || 0).toFixed(2)}</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                        {parseFloat(row.totalPay || 0).toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow sx={{ bgcolor: "grey.100" }}>
+                    <TableCell colSpan={3} sx={{ fontWeight: "bold" }}>TOTAL</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                      {payrollData.reduce((sum, r) => sum + parseFloat(r.regularHours || 0), 0).toFixed(2)}
+                    </TableCell>
+                    <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                      {payrollData.reduce((sum, r) => sum + parseFloat(r.otHours || 0), 0).toFixed(2)}
+                    </TableCell>
+                    <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                      {payrollData.reduce((sum, r) => sum + parseFloat(r.totalHours || 0), 0).toFixed(2)}
+                    </TableCell>
+                    <TableCell align="right"></TableCell>
+                    <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                      {payrollData.reduce((sum, r) => sum + parseFloat(r.regularPay || 0), 0).toFixed(2)}
+                    </TableCell>
+                    <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                      {payrollData.reduce((sum, r) => sum + parseFloat(r.otPay || 0), 0).toFixed(2)}
+                    </TableCell>
+                    <TableCell align="right" sx={{ fontWeight: "bold", color: "success.main" }}>
+                      {payrollData.reduce((sum, r) => sum + parseFloat(r.totalPay || 0), 0).toFixed(2)}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
+      )}
     </Box>
   );
 };

@@ -20,6 +20,7 @@ import {
   Alert,
   CircularProgress,
   IconButton,
+  InputAdornment,
 } from "@mui/material";
 import {
   Person,
@@ -30,6 +31,8 @@ import {
   CloudUpload,
   ArrowBack,
   Save,
+  AttachMoney,
+  Description,
 } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
@@ -59,6 +62,11 @@ function AddEmployee({ from }) {
       discipline: "",
       designation: "",
       tempRole: "Employee",
+      salary: "",
+      father_name: "",
+      mother_name: "",
+      parent_contact: "",
+      parent_address: "",
     },
   });
 
@@ -67,6 +75,8 @@ function AddEmployee({ from }) {
   const [tempRole, setTempRole] = useState("Employee");
   const [employeeImage, setEmployeeImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  const [idProofFile, setIdProofFile] = useState(null);
+  const [idProofPreview, setIdProofPreview] = useState(null);
   const [error, setError] = useState("");
 
   const { data: disciplines, loading: disciplinesLoading } = useApi(
@@ -79,6 +89,31 @@ function AddEmployee({ from }) {
     [],
     true
   );
+  
+  const { data: roles, loading: rolesLoading } = useApi(
+    () => apiService.getRoles(),
+    [],
+    true
+  );
+  
+  // Set default role from settings when roles are loaded
+  useEffect(() => {
+    if (roles && !id) {
+      let rolesList = [];
+      if (Array.isArray(roles)) {
+        rolesList = roles;
+      } else if (roles.Result && Array.isArray(roles.Result)) {
+        rolesList = roles.Result;
+      }
+      
+      if (rolesList.length > 0) {
+        // Set to first role by display_order or first in list
+        const sortedRoles = [...rolesList].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+        setTempRole(sortedRoles[0].role_name);
+        setValue("tempRole", sortedRoles[0].role_name);
+      }
+    }
+  }, [roles, id, setValue]);
   
   // Only fetch employee data if id exists
   const { data: employeeData, loading: employeeLoading } = useApi(
@@ -110,11 +145,21 @@ function AddEmployee({ from }) {
         setValue("date", emp.date ? dayjs(emp.date) : null);
         setValue("relievingDate", emp.relievingDate ? dayjs(emp.relievingDate) : null);
         setValue("permanentDate", emp.permanentDate ? dayjs(emp.permanentDate) : null);
+        setValue("salary", emp.salary || "");
+        setValue("father_name", emp.father_name || "");
+        setValue("mother_name", emp.mother_name || "");
+        setValue("parent_contact", emp.parent_contact || "");
+        setValue("parent_address", emp.parent_address || "");
         setTempRole(emp.role || "Employee");
         if (emp.employeeImage) {
           // Convert image filename to full URL
           const imageUrl = getImageUrl(emp.employeeImage);
           setImagePreview(imageUrl);
+        }
+        if (emp.id_proof) {
+          // Convert ID proof filename to full URL
+          const idProofUrl = getImageUrl(emp.id_proof);
+          setIdProofPreview(idProofUrl);
         }
         formPopulatedRef.current = true; // Mark as populated
       }
@@ -138,6 +183,18 @@ function AddEmployee({ from }) {
     }
   };
 
+  const handleIdProofChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setIdProofFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setIdProofPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const onSubmit = async (data) => {
     setError("");
     const formData = new FormData();
@@ -156,6 +213,11 @@ function AddEmployee({ from }) {
     // Append image if selected
     if (employeeImage) {
       formData.append("employeeImage", employeeImage);
+    }
+
+    // Append ID proof if selected
+    if (idProofFile) {
+      formData.append("id_proof", idProofFile);
     }
 
     formData.append("role", tempRole);
@@ -408,6 +470,29 @@ function AddEmployee({ from }) {
                       <FormHelperText>{errors.employeeStatus?.message}</FormHelperText>
                     </FormControl>
                   </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <Controller
+                      name="salary"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth
+                          label="Salary"
+                          type="number"
+                          placeholder="Enter salary amount"
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <AttachMoney sx={{ color: "text.secondary" }} />
+                              </InputAdornment>
+                            ),
+                          }}
+                        />
+                      )}
+                    />
+                  </Grid>
                 </Grid>
               </CardContent>
             </Card>
@@ -481,6 +566,107 @@ function AddEmployee({ from }) {
                   {employeeImage && (
                     <Typography variant="caption" color="text.secondary">
                       {employeeImage.name}
+                    </Typography>
+                  )}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* ID Proof Upload Card */}
+          <Grid item xs={12} md={4}>
+            <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 2 }}>
+                  ID Proof Document
+                </Typography>
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 2,
+                  }}
+                >
+                  {idProofPreview ? (
+                    <Box
+                      sx={{
+                        width: "100%",
+                        height: 200,
+                        borderRadius: 2,
+                        border: "2px solid",
+                        borderColor: "primary.main",
+                        overflow: "hidden",
+                        position: "relative",
+                      }}
+                    >
+                      {idProofPreview.endsWith('.pdf') || idProofFile?.type === 'application/pdf' ? (
+                        <iframe
+                          src={idProofPreview}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            border: "none",
+                          }}
+                          title="ID Proof PDF"
+                        />
+                      ) : (
+                        <Box
+                          component="img"
+                          src={idProofPreview}
+                          alt="ID Proof"
+                          onError={(e) => {
+                            console.error("ID Proof failed to load:", idProofPreview);
+                            e.target.style.display = "none";
+                            setIdProofPreview(null);
+                          }}
+                          sx={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                          }}
+                        />
+                      )}
+                    </Box>
+                  ) : (
+                    <Box
+                      sx={{
+                        width: "100%",
+                        height: 200,
+                        borderRadius: 2,
+                        bgcolor: "grey.100",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        border: "2px dashed",
+                        borderColor: "grey.300",
+                        gap: 1,
+                      }}
+                    >
+                      <Description sx={{ fontSize: 60, color: "grey.400" }} />
+                      <Typography variant="caption" color="text.secondary">
+                        Upload ID Proof (Image/PDF)
+                      </Typography>
+                    </Box>
+                  )}
+                  <Button
+                    variant="outlined"
+                    component="label"
+                    startIcon={<CloudUpload />}
+                    fullWidth
+                  >
+                    Upload ID Proof
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/*,.pdf"
+                      onChange={handleIdProofChange}
+                    />
+                  </Button>
+                  {idProofFile && (
+                    <Typography variant="caption" color="text.secondary">
+                      {idProofFile.name}
                     </Typography>
                   )}
                 </Box>
@@ -568,6 +754,77 @@ function AddEmployee({ from }) {
             </Card>
           </Grid>
 
+          {/* Parent Details Card */}
+          <Grid item xs={12}>
+            <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 3 }}>
+                  Parent Details
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <Controller
+                      name="father_name"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth
+                          label="Father's Name"
+                          placeholder="Enter father's name"
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Controller
+                      name="mother_name"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth
+                          label="Mother's Name"
+                          placeholder="Enter mother's name"
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Controller
+                      name="parent_contact"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth
+                          label="Parent Contact Number"
+                          placeholder="Enter contact number"
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Controller
+                      name="parent_address"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth
+                          label="Parent Address"
+                          placeholder="Enter parent's address"
+                          multiline
+                          rows={3}
+                        />
+                      )}
+                    />
+                  </Grid>
+                </Grid>
+              </CardContent>
+            </Card>
+          </Grid>
+
           {/* Role Selection Card */}
           <Grid item xs={12}>
             <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
@@ -575,34 +832,77 @@ function AddEmployee({ from }) {
                 <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 2 }}>
                   Employee Role
                 </Typography>
-                <FormControl component="fieldset">
-                  <RadioGroup
-                    row
-                    value={tempRole}
-                    onChange={(e) => handleRoleChange(e.target.value)}
-                  >
-                    <FormControlLabel
-                      value="Employee"
-                      control={<Radio />}
-                      label={<Chip label="Employee" color="default" />}
-                    />
-                    <FormControlLabel
-                      value="TL"
-                      control={<Radio />}
-                      label={<Chip label="Team Lead" color="info" />}
-                    />
-                    <FormControlLabel
-                      value="HR"
-                      control={<Radio />}
-                      label={<Chip label="HR" color="warning" />}
-                    />
-                    <FormControlLabel
-                      value="Admin"
-                      control={<Radio />}
-                      label={<Chip label="Admin" color="error" />}
-                    />
-                  </RadioGroup>
-                </FormControl>
+                {rolesLoading ? (
+                  <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
+                    <CircularProgress size={24} />
+                  </Box>
+                ) : (
+                  <FormControl component="fieldset" fullWidth>
+                    <RadioGroup
+                      row
+                      value={tempRole}
+                      onChange={(e) => handleRoleChange(e.target.value)}
+                      sx={{ flexWrap: "wrap", gap: 1 }}
+                    >
+                      {(() => {
+                        // Handle different response structures
+                        let rolesList = [];
+                        if (roles) {
+                          if (Array.isArray(roles)) {
+                            rolesList = roles;
+                          } else if (roles.Result && Array.isArray(roles.Result)) {
+                            rolesList = roles.Result;
+                          } else if (roles.Result && !Array.isArray(roles.Result)) {
+                            rolesList = [roles.Result];
+                          }
+                        }
+                        
+                        if (rolesList.length > 0) {
+                          return rolesList.map((r) => (
+                            <FormControlLabel
+                              key={r.id || r.role_name}
+                              value={r.role_name}
+                              control={<Radio />}
+                              label={
+                                <Chip 
+                                  label={r.role_display_name || r.role_name} 
+                                  color={r.role_color || "default"}
+                                  sx={{ fontWeight: 600 }}
+                                />
+                              }
+                            />
+                          ));
+                        } else {
+                          // Fallback to default roles if API fails or returns empty
+                          return (
+                            <>
+                              <FormControlLabel
+                                value="Employee"
+                                control={<Radio />}
+                                label={<Chip label="Employee" color="default" sx={{ fontWeight: 600 }} />}
+                              />
+                              <FormControlLabel
+                                value="TL"
+                                control={<Radio />}
+                                label={<Chip label="Team Lead" color="info" sx={{ fontWeight: 600 }} />}
+                              />
+                              <FormControlLabel
+                                value="HR"
+                                control={<Radio />}
+                                label={<Chip label="HR" color="warning" sx={{ fontWeight: 600 }} />}
+                              />
+                              <FormControlLabel
+                                value="Admin"
+                                control={<Radio />}
+                                label={<Chip label="Admin" color="error" sx={{ fontWeight: 600 }} />}
+                              />
+                            </>
+                          );
+                        }
+                      })()}
+                    </RadioGroup>
+                  </FormControl>
+                )}
               </CardContent>
             </Card>
           </Grid>

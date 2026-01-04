@@ -63,31 +63,137 @@ export const approveEntity = asyncHandler(async (req, res) => {
   let approvalLevels = [];
   let allApproved = true;
 
+  // Fetch entity details (employee and project) before creating approval history
+  let entityEmployeeId = null;
+  let entityEmployeeName = null;
+  let entityProjectName = null;
+  
+  try {
+    if (entityType === "timesheet" || entityType === "workdetails") {
+      // Fetch workdetails to get employee and project information
+      const workDetailsSql = `
+        SELECT wd.employeeName, wd.projectName, wd.userName, e.id as employeeId, e.employeeName as empName
+        FROM workdetails wd
+        LEFT JOIN employee e ON wd.userName = e.userName
+        WHERE wd.id = ?
+      `;
+      const workDetails = await query(workDetailsSql, [entityId]);
+      if (workDetails.length > 0) {
+        entityEmployeeId = workDetails[0].employeeId;
+        entityEmployeeName = workDetails[0].empName || workDetails[0].employeeName;
+        entityProjectName = workDetails[0].projectName;
+      }
+    } else if (entityType === "leave") {
+      // Fetch leave details to get employee information
+      const leaveSql = `
+        SELECT l.employeeName, l.employeeId, e.id as empId, e.employeeName as empName
+        FROM leavedetails l
+        LEFT JOIN employee e ON (
+          CASE 
+            WHEN l.employeeId IS NOT NULL AND l.employeeId != '' THEN CAST(l.employeeId AS UNSIGNED) = e.id
+            ELSE l.employeeName = e.userName
+          END
+        )
+        WHERE l.id = ?
+      `;
+      const leaves = await query(leaveSql, [entityId]);
+      if (leaves.length > 0) {
+        entityEmployeeId = leaves[0].empId || leaves[0].employeeId;
+        entityEmployeeName = leaves[0].empName || leaves[0].employeeName;
+      }
+    } else if (entityType === "overtime") {
+      // Fetch overtime details to get employee information
+      const otSql = `
+        SELECT ot.employee_id, e.employeeName
+        FROM ot_records ot
+        LEFT JOIN employee e ON ot.employee_id = e.id
+        WHERE ot.id = ?
+      `;
+      const ots = await query(otSql, [entityId]);
+      if (ots.length > 0) {
+        entityEmployeeId = ots[0].employee_id;
+        entityEmployeeName = ots[0].employeeName;
+      }
+    } else if (entityType === "compoff") {
+      // Fetch compoff details to get employee information
+      const compoffSql = `
+        SELECT c.employeeName, c.employeeId, e.id as empId, e.employeeName as empName
+        FROM compoffdetails c
+        LEFT JOIN employee e ON (
+          CASE 
+            WHEN c.employeeId IS NOT NULL AND c.employeeId != '' THEN CAST(c.employeeId AS UNSIGNED) = e.id
+            ELSE c.employeeName = e.userName
+          END
+        )
+        WHERE c.id = ?
+      `;
+      const compoffs = await query(compoffSql, [entityId]);
+      if (compoffs.length > 0) {
+        entityEmployeeId = compoffs[0].empId || compoffs[0].employeeId;
+        entityEmployeeName = compoffs[0].empName || compoffs[0].employeeName;
+      }
+    }
+  } catch (err) {
+    console.error(`Error fetching entity details for ${entityType} ${entityId}:`, err);
+    // Continue even if entity details fetch fails
+  }
+
   // Always add to approval history (regardless of workflow)
   // This ensures all approvals are tracked, whether from ApprovalCenter or ProjectWorkDetails
   try {
-    const historySql = `
-      INSERT INTO approval_history (entity_type, entity_id, approver_id, approval_level, status, comments)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `;
-    const historyLevel = workflow ? (approvalLevel || 1) : 1;
-    const historyResult = await query(historySql, [
+    // Check if columns exist, if not use basic insert
+    let historySql = `
+      INSERT INTO approval_history (entity_type, entity_id, approver_id, approval_level, status, comments`;
+    let valuesSql = ` VALUES (?, ?, ?, ?, ?, ?`;
+    let historyParams = [
       entityType, 
       entityId, 
       approverId, 
-      historyLevel, 
+      workflow ? (approvalLevel || 1) : 1, 
       status, 
       comments || ""
-    ]);
+    ];
+
+    // Try to add employee and project columns if they exist
+    try {
+      // Check if columns exist by attempting to describe the table
+      const tableDesc = await query(`DESCRIBE approval_history`);
+      const columnNames = tableDesc.map(col => col.Field);
+      
+      if (columnNames.includes('employee_id')) {
+        historySql += `, employee_id`;
+        valuesSql += `, ?`;
+        historyParams.push(entityEmployeeId);
+      }
+      if (columnNames.includes('employee_name')) {
+        historySql += `, employee_name`;
+        valuesSql += `, ?`;
+        historyParams.push(entityEmployeeName);
+      }
+      if (columnNames.includes('project_name')) {
+        historySql += `, project_name`;
+        valuesSql += `, ?`;
+        historyParams.push(entityProjectName);
+      }
+    } catch (colErr) {
+      // Columns don't exist, use basic insert
+      console.log("Additional columns not found, using basic insert");
+    }
+
+    historySql += `)`;
+    valuesSql += `)`;
+    historySql += valuesSql;
+
+    const historyResult = await query(historySql, historyParams);
     console.log(
       `✓ Approval history created: EntityType: ${entityType}, EntityId: ${entityId}, ` +
-      `ApproverId: ${approverId}, Status: ${status}, Level: ${historyLevel}, Comments: ${comments || 'none'}`
+      `ApproverId: ${approverId}, Status: ${status}, Employee: ${entityEmployeeName || 'N/A'}, ` +
+      `Project: ${entityProjectName || 'N/A'}`
     );
   } catch (error) {
     // Log error but don't fail the approval
     console.error("❌ Error creating approval history:", error);
     console.error("Error details:", error.message, error.code);
-    console.error("Error stack:", error.stack);
     // Continue with approval even if history creation fails
   }
 
@@ -368,12 +474,17 @@ export const approveEntity = asyncHandler(async (req, res) => {
 
 // Get Approval History
 export const getApprovalHistory = asyncHandler(async (req, res) => {
-  const { entityType, entityId, status, approverId, startDate, endDate } = req.query;
+  const { entityType, entityId, status, approverId, startDate, endDate, employeeName, projectName } = req.query;
 
   let sql = `
-    SELECT ah.*, e.employeeName, e.EMPID
+    SELECT ah.*, 
+           e.employeeName as approver_name, 
+           e.EMPID as approver_emp_id,
+           COALESCE(ah.employee_name, entity_emp.employeeName) as entityEmployeeName,
+           ah.project_name as entityProjectName
     FROM approval_history ah
     LEFT JOIN employee e ON ah.approver_id = e.id
+    LEFT JOIN employee entity_emp ON ah.employee_id = entity_emp.id
     WHERE 1=1
   `;
   const params = [];
@@ -413,7 +524,63 @@ export const getApprovalHistory = asyncHandler(async (req, res) => {
 
   try {
     const results = await query(sql, params);
-    return sendSuccess(res, results);
+    
+    // Use stored employee_name and project_name if available, otherwise enrich (for backward compatibility with old records)
+    const enrichedResults = await Promise.all(results.map(async (record) => {
+      // Use stored values if available
+      let entityEmployeeName = record.entityEmployeeName || null;
+      let entityProjectName = record.entityProjectName || null;
+      
+      // Only enrich if stored values are not available (for old records created before migration)
+      if (!entityEmployeeName || (record.entity_type === 'timesheet' && !entityProjectName)) {
+        try {
+          if (record.entity_type === 'leave') {
+            const leaveSql = `SELECT employeeName FROM leavedetails WHERE id = ?`;
+            const leaves = await query(leaveSql, [record.entity_id]);
+            if (leaves.length > 0) {
+              entityEmployeeName = entityEmployeeName || leaves[0].employeeName;
+            }
+          } else if (record.entity_type === 'overtime') {
+            const otSql = `SELECT e.employeeName FROM ot_records ot LEFT JOIN employee e ON ot.employee_id = e.id WHERE ot.id = ?`;
+            const ots = await query(otSql, [record.entity_id]);
+            if (ots.length > 0) {
+              entityEmployeeName = entityEmployeeName || ots[0].employeeName;
+            }
+          } else if (record.entity_type === 'timesheet' || record.entity_type === 'workdetails') {
+            const tsSql = `SELECT wd.employeeName, wd.projectName, e.employeeName as empName 
+                           FROM workdetails wd 
+                           LEFT JOIN employee e ON wd.userName = e.userName 
+                           WHERE wd.id = ?`;
+            const timesheets = await query(tsSql, [record.entity_id]);
+            if (timesheets.length > 0) {
+              entityEmployeeName = entityEmployeeName || (timesheets[0].empName || timesheets[0].employeeName);
+              entityProjectName = entityProjectName || timesheets[0].projectName;
+            }
+          } else if (record.entity_type === 'compoff') {
+            const compoffSql = `SELECT employeeName FROM compoffdetails WHERE id = ?`;
+            const compoffs = await query(compoffSql, [record.entity_id]);
+            if (compoffs.length > 0) {
+              entityEmployeeName = entityEmployeeName || compoffs[0].employeeName;
+            }
+          }
+        } catch (err) {
+          // Silently handle errors - entity might not exist anymore
+          console.error(`Error fetching entity details for ${record.entity_type} ${record.entity_id}:`, err.message);
+        }
+      }
+      
+      return {
+        ...record,
+        entityEmployeeName: entityEmployeeName,
+        entityProjectName: entityProjectName,
+      };
+    }));
+    
+    console.log(`✓ Approval history query returned ${enrichedResults.length} records`);
+    if (params.length > 0) {
+      console.log(`  Filters applied:`, { entityType, entityId, status, approverId, startDate, endDate });
+    }
+    return sendSuccess(res, enrichedResults);
   } catch (error) {
     // If approval_history table doesn't exist, return empty array
     if (error.code === "ER_NO_SUCH_TABLE" || error.message.includes("doesn't exist")) {
@@ -523,29 +690,213 @@ export const getPendingApprovals = asyncHandler(async (req, res) => {
   return sendSuccess(res, pendingApprovals);
 });
 
-// Bulk Approve
+// Bulk Approve/Reject
 export const bulkApprove = asyncHandler(async (req, res) => {
-  const { entityType, entityIds, approverId, comments } = req.body;
+  const { entityType, entityIds, approverId, comments, status } = req.body;
 
   if (!Array.isArray(entityIds) || entityIds.length === 0) {
     return sendError(res, "entityIds array is required", 400);
   }
 
+  if (!status || !["approved", "rejected"].includes(status)) {
+    return sendError(res, "status must be 'approved' or 'rejected'", 400);
+  }
+
+  if (!approverId) {
+    return sendError(res, "approverId is required", 400);
+  }
+
   const results = [];
+  const errors = [];
 
   for (const entityId of entityIds) {
     try {
-      const result = await approveEntity(
-        { params: { entityType, entityId } },
-        { body: { approverId, status: "approved", comments } },
-        () => {}
-      );
-      results.push({ entityId, status: "approved" });
+      // Create mock req and res objects to call approveEntity logic
+      const mockReq = {
+        params: { entityType, entityId },
+        body: { approverId, status, comments: comments || `${status} via bulk operation` },
+      };
+      
+      // Call the approval logic directly by extracting the core logic
+      // We'll use a helper function to avoid duplicating code
+      const approvalResult = await processApproval(entityType, entityId, approverId, status, comments || `${status} via bulk operation`);
+      
+      if (approvalResult.success) {
+        results.push({ entityId, status, success: true });
+      } else {
+        errors.push({ entityId, error: approvalResult.error });
+        results.push({ entityId, status: "error", error: approvalResult.error });
+      }
     } catch (error) {
+      console.error(`Error processing bulk ${status} for ${entityType} ${entityId}:`, error);
+      errors.push({ entityId, error: error.message });
       results.push({ entityId, status: "error", error: error.message });
     }
   }
 
-  return sendSuccess(res, results, `${results.length} entities processed`);
+  const successCount = results.filter(r => r.success).length;
+  const errorCount = errors.length;
+
+  if (errorCount > 0) {
+    return sendSuccess(res, results, `${successCount} entities ${status}, ${errorCount} failed`);
+  }
+
+  return sendSuccess(res, results, `${successCount} entities ${status} successfully`);
 });
+
+// Helper function to process approval/rejection (extracted from approveEntity logic)
+const processApproval = async (entityType, entityId, approverId, status, comments) => {
+  try {
+    // Fetch entity details (employee and project) before creating approval history
+    let entityEmployeeId = null;
+    let entityEmployeeName = null;
+    let entityProjectName = null;
+    
+    if (entityType === "timesheet" || entityType === "workdetails") {
+      const workDetailsSql = `
+        SELECT wd.employeeName, wd.projectName, wd.userName, e.id as employeeId, e.employeeName as empName
+        FROM workdetails wd
+        LEFT JOIN employee e ON wd.userName = e.userName
+        WHERE wd.id = ?
+      `;
+      const workDetails = await query(workDetailsSql, [entityId]);
+      if (workDetails.length > 0) {
+        entityEmployeeId = workDetails[0].employeeId;
+        entityEmployeeName = workDetails[0].empName || workDetails[0].employeeName;
+        entityProjectName = workDetails[0].projectName;
+      }
+    } else if (entityType === "leave") {
+      const leaveSql = `
+        SELECT l.employeeName, l.employeeId, e.id as empId, e.employeeName as empName
+        FROM leavedetails l
+        LEFT JOIN employee e ON (
+          CASE 
+            WHEN l.employeeId IS NOT NULL AND l.employeeId != '' THEN CAST(l.employeeId AS UNSIGNED) = e.id
+            ELSE l.employeeName = e.userName
+          END
+        )
+        WHERE l.id = ?
+      `;
+      const leaves = await query(leaveSql, [entityId]);
+      if (leaves.length > 0) {
+        entityEmployeeId = leaves[0].empId || leaves[0].employeeId;
+        entityEmployeeName = leaves[0].empName || leaves[0].employeeName;
+      }
+    } else if (entityType === "overtime") {
+      const otSql = `
+        SELECT ot.employee_id, e.employeeName
+        FROM ot_records ot
+        LEFT JOIN employee e ON ot.employee_id = e.id
+        WHERE ot.id = ?
+      `;
+      const ots = await query(otSql, [entityId]);
+      if (ots.length > 0) {
+        entityEmployeeId = ots[0].employee_id;
+        entityEmployeeName = ots[0].employeeName;
+      }
+    } else if (entityType === "compoff") {
+      const compoffSql = `
+        SELECT c.employeeName, c.employeeId, e.id as empId, e.employeeName as empName
+        FROM compoffdetails c
+        LEFT JOIN employee e ON (
+          CASE 
+            WHEN c.employeeId IS NOT NULL AND c.employeeId != '' THEN CAST(c.employeeId AS UNSIGNED) = e.id
+            ELSE c.employeeName = e.userName
+          END
+        )
+        WHERE c.id = ?
+      `;
+      const compoffs = await query(compoffSql, [entityId]);
+      if (compoffs.length > 0) {
+        entityEmployeeId = compoffs[0].empId || compoffs[0].employeeId;
+        entityEmployeeName = compoffs[0].empName || compoffs[0].employeeName;
+      }
+    }
+
+    // Create approval history
+    try {
+      let historySql = `
+        INSERT INTO approval_history (entity_type, entity_id, approver_id, approval_level, status, comments`;
+      let valuesSql = ` VALUES (?, ?, ?, ?, ?, ?`;
+      let historyParams = [
+        entityType, 
+        entityId, 
+        approverId, 
+        1, 
+        status, 
+        comments || ""
+      ];
+
+      const tableDesc = await query(`DESCRIBE approval_history`);
+      const columnNames = tableDesc.map(col => col.Field);
+      
+      if (columnNames.includes('employee_id')) {
+        historySql += `, employee_id`;
+        valuesSql += `, ?`;
+        historyParams.push(entityEmployeeId);
+      }
+      if (columnNames.includes('employee_name')) {
+        historySql += `, employee_name`;
+        valuesSql += `, ?`;
+        historyParams.push(entityEmployeeName);
+      }
+      if (columnNames.includes('project_name')) {
+        historySql += `, project_name`;
+        valuesSql += `, ?`;
+        historyParams.push(entityProjectName);
+      }
+
+      historySql += `)`;
+      valuesSql += `)`;
+      historySql += valuesSql;
+
+      await query(historySql, historyParams);
+    } catch (error) {
+      console.error("Error creating approval history:", error);
+    }
+
+    // Update entity status
+    let updateSql = "";
+    let updateParams = [];
+
+    if (entityType === "leave") {
+      updateSql = "UPDATE leavedetails SET leaveStatus = ?, approverId = ? WHERE id = ?";
+      updateParams = [status, approverId, entityId];
+    } else if (entityType === "overtime") {
+      updateSql = `
+        UPDATE ot_records SET 
+          approval_status = ?, 
+          approved_by = ?,
+          approverId = ?,
+          approved_at = NOW(),
+          comments = ?
+        WHERE id = ?
+      `;
+      updateParams = [status, approverId, approverId, comments || "", entityId];
+    } else if (entityType === "timesheet" || entityType === "workdetails") {
+      if (status === "approved") {
+        updateSql = "UPDATE workdetails SET status = ?, approverId = ?, approvedDate = NOW() WHERE id = ?";
+        updateParams = [status, approverId, entityId];
+      } else {
+        updateSql = "UPDATE workdetails SET status = ?, approverId = ? WHERE id = ?";
+        updateParams = [status, approverId, entityId];
+      }
+    } else if (entityType === "compoff") {
+      updateSql = "UPDATE compoff SET leaveStatus = ?, approverId = ? WHERE id = ?";
+      updateParams = [status, approverId, entityId];
+    } else {
+      return { success: false, error: `Unsupported entity type: ${entityType}` };
+    }
+
+    if (updateSql) {
+      await query(updateSql, updateParams);
+      return { success: true };
+    }
+
+    return { success: false, error: "No update SQL generated" };
+  } catch (error) {
+    console.error(`Error processing approval for ${entityType} ${entityId}:`, error);
+    return { success: false, error: error.message };
+  }
+};
 

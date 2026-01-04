@@ -58,10 +58,17 @@ const LeaveBalance = () => {
   const [year, setYear] = useState(new Date().getFullYear());
   const [openDialog, setOpenDialog] = useState(false);
   const [accrualDialog, setAccrualDialog] = useState(false);
+  const [updateDialog, setUpdateDialog] = useState(false);
   const [formData, setFormData] = useState({
     leaveType: "annual",
     initialBalance: 21,
     accrualAmount: 1.75,
+  });
+  const [updateFormData, setUpdateFormData] = useState({
+    leaveType: "annual",
+    balance: "",
+    accrued: "",
+    used: "",
   });
 
   // Fetch employees list (for HR role)
@@ -110,6 +117,9 @@ const LeaveBalance = () => {
     apiService.initializeLeaveBalance
   );
   const { mutate: accrueLeave, loading: accruing } = useMutation(apiService.accrueLeave);
+  const { mutate: updateLeaveBalance, loading: updating } = useMutation(
+    apiService.updateLeaveBalance
+  );
 
   const handleInitialize = async () => {
     const result = await initializeBalance({
@@ -139,6 +149,49 @@ const LeaveBalance = () => {
       refetch();
       refetchAccruals();
       alert("Leave accrued successfully");
+    }
+  };
+
+  const handleOpenUpdateDialog = () => {
+    // Pre-fill form with current balance data if available
+    const currentBalance = leaveBalance?.find(
+      (b) => b.leave_type === updateFormData.leaveType
+    );
+    if (currentBalance) {
+      setUpdateFormData({
+        leaveType: currentBalance.leave_type,
+        balance: parseFloat(currentBalance.balance).toFixed(2),
+        accrued: parseFloat(currentBalance.accrued).toFixed(2),
+        used: parseFloat(currentBalance.used).toFixed(2),
+      });
+    }
+    setUpdateDialog(true);
+  };
+
+  const handleUpdate = async () => {
+    const updateData = {
+      employeeId: selectedEmployeeId,
+      leaveType: updateFormData.leaveType,
+      year,
+    };
+
+    // Only include fields that are provided
+    if (updateFormData.balance !== "") {
+      updateData.balance = parseFloat(updateFormData.balance);
+    }
+    if (updateFormData.accrued !== "") {
+      updateData.accrued = parseFloat(updateFormData.accrued);
+    }
+    if (updateFormData.used !== "") {
+      updateData.used = parseFloat(updateFormData.used);
+    }
+
+    const result = await updateLeaveBalance(updateData);
+
+    if (result.success) {
+      setUpdateDialog(false);
+      refetch();
+      alert("Leave balance updated successfully");
     }
   };
 
@@ -282,6 +335,27 @@ const LeaveBalance = () => {
               }}
             >
               Accrue Leave
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<EventAvailable />}
+              onClick={handleOpenUpdateDialog}
+              sx={{
+                borderRadius: 2,
+                textTransform: "uppercase",
+                fontWeight: 600,
+                px: 2,
+                bgcolor: "success.main",
+                boxShadow: "0 4px 15px rgba(76, 175, 80, 0.4)",
+                "&:hover": {
+                  bgcolor: "success.dark",
+                  boxShadow: "0 6px 20px rgba(76, 175, 80, 0.6)",
+                  transform: "translateY(-2px)",
+                },
+                transition: "all 0.3s ease",
+              }}
+            >
+              Update Balance
             </Button>
             <Button
               variant="outlined"
@@ -779,6 +853,101 @@ const LeaveBalance = () => {
             }}
           >
             {accruing ? "Accruing..." : "Accrue"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Update Balance Dialog */}
+      <Dialog
+        open={updateDialog}
+        onClose={() => setUpdateDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Typography variant="h6" fontWeight="bold">
+              Update Leave Balance
+            </Typography>
+            <IconButton onClick={() => setUpdateDialog(false)} size="small">
+              <Close />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+            <FormControl fullWidth>
+              <InputLabel>Leave Type</InputLabel>
+              <Select
+                value={updateFormData.leaveType}
+                onChange={(e) => {
+                  const selectedType = e.target.value;
+                  const currentBalance = leaveBalance?.find(
+                    (b) => b.leave_type === selectedType
+                  );
+                  setUpdateFormData({
+                    leaveType: selectedType,
+                    balance: currentBalance ? parseFloat(currentBalance.balance).toFixed(2) : "",
+                    accrued: currentBalance ? parseFloat(currentBalance.accrued).toFixed(2) : "",
+                    used: currentBalance ? parseFloat(currentBalance.used).toFixed(2) : "",
+                  });
+                }}
+              >
+                {leaveBalance?.map((balance) => (
+                  <MenuItem key={balance.leave_type} value={balance.leave_type}>
+                    {balance.leave_type.toUpperCase()}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <TextField
+              label="Balance"
+              type="number"
+              value={updateFormData.balance}
+              onChange={(e) => setUpdateFormData({ ...updateFormData, balance: e.target.value })}
+              fullWidth
+              helperText="Current available leave balance"
+              inputProps={{ step: "0.01", min: "0" }}
+            />
+            <TextField
+              label="Accrued"
+              type="number"
+              value={updateFormData.accrued}
+              onChange={(e) => setUpdateFormData({ ...updateFormData, accrued: e.target.value })}
+              fullWidth
+              helperText="Total leave accrued"
+              inputProps={{ step: "0.01", min: "0" }}
+            />
+            <TextField
+              label="Used"
+              type="number"
+              value={updateFormData.used}
+              onChange={(e) => setUpdateFormData({ ...updateFormData, used: e.target.value })}
+              fullWidth
+              helperText="Total leave used"
+              inputProps={{ step: "0.01", min: "0" }}
+            />
+            <Typography variant="caption" color="text.secondary" sx={{ mt: -1 }}>
+              Leave at least one field empty to keep the current value
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setUpdateDialog(false)}>Cancel</Button>
+          <Button
+            onClick={handleUpdate}
+            variant="contained"
+            disabled={updating}
+            startIcon={<CheckCircle />}
+            sx={{
+              bgcolor: "success.main",
+              "&:hover": {
+                bgcolor: "success.dark",
+              },
+            }}
+          >
+            {updating ? "Updating..." : "Update"}
           </Button>
         </DialogActions>
       </Dialog>

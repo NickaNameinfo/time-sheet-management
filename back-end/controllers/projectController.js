@@ -24,45 +24,75 @@ export const createProject = asyncHandler(async (req, res) => {
     console.warn("Could not check for assignedEmployees column:", error.message);
   }
 
-  let sql, values;
-  if (includeAssignedEmployees) {
-    sql = "INSERT INTO project (`tlName`,`orderId`,`positionNumber`, `subPositionNumber`,`projectNo`,`taskJobNo`, `referenceNo`,`desciplineCode`, `projectName`,`subDivision`,`startDate`,`targetDate`,`allotatedHours`, `tlID`, `assignedEmployees`) VALUES (?)";
-    values = [
-      req.body.tlName,
-      req.body.orderId,
-      req.body.positionNumber,
-      req.body.subPositionNumber,
-      req.body.projectNo,
-      req.body.taskJobNo,
-      req.body.referenceNo,
-      req.body.desciplineCode,
-      req.body.projectName,
-      req.body.subDivision,
-      req.body.startDate,
-      req.body.targetDate,
-      req.body.allotatedHours,
-      req.body.tlID,
-      assignedEmployeesJson,
-    ];
-  } else {
-    sql = "INSERT INTO project (`tlName`,`orderId`,`positionNumber`, `subPositionNumber`,`projectNo`,`taskJobNo`, `referenceNo`,`desciplineCode`, `projectName`,`subDivision`,`startDate`,`targetDate`,`allotatedHours`, `tlID`) VALUES (?)";
-    values = [
-      req.body.tlName,
-      req.body.orderId,
-      req.body.positionNumber,
-      req.body.subPositionNumber,
-      req.body.projectNo,
-      req.body.taskJobNo,
-      req.body.referenceNo,
-      req.body.desciplineCode,
-      req.body.projectName,
-      req.body.subDivision,
-      req.body.startDate,
-      req.body.targetDate,
-      req.body.allotatedHours,
-      req.body.tlID,
-    ];
+  // Check if status column exists
+  let includeStatus = false;
+  try {
+    const columnCheckSql = `
+      SELECT COUNT(*) as count 
+      FROM information_schema.COLUMNS 
+      WHERE table_schema = DATABASE() 
+      AND table_name = 'project' 
+      AND column_name = 'status'
+    `;
+    const columnCheck = await query(columnCheckSql);
+    includeStatus = columnCheck.length > 0 && columnCheck[0].count > 0;
+  } catch (error) {
+    console.warn("Could not check for status column:", error.message);
   }
+
+  // Check if description column exists
+  let includeDescription = false;
+  try {
+    const columnCheckSql = `
+      SELECT COUNT(*) as count 
+      FROM information_schema.COLUMNS 
+      WHERE table_schema = DATABASE() 
+      AND table_name = 'project' 
+      AND column_name = 'description'
+    `;
+    const columnCheck = await query(columnCheckSql);
+    includeDescription = columnCheck.length > 0 && columnCheck[0].count > 0;
+  } catch (error) {
+    console.warn("Could not check for description column:", error.message);
+  }
+
+  // Build SQL dynamically based on available columns
+  let columns = ['tlName', 'orderId', 'positionNumber', 'subPositionNumber', 'projectNo', 'taskJobNo', 'referenceNo', 'desciplineCode', 'projectName', 'subDivision'];
+  let values = [
+    req.body.tlName,
+    req.body.orderId,
+    req.body.positionNumber,
+    req.body.subPositionNumber,
+    req.body.projectNo,
+    req.body.taskJobNo,
+    req.body.referenceNo,
+    req.body.desciplineCode,
+    req.body.projectName,
+    req.body.subDivision,
+  ];
+
+  if (includeDescription) {
+    columns.push('description');
+    values.push(req.body.description || null);
+  }
+
+  columns.push('startDate', 'targetDate', 'allotatedHours');
+  values.push(req.body.startDate, req.body.targetDate, req.body.allotatedHours);
+
+  if (includeStatus) {
+    columns.push('status');
+    values.push(req.body.status || 'active');
+  }
+
+  columns.push('tlID');
+  values.push(req.body.tlID);
+
+  if (includeAssignedEmployees) {
+    columns.push('assignedEmployees');
+    values.push(assignedEmployeesJson);
+  }
+
+  const sql = `INSERT INTO project (\`${columns.join('`, `')}\`) VALUES (?)`;
 
   const result = await query(sql, [values]);
   const projectId = result.insertId;
@@ -168,84 +198,88 @@ export const updateProject = asyncHandler(async (req, res) => {
   }
   
   console.log("Final includeAssignedEmployees:", includeAssignedEmployees);
-  let sql, values;
-  if (includeAssignedEmployees) {
-    sql = `
-      UPDATE project 
-      SET 
-        tlName = ?,
-        orderId = ?,
-        positionNumber = ?,
-        subPositionNumber = ?,
-        projectNo = ?,
-        taskJobNo = ?,
-        referenceNo = ?,
-        desciplineCode = ?,
-        projectName = ?,
-        subDivision = ?,
-        startDate = ?,
-        targetDate = ?,
-        allotatedHours = ?,
-        assignedEmployees = ?,
-        tlID = ?
-      WHERE id = ?
+  
+  // Check if status column exists
+  let includeStatus = false;
+  try {
+    const columnCheckSql = `
+      SELECT COUNT(*) as count 
+      FROM information_schema.COLUMNS 
+      WHERE table_schema = DATABASE() 
+      AND table_name = 'project' 
+      AND column_name = 'status'
     `;
-    values = [
-      req.body.tlName,
-      req.body.orderId,
-      req.body.positionNumber,
-      req.body.subPositionNumber,
-      req.body.projectNo,
-      req.body.taskJobNo,
-      req.body.referenceNo,
-      req.body.desciplineCode,
-      req.body.projectName,
-      req.body.subDivision,
-      req.body.startDate,
-      req.body.targetDate,
-      req.body.allotatedHours,
-      assignedEmployeesJson,
-      req.body.tlID,
-      projectId,
-    ];
-  } else {
-    sql = `
-      UPDATE project 
-      SET 
-        tlName = ?,
-        orderId = ?,
-        positionNumber = ?,
-        subPositionNumber = ?,
-        projectNo = ?,
-        taskJobNo = ?,
-        referenceNo = ?,
-        desciplineCode = ?,
-        projectName = ?,
-        subDivision = ?,
-        startDate = ?,
-        targetDate = ?,
-        allotatedHours = ?,
-        tlID = ?
-      WHERE id = ?
-    `;
-    values = [
-      req.body.tlName,
-      req.body.orderId,
-      req.body.positionNumber,
-      req.body.subPositionNumber,
-      req.body.projectNo,
-      req.body.taskJobNo,
-      req.body.referenceNo,
-      req.body.desciplineCode,
-      req.body.projectName,
-      req.body.subDivision,
-      req.body.startDate,
-      req.body.targetDate,
-      req.body.allotatedHours,
-      req.body.tlID,
-      projectId,
-    ];
+    const columnCheck = await query(columnCheckSql);
+    includeStatus = columnCheck.length > 0 && columnCheck[0].count > 0;
+  } catch (error) {
+    console.warn("Could not check for status column:", error.message);
   }
+
+  // Check if description column exists
+  let includeDescription = false;
+  try {
+    const columnCheckSql = `
+      SELECT COUNT(*) as count 
+      FROM information_schema.COLUMNS 
+      WHERE table_schema = DATABASE() 
+      AND table_name = 'project' 
+      AND column_name = 'description'
+    `;
+    const columnCheck = await query(columnCheckSql);
+    includeDescription = columnCheck.length > 0 && columnCheck[0].count > 0;
+  } catch (error) {
+    console.warn("Could not check for description column:", error.message);
+  }
+
+  // Build SQL dynamically based on available columns
+  let updateFields = [
+    'tlName = ?',
+    'orderId = ?',
+    'positionNumber = ?',
+    'subPositionNumber = ?',
+    'projectNo = ?',
+    'taskJobNo = ?',
+    'referenceNo = ?',
+    'desciplineCode = ?',
+    'projectName = ?',
+    'subDivision = ?',
+  ];
+  let values = [
+    req.body.tlName,
+    req.body.orderId,
+    req.body.positionNumber,
+    req.body.subPositionNumber,
+    req.body.projectNo,
+    req.body.taskJobNo,
+    req.body.referenceNo,
+    req.body.desciplineCode,
+    req.body.projectName,
+    req.body.subDivision,
+  ];
+
+  if (includeDescription) {
+    updateFields.push('description = ?');
+    values.push(req.body.description || null);
+  }
+
+  updateFields.push('startDate = ?', 'targetDate = ?', 'allotatedHours = ?');
+  values.push(req.body.startDate, req.body.targetDate, req.body.allotatedHours);
+
+  if (includeStatus) {
+    updateFields.push('status = ?');
+    values.push(req.body.status || 'active');
+  }
+
+  if (includeAssignedEmployees) {
+    updateFields.push('assignedEmployees = ?');
+    values.push(assignedEmployeesJson);
+  }
+
+  updateFields.push('tlID = ?');
+  values.push(req.body.tlID);
+  values.push(projectId);
+
+  const sql = `UPDATE project SET ${updateFields.join(', ')} WHERE id = ?`;
 
   await query(sql, values);
   return sendSuccess(res, null, "Project updated successfully");
@@ -500,11 +534,13 @@ export const clockIn = asyncHandler(async (req, res) => {
   // Ensure we compare DATE only parts for the "already clocked in" check
   const checkDate = date || new Date().toISOString().split('T')[0];
 
-  // Calculate Week Number
+  // Calculate Week Number - Match frontend calculation
+  // Frontend uses: Math.floor(diff / oneWeekInMilliseconds) + 1
   const clockInDateObj = new Date(currentDateTime);
   const startOfYear = new Date(clockInDateObj.getFullYear(), 0, 1);
-  const daysSinceStart = Math.floor((clockInDateObj - startOfYear) / (1000 * 60 * 60 * 24));
-  const weekNumber = Math.ceil((daysSinceStart + startOfYear.getDay() + 1) / 7);
+  const diff = clockInDateObj.getTime() - startOfYear.getTime();
+  const oneWeekInMilliseconds = 7 * 24 * 60 * 60 * 1000;
+  const weekNumber = Math.floor(diff / oneWeekInMilliseconds) + 1;
 
   // 5. Check for Existing Active Clock-In
   // We check if there is a record with status='active' for this user today
@@ -839,10 +875,12 @@ export const clockOut = asyncHandler(async (req, res) => {
   const dayFields = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const dayField = dayFields[dayOfWeek];
   
-  // Get current week number using UTC date
-  const startOfYear = new Date(Date.UTC(clockOutDate.getUTCFullYear(), 0, 1));
-  const daysSinceStart = Math.floor((clockOutDate.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24));
-  const weekNumber = Math.ceil((daysSinceStart + startOfYear.getUTCDay() + 1) / 7);
+  // Get current week number - Match frontend calculation
+  // Frontend uses: Math.floor(diff / oneWeekInMilliseconds) + 1
+  const startOfYear = new Date(clockOutDate.getFullYear(), 0, 1);
+  const diff = clockOutDate.getTime() - startOfYear.getTime();
+  const oneWeekInMilliseconds = 7 * 24 * 60 * 60 * 1000;
+  const weekNumber = Math.floor(diff / oneWeekInMilliseconds) + 1;
   
   // Update work detail - set status to completed, calculate hours, and update day field
   // Build dynamic SQL for day field update - use backticks for column names
