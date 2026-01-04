@@ -16,6 +16,8 @@ class _TeamLeadApprovalCenterScreenState extends State<TeamLeadApprovalCenterScr
   bool _isLoading = false;
   List<dynamic> _pendingApprovals = [];
   String _selectedType = 'all'; // all, leave, compoff, workdetails
+  Set<String> _selectedItems = {}; // Store as "entityType:entityId"
+  bool _isBulkProcessing = false;
 
   @override
   void initState() {
@@ -161,6 +163,138 @@ class _TeamLeadApprovalCenterScreenState extends State<TeamLeadApprovalCenterScr
     }
   }
 
+  void _toggleSelection(String entityType, int entityId) {
+    setState(() {
+      final key = '$entityType:$entityId';
+      if (_selectedItems.contains(key)) {
+        _selectedItems.remove(key);
+      } else {
+        _selectedItems.add(key);
+      }
+    });
+  }
+
+  bool _isSelected(String entityType, int entityId) {
+    return _selectedItems.contains('$entityType:$entityId');
+  }
+
+  Future<void> _handleBulkAction(String status) async {
+    if (_selectedItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please select items to $status')),
+      );
+      return;
+    }
+
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Confirm Bulk ${status == 'approved' ? 'Approve' : 'Reject'}'),
+        content: Text('Are you sure you want to ${status} ${_selectedItems.length} item(s)?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: status == 'approved' ? Colors.green : Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(status == 'approved' ? 'Approve' : 'Reject'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _isBulkProcessing = true);
+
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final user = authProvider.user;
+      if (user == null) return;
+
+      final approverId = user['id']?.toString() ?? user['employeeId']?.toString() ?? '';
+      if (approverId.isEmpty) return;
+
+      // Group by entity type
+      final Map<String, List<int>> grouped = {};
+      for (final key in _selectedItems) {
+        final parts = key.split(':');
+        if (parts.length == 2) {
+          final entityType = parts[0];
+          final entityId = int.tryParse(parts[1]);
+          if (entityId != null) {
+            grouped.putIfAbsent(entityType, () => []).add(entityId);
+          }
+        }
+      }
+
+      // Process each group
+      int successCount = 0;
+      int errorCount = 0;
+      final List<String> errors = [];
+
+      for (final entry in grouped.entries) {
+        try {
+          await _apiService.bulkApprove(
+            entityType: entry.key,
+            entityIds: entry.value,
+            status: status,
+            approverId: approverId,
+            comments: 'Bulk $status',
+          );
+          successCount += entry.value.length;
+        } catch (e) {
+          errorCount += entry.value.length;
+          errors.add('${entry.key}: ${e.toString()}');
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _selectedItems.clear();
+        });
+
+        if (errorCount == 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Successfully ${status} $successCount item(s)'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${status == 'approved' ? 'Approved' : 'Rejected'} $successCount, failed: $errorCount'),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+
+        _loadPendingApprovals();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isBulkProcessing = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -173,6 +307,32 @@ class _TeamLeadApprovalCenterScreenState extends State<TeamLeadApprovalCenterScr
           ),
         ],
       ),
+      floatingActionButton: _selectedItems.isNotEmpty
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FloatingActionButton.extended(
+                  onPressed: _isBulkProcessing ? null : () => _handleBulkAction('approved'),
+                  backgroundColor: Colors.green,
+                  icon: const Icon(Icons.check_circle, color: Colors.white),
+                  label: Text(
+                    'Approve (${_selectedItems.length})',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                FloatingActionButton.extended(
+                  onPressed: _isBulkProcessing ? null : () => _handleBulkAction('rejected'),
+                  backgroundColor: Colors.red,
+                  icon: const Icon(Icons.cancel, color: Colors.white),
+                  label: Text(
+                    'Reject (${_selectedItems.length})',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            )
+          : null,
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
@@ -214,9 +374,13 @@ class _TeamLeadApprovalCenterScreenState extends State<TeamLeadApprovalCenterScr
                               final approval = _filteredApprovals[index];
                               final entityType = approval['entityType']?.toString() ?? '';
                               
+                              final entityId = int.tryParse(approval['entityId']?.toString() ?? '0') ?? 0;
+                              final isSelected = _isSelected(entityType, entityId);
+
                               return Card(
                                 margin: const EdgeInsets.only(bottom: 12),
-                                elevation: 2,
+                                elevation: isSelected ? 4 : 2,
+                                color: isSelected ? Colors.blue[50] : null,
                                 child: Padding(
                                   padding: const EdgeInsets.all(16),
                                   child: Column(
@@ -224,6 +388,10 @@ class _TeamLeadApprovalCenterScreenState extends State<TeamLeadApprovalCenterScr
                                     children: [
                                       Row(
                                         children: [
+                                          Checkbox(
+                                            value: isSelected,
+                                            onChanged: (value) => _toggleSelection(entityType, entityId),
+                                          ),
                                           Icon(
                                             _getEntityTypeIcon(entityType),
                                             color: Colors.blue,

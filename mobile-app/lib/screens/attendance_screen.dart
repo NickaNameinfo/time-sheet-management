@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:timesheet_mobile/providers/auth_provider.dart';
 import 'package:timesheet_mobile/providers/attendance_provider.dart';
+import 'package:timesheet_mobile/services/api_service.dart';
 import 'package:intl/intl.dart';
 
 class AttendanceScreen extends StatefulWidget {
@@ -12,16 +13,67 @@ class AttendanceScreen extends StatefulWidget {
 }
 
 class _AttendanceScreenState extends State<AttendanceScreen> {
-  final _projectController = TextEditingController();
+  final ApiService _apiService = ApiService();
   final _referenceController = TextEditingController();
-  final _areaController = TextEditingController();
+  String _selectedProject = '';
+  String _selectedAreaOfWork = '';
+  List<dynamic> _projects = [];
+  List<dynamic> _areaOfWorkList = [];
+  bool _isLoadingProjects = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProjectsAndAreaOfWork();
+  }
 
   @override
   void dispose() {
-    _projectController.dispose();
     _referenceController.dispose();
-    _areaController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadProjectsAndAreaOfWork() async {
+    setState(() => _isLoadingProjects = true);
+    try {
+      // Get current user ID to fetch assigned projects from project plans
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final user = authProvider.user;
+      final employeeId = user?['id']?.toString() ?? user?['employeeId']?.toString();
+      
+      final areaOfWork = await _apiService.getAreaOfWork();
+      
+      // Fetch assigned projects from project plans (matching frontend logic)
+      // Priority: Only show assigned projects from project plans
+      List<dynamic> assignedProjects = [];
+      if (employeeId != null && employeeId.isNotEmpty) {
+        try {
+          // Use the API endpoint to get assigned projects with allotted hours
+          assignedProjects = await _apiService.getEmployeeAssignedProjects(employeeId: employeeId);
+          debugPrint('Loaded ${assignedProjects.length} assigned projects from project plans');
+        } catch (e) {
+          debugPrint('Error fetching assigned projects from project plans: $e');
+          // Don't fallback to all projects - only show assigned projects
+          // This matches frontend behavior where it shows "No assigned projects" message
+          assignedProjects = [];
+        }
+      }
+      
+      setState(() {
+        _projects = assignedProjects; // Only assigned projects from plans
+        _areaOfWorkList = areaOfWork;
+      });
+    } catch (e) {
+      debugPrint('Error loading projects and area of work: $e');
+      setState(() {
+        _projects = [];
+        _areaOfWorkList = [];
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingProjects = false);
+      }
+    }
   }
 
   Future<void> _handleClockIn() async {
@@ -37,15 +89,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final success = await attendanceProvider.clockIn(
       employeeId: authProvider.user!['EMPID']?.toString() ?? '',
       employeeName: authProvider.user!['employeeName'] ?? '',
-      projectName: _projectController.text.trim().isEmpty
-          ? null
-          : _projectController.text.trim(),
+      projectName: _selectedProject.isEmpty ? null : _selectedProject,
       referenceNo: _referenceController.text.trim().isEmpty
           ? null
           : _referenceController.text.trim(),
-      areaOfWork: _areaController.text.trim().isEmpty
+      areaOfWork: _selectedAreaOfWork.isEmpty
           ? null
-          : _areaController.text.trim(),
+          : _selectedAreaOfWork,
     );
 
     if (success && mounted) {
@@ -84,9 +134,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   void _clearFields() {
-    _projectController.clear();
+    setState(() {
+      _selectedProject = '';
+      _selectedAreaOfWork = '';
+    });
     _referenceController.clear();
-    _areaController.clear();
   }
 
   void _showError(String message) {
@@ -207,15 +259,73 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        TextField(
-                          controller: _projectController,
+                        DropdownButtonFormField<String>(
+                          value: _selectedProject.isEmpty || 
+                                  !_projects.any((p) => p['projectName']?.toString() == _selectedProject)
+                              ? null
+                              : _selectedProject,
                           decoration: InputDecoration(
-                            labelText: 'Project Name (Optional)',
+                            labelText: 'Project Name',
+                            helperText: _projects.isEmpty 
+                                ? (_isLoadingProjects 
+                                    ? 'Loading projects...' 
+                                    : 'No assigned projects from project plans')
+                                : 'Showing only assigned projects from project plans',
                             prefixIcon: Icon(
                               Icons.work_outline_rounded,
                               color: Theme.of(context).colorScheme.primary,
                             ),
+                            border: OutlineInputBorder(),
                           ),
+                          items: [
+                            const DropdownMenuItem(value: null, child: Text('None')),
+                            if (_projects.isEmpty && !_isLoadingProjects)
+                              const DropdownMenuItem(
+                                value: null,
+                                enabled: false,
+                                child: Text(
+                                  'No assigned projects from project plans',
+                                  style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
+                                ),
+                              )
+                            else
+                              ..._projects
+                                  .where((project) => project['projectName']?.toString().isNotEmpty == true)
+                                  .map((project) {
+                                    final projectName = project['projectName']?.toString() ?? '';
+                                    // Match frontend: check allotted_hours (from project plans)
+                                    final allottedHours = project['allotted_hours']?.toString() ?? 
+                                                         project['allotatedHours']?.toString() ?? 
+                                                         project['allottedHours']?.toString();
+                                    final displayText = allottedHours != null && 
+                                                       allottedHours.isNotEmpty && 
+                                                       double.tryParse(allottedHours) != null
+                                        ? '$projectName (${allottedHours} hrs)'
+                                        : projectName;
+                                    return DropdownMenuItem(
+                                      value: projectName,
+                                      child: Text(displayText),
+                                    );
+                                  })
+                                  .toList(),
+                          ],
+                          onChanged: _isLoadingProjects ? null : (value) {
+                            setState(() {
+                              _selectedProject = value ?? '';
+                              if (value != null && value.isNotEmpty) {
+                                final selectedProjectData = _projects.firstWhere(
+                                  (p) => p['projectName']?.toString() == value,
+                                  orElse: () => <String, dynamic>{},
+                                );
+                                if (selectedProjectData.isNotEmpty && 
+                                    selectedProjectData['referenceNo'] != null) {
+                                  _referenceController.text = selectedProjectData['referenceNo'].toString();
+                                }
+                              } else {
+                                _referenceController.clear();
+                              }
+                            });
+                          },
                         ),
                         const SizedBox(height: 16),
                         TextField(
@@ -229,15 +339,38 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        TextField(
-                          controller: _areaController,
+                        DropdownButtonFormField<String>(
+                          value: _selectedAreaOfWork.isEmpty || 
+                                  !_areaOfWorkList.any((area) => area['areaofwork']?.toString() == _selectedAreaOfWork)
+                              ? null
+                              : _selectedAreaOfWork,
                           decoration: InputDecoration(
                             labelText: 'Area of Work (Optional)',
                             prefixIcon: Icon(
                               Icons.location_on_outlined,
                               color: Theme.of(context).colorScheme.primary,
                             ),
+                            border: OutlineInputBorder(),
                           ),
+                          items: [
+                            const DropdownMenuItem(value: null, child: Text('None')),
+                            ..._areaOfWorkList
+                                .where((area) => area['areaofwork']?.toString().isNotEmpty == true)
+                                .map((area) => area['areaofwork']?.toString() ?? '')
+                                .toSet()
+                                .map((areaName) {
+                                  return DropdownMenuItem(
+                                    value: areaName,
+                                    child: Text(areaName),
+                                  );
+                                })
+                                .toList(),
+                          ],
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedAreaOfWork = value ?? '';
+                            });
+                          },
                         ),
                       ],
                     ),

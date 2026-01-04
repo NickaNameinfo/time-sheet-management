@@ -1055,5 +1055,404 @@ class ApiService {
       rethrow;
     }
   }
+
+  // ========== NEW API METHODS FOR RECENT FEATURES ==========
+
+  // Budget Tracking - Get Project Budget
+  Future<List<dynamic>> getProjectBudget(String projectId) async {
+    try {
+      final response = await _dio.get('/projects/$projectId/budget');
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? [];
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch project budget');
+      }
+    } catch (e) {
+      _logger.e('Get project budget error: $e');
+      rethrow;
+    }
+  }
+
+  // Budget Tracking - Set Project Budget
+  Future<Map<String, dynamic>> setProjectBudget(String projectId, Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.post('/projects/$projectId/budget', data: data);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to set project budget');
+      }
+    } catch (e) {
+      _logger.e('Set project budget error: $e');
+      rethrow;
+    }
+  }
+
+  // Budget Tracking - Update Project Budget
+  Future<Map<String, dynamic>> updateProjectBudget(int id, Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.put('/projects/budget/$id', data: data);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to update project budget');
+      }
+    } catch (e) {
+      _logger.e('Update project budget error: $e');
+      rethrow;
+    }
+  }
+
+  // Budget Tracking - Delete Project Budget
+  Future<void> deleteProjectBudget(int id) async {
+    try {
+      final response = await _dio.delete('/projects/budget/$id');
+      if (response.data['Status'] != 'Success') {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to delete project budget');
+      }
+    } catch (e) {
+      _logger.e('Delete project budget error: $e');
+      rethrow;
+    }
+  }
+
+  // Budget Tracking - Track Project Cost
+  Future<Map<String, dynamic>> trackProjectCost(String projectId, Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.post('/projects/$projectId/costs', data: data);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to track project cost');
+      }
+    } catch (e) {
+      _logger.e('Track project cost error: $e');
+      rethrow;
+    }
+  }
+
+  // Budget Tracking - Get Project Costs
+  Future<List<dynamic>> getProjectCosts(String projectId, {String? startDate, String? endDate}) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (startDate != null) queryParams['startDate'] = startDate;
+      if (endDate != null) queryParams['endDate'] = endDate;
+      
+      final response = await _dio.get('/projects/$projectId/costs', queryParameters: queryParams);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? [];
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch project costs');
+      }
+    } catch (e) {
+      _logger.e('Get project costs error: $e');
+      rethrow;
+    }
+  }
+
+  // Budget Tracking - Update Project Cost
+  Future<Map<String, dynamic>> updateProjectCost(int id, Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.put('/projects/costs/$id', data: data);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to update project cost');
+      }
+    } catch (e) {
+      _logger.e('Update project cost error: $e');
+      rethrow;
+    }
+  }
+
+  // Budget Tracking - Delete Project Cost
+  Future<void> deleteProjectCost(int id) async {
+    try {
+      final response = await _dio.delete('/projects/costs/$id');
+      if (response.data['Status'] != 'Success') {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to delete project cost');
+      }
+    } catch (e) {
+      _logger.e('Delete project cost error: $e');
+      rethrow;
+    }
+  }
+
+  // Budget Tracking - Get Budget vs Actual
+  Future<Map<String, dynamic>> getBudgetVsActual(String projectId) async {
+    try {
+      final response = await _dio.get('/projects/$projectId/budget-vs-actual');
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch budget vs actual');
+      }
+    } catch (e) {
+      _logger.e('Get budget vs actual error: $e');
+      rethrow;
+    }
+  }
+
+  // Budget Tracking - Get Profitability Report
+  Future<Map<String, dynamic>> getProfitabilityReport(String projectId) async {
+    try {
+      final response = await _dio.get('/projects/$projectId/profitability');
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch profitability report');
+      }
+    } catch (e) {
+      _logger.e('Get profitability report error: $e');
+      rethrow;
+    }
+  }
+
+  // Approval Center - Bulk Approve/Reject
+  Future<Map<String, dynamic>> bulkApprove({
+    required String entityType,
+    required List<int> entityIds,
+    required String status, // 'approved' or 'rejected'
+    required String approverId,
+    String? comments,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/approvals/bulk',
+        data: {
+          'entityType': entityType,
+          'entityIds': entityIds,
+          'status': status,
+          'approverId': approverId,
+          if (comments != null) 'comments': comments,
+        },
+      );
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to bulk approve/reject');
+      }
+    } catch (e) {
+      _logger.e('Bulk approve error: $e');
+      rethrow;
+    }
+  }
+
+  // Approval Center - Get Approval History
+  Future<List<dynamic>> getApprovalHistory({
+    String? entityType,
+    String? status,
+    String? startDate,
+    String? endDate,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (entityType != null && entityType.isNotEmpty) queryParams['entityType'] = entityType;
+      if (status != null && status.isNotEmpty) queryParams['status'] = status;
+      if (startDate != null && startDate.isNotEmpty) queryParams['startDate'] = startDate;
+      if (endDate != null && endDate.isNotEmpty) queryParams['endDate'] = endDate;
+      
+      final response = await _dio.get('/approvals/history', queryParameters: queryParams);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? [];
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch approval history');
+      }
+    } catch (e) {
+      _logger.e('Get approval history error: $e');
+      rethrow;
+    }
+  }
+
+  // Leave Balance - Update Leave Balance
+  Future<Map<String, dynamic>> updateLeaveBalance(Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.put('/leave/balance/update', data: data);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to update leave balance');
+      }
+    } catch (e) {
+      _logger.e('Update leave balance error: $e');
+      rethrow;
+    }
+  }
+
+  // Billing - Get Clients
+  Future<List<dynamic>> getClients() async {
+    try {
+      final response = await _dio.get('/clients');
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? [];
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch clients');
+      }
+    } catch (e) {
+      _logger.e('Get clients error: $e');
+      rethrow;
+    }
+  }
+
+  // Billing - Get Invoices
+  Future<List<dynamic>> getInvoices({String? clientId, String? status, String? startDate, String? endDate}) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (clientId != null) queryParams['clientId'] = clientId;
+      if (status != null) queryParams['status'] = status;
+      if (startDate != null) queryParams['startDate'] = startDate;
+      if (endDate != null) queryParams['endDate'] = endDate;
+      
+      final response = await _dio.get('/invoices', queryParameters: queryParams);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? [];
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch invoices');
+      }
+    } catch (e) {
+      _logger.e('Get invoices error: $e');
+      rethrow;
+    }
+  }
+
+  // Billing - Get Invoice Details
+  Future<Map<String, dynamic>> getInvoiceDetails(int id) async {
+    try {
+      final response = await _dio.get('/invoices/$id');
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch invoice details');
+      }
+    } catch (e) {
+      _logger.e('Get invoice details error: $e');
+      rethrow;
+    }
+  }
+
+  // Billing - Update Invoice
+  Future<Map<String, dynamic>> updateInvoice(int id, Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.put('/invoices/$id', data: data);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to update invoice');
+      }
+    } catch (e) {
+      _logger.e('Update invoice error: $e');
+      rethrow;
+    }
+  }
+
+  // Productivity - Get Productivity Metrics
+  Future<List<dynamic>> getProductivityMetrics({
+    String? employeeId,
+    String? startDate,
+    String? endDate,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      // Only include employeeId if it's not empty/null
+      if (employeeId != null && employeeId.isNotEmpty && employeeId != 'undefined' && employeeId != 'null') {
+        queryParams['employeeId'] = employeeId;
+      }
+      if (startDate != null) queryParams['startDate'] = startDate;
+      if (endDate != null) queryParams['endDate'] = endDate;
+      
+      final response = await _dio.get('/productivity/metrics', queryParameters: queryParams);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? [];
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch productivity metrics');
+      }
+    } catch (e) {
+      _logger.e('Get productivity metrics error: $e');
+      rethrow;
+    }
+  }
+
+  // Productivity - Get Team Productivity
+  Future<Map<String, dynamic>> getTeamProductivity({
+    String? teamLeadId,
+    String? startDate,
+    String? endDate,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (teamLeadId != null) queryParams['teamLeadId'] = teamLeadId;
+      if (startDate != null) queryParams['startDate'] = startDate;
+      if (endDate != null) queryParams['endDate'] = endDate;
+      
+      final response = await _dio.get('/productivity/team', queryParameters: queryParams);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch team productivity');
+      }
+    } catch (e) {
+      _logger.e('Get team productivity error: $e');
+      rethrow;
+    }
+  }
+
+  // Project Plans - Get Employee Assigned Projects
+  Future<List<dynamic>> getEmployeeAssignedProjects({required String employeeId}) async {
+    try {
+      final response = await _dio.get(
+        '/project-plan/employee/assigned',
+        queryParameters: {'employee_id': employeeId}, // Backend expects employee_id
+      );
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? [];
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch assigned projects');
+      }
+    } catch (e) {
+      _logger.e('Get employee assigned projects error: $e');
+      rethrow;
+    }
+  }
+
+  // Payroll - Generate Payroll Summary
+  Future<Map<String, dynamic>> generatePayrollSummary({
+    String? employeeId,
+    String? startDate,
+    String? endDate,
+    String? format,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{};
+      if (employeeId != null && employeeId.isNotEmpty) queryParams['employeeId'] = employeeId;
+      if (startDate != null) queryParams['startDate'] = startDate;
+      if (endDate != null) queryParams['endDate'] = endDate;
+      if (format != null) queryParams['format'] = format;
+      
+      final response = await _dio.get('/payroll/summary', queryParameters: queryParams);
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to generate payroll summary');
+      }
+    } catch (e) {
+      _logger.e('Generate payroll summary error: $e');
+      rethrow;
+    }
+  }
+
+  // App Settings - Get App Settings
+  Future<Map<String, dynamic>> getAppSettings() async {
+    try {
+      final response = await _dio.get('/settings/app');
+      if (response.data['Status'] == 'Success') {
+        return response.data['Result'] ?? {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch app settings');
+      }
+    } catch (e) {
+      _logger.e('Get app settings error: $e');
+      rethrow;
+    }
+  }
 }
 

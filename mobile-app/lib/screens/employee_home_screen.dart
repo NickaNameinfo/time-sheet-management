@@ -70,65 +70,37 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
 
   Future<void> _loadProjectsAndAreaOfWork() async {
     try {
-      final projects = await _apiService.getProjects();
-      final areaOfWork = await _apiService.getAreaOfWork();
-      
-      // Get current user ID to filter assigned projects
+      // Get current user ID to fetch assigned projects from project plans
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final user = authProvider.user;
       final employeeId = user?['id']?.toString() ?? user?['employeeId']?.toString();
       
-      // Filter projects to show only assigned projects
+      final areaOfWork = await _apiService.getAreaOfWork();
+      
+      // Fetch assigned projects from project plans (NEW: Use project plans API)
       List<dynamic> assignedProjects = [];
-      if (employeeId != null && projects != null) {
-        final userId = int.tryParse(employeeId);
-        if (userId != null) {
-          assignedProjects = projects.where((project) {
-            // Check if project has assignedEmployees
-            if (project['assignedEmployees'] == null) return false;
-            
-            dynamic assignedEmployees = project['assignedEmployees'];
-            List<int> assignedIds = [];
-            
-            // Handle different formats: string (JSON), array, or null
-            if (assignedEmployees is String) {
-              try {
-                // Try parsing as JSON array string like "[25,23]" or "[25, 23]"
-                String cleaned = assignedEmployees.trim();
-                if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
-                  cleaned = cleaned.substring(1, cleaned.length - 1);
-                }
-                assignedIds = cleaned
-                    .split(',')
-                    .map((id) => int.tryParse(id.trim()))
-                    .whereType<int>()
-                    .toList();
-              } catch (e) {
-                // If parsing fails, try splitting by comma directly
-                assignedIds = assignedEmployees
-                    .split(',')
-                    .map((id) => int.tryParse(id.trim()))
-                    .whereType<int>()
-                    .toList();
-              }
-            } else if (assignedEmployees is List) {
-              assignedIds = assignedEmployees.map((id) {
-                if (id is int) return id;
-                if (id is String) return int.tryParse(id);
-                return null;
-              }).whereType<int>().toList();
-            }
-            
-            // Check if current user ID is in the assigned employees list
-            return assignedIds.contains(userId);
-          }).toList();
-        } else {
-          // If employeeId is not a valid integer, show all projects (fallback)
-          assignedProjects = projects;
+      if (employeeId != null && employeeId.isNotEmpty) {
+        try {
+          // Use the new API endpoint to get assigned projects with allotted hours
+          assignedProjects = await _apiService.getEmployeeAssignedProjects(employeeId: employeeId);
+        } catch (e) {
+          debugPrint('Error fetching assigned projects from project plans: $e');
+          // Fallback: try to get all projects if the new API fails
+          try {
+            final allProjects = await _apiService.getProjects();
+            assignedProjects = allProjects ?? [];
+          } catch (e2) {
+            debugPrint('Error fetching all projects: $e2');
+          }
         }
       } else {
-        // If no employeeId, show all projects (fallback)
-        assignedProjects = projects ?? [];
+        // If no employeeId, try to get all projects as fallback
+        try {
+          final allProjects = await _apiService.getProjects();
+          assignedProjects = allProjects ?? [];
+        } catch (e) {
+          debugPrint('Error fetching projects: $e');
+        }
       }
       
       setState(() {
@@ -136,7 +108,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
         _areaOfWorkList = areaOfWork;
       });
     } catch (e) {
-      // Silently fail
+      debugPrint('Error loading projects and area of work: $e');
     }
   }
 
@@ -1345,17 +1317,23 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
               decoration: const InputDecoration(
                 labelText: 'Project Name (Optional)',
                 border: OutlineInputBorder(),
+                helperText: 'Showing only assigned projects from project plans',
               ),
               items: [
                 const DropdownMenuItem(value: null, child: Text('None')),
                 ..._projects
                     .where((project) => project['projectName']?.toString().isNotEmpty == true)
-                    .map((project) => project['projectName']?.toString() ?? '')
-                    .toSet()
-                    .map((projectName) {
+                    .map((project) {
+                      final projectName = project['projectName']?.toString() ?? '';
+                      final allottedHours = project['allotatedHours']?.toString() ?? 
+                                           project['allottedHours']?.toString() ??
+                                           project['allotted_hours']?.toString();
+                      final displayText = allottedHours != null && allottedHours.isNotEmpty
+                          ? '$projectName (${allottedHours} hrs)'
+                          : projectName;
                       return DropdownMenuItem(
                         value: projectName,
-                        child: Text(projectName),
+                        child: Text(displayText),
                       );
                     })
                     .toList(),
