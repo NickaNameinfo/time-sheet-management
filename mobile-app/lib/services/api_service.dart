@@ -1399,17 +1399,45 @@ class ApiService {
   // Project Plans - Get Employee Assigned Projects
   Future<List<dynamic>> getEmployeeAssignedProjects({required String employeeId}) async {
     try {
+      // Ensure baseUrl is correct before request
+      _dio.options.baseUrl = AppConfig.baseUrl;
+      
+      _logger.d('Fetching assigned projects for employee_id: $employeeId');
+      
       final response = await _dio.get(
         '/project-plan/employee/assigned',
         queryParameters: {'employee_id': employeeId}, // Backend expects employee_id
       );
+      
+      _logger.d('Response status: ${response.statusCode}');
+      _logger.d('Response data: ${response.data}');
+      
       if (response.data['Status'] == 'Success') {
-        return response.data['Result'] ?? [];
+        final result = response.data['Result'] ?? [];
+        _logger.i('Successfully fetched ${result.length} assigned projects');
+        return result;
       } else {
-        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch assigned projects');
+        final errorMsg = response.data['Message'] ?? response.data['Error'] ?? 'Failed to fetch assigned projects';
+        _logger.e('API returned error: $errorMsg');
+        throw Exception(errorMsg);
       }
+    } on DioException catch (e) {
+      _logger.e('DioException in getEmployeeAssignedProjects:');
+      _logger.e('  Type: ${e.type}');
+      _logger.e('  Message: ${e.message}');
+      _logger.e('  Status code: ${e.response?.statusCode}');
+      _logger.e('  Response data: ${e.response?.data}');
+      _logger.e('  Request path: ${e.requestOptions.path}');
+      _logger.e('  Request query: ${e.requestOptions.queryParameters}');
+      
+      if (e.type == DioExceptionType.connectionError || 
+          e.type == DioExceptionType.connectionTimeout) {
+        _logger.w('Connection error: Cannot reach backend at ${AppConfig.baseUrl}');
+      }
+      
+      rethrow;
     } catch (e) {
-      _logger.e('Get employee assigned projects error: $e');
+      _logger.e('Unexpected error in getEmployeeAssignedProjects: $e');
       rethrow;
     }
   }

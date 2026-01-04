@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:timesheet_mobile/providers/auth_provider.dart';
 import 'package:timesheet_mobile/providers/attendance_provider.dart';
 import 'package:timesheet_mobile/services/api_service.dart';
 import 'package:intl/intl.dart';
+import 'package:dio/dio.dart';
 
 class AttendanceScreen extends StatefulWidget {
   const AttendanceScreen({super.key});
@@ -20,15 +22,45 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   List<dynamic> _projects = [];
   List<dynamic> _areaOfWorkList = [];
   bool _isLoadingProjects = false;
+  String? _projectsError;
 
   @override
   void initState() {
     super.initState();
-    _loadProjectsAndAreaOfWork();
+    // Add a small delay to ensure AuthProvider has loaded user data
+    // This is especially important in release builds where initialization might be different
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Wait a bit for AuthProvider to finish loading user from SharedPreferences
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          _loadProjectsAndAreaOfWork();
+        }
+      });
+      
+      // Also listen to AuthProvider changes in case user data loads later
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      authProvider.addListener(_onAuthChanged);
+    });
   }
-
+  
+  void _onAuthChanged() {
+    // Reload projects when user data becomes available
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.user != null && _projects.isEmpty && !_isLoadingProjects) {
+      print('🔄 User data available, reloading projects...');
+      _loadProjectsAndAreaOfWork();
+    }
+  }
+  
   @override
   void dispose() {
+    // Remove listener to prevent memory leaks
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      authProvider.removeListener(_onAuthChanged);
+    } catch (e) {
+      // Ignore if context is no longer available
+    }
     _referenceController.dispose();
     super.dispose();
   }
@@ -39,36 +71,126 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       // Get current user ID to fetch assigned projects from project plans
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final user = authProvider.user;
-      final employeeId = user?['id']?.toString() ?? user?['employeeId']?.toString();
       
-      final areaOfWork = await _apiService.getAreaOfWork();
-      
-      // Fetch assigned projects from project plans (matching frontend logic)
-      // Priority: Only show assigned projects from project plans
-      List<dynamic> assignedProjects = [];
-      if (employeeId != null && employeeId.isNotEmpty) {
-        try {
-          // Use the API endpoint to get assigned projects with allotted hours
-          assignedProjects = await _apiService.getEmployeeAssignedProjects(employeeId: employeeId);
-          debugPrint('Loaded ${assignedProjects.length} assigned projects from project plans');
-        } catch (e) {
-          debugPrint('Error fetching assigned projects from project plans: $e');
-          // Don't fallback to all projects - only show assigned projects
-          // This matches frontend behavior where it shows "No assigned projects" message
-          assignedProjects = [];
+      if (user == null) {
+        debugPrint('ERROR: User is null, cannot fetch projects');
+        if (mounted) {
+          _showError('User not found. Please login again.');
         }
+        setState(() {
+          _projects = [];
+          _areaOfWorkList = [];
+        });
+        return;
       }
       
-      setState(() {
-        _projects = assignedProjects; // Only assigned projects from plans
-        _areaOfWorkList = areaOfWork;
-      });
+      // Try multiple possible ID fields (matching frontend logic)
+      // In release builds, user data structure might be different
+      final employeeId = user['id']?.toString() ?? 
+                         user['employeeId']?.toString() ?? 
+                         user['EMPID']?.toString() ??
+                         user['employee_id']?.toString();
+      
+      // Log for debugging (works in both debug and release with proper logging)
+      print('🔍 Loading projects for employeeId: $employeeId');
+      print('🔍 User data keys: ${user.keys.toList()}');
+      print('🔍 Full user data: $user');
+      
+      if (employeeId == null || employeeId.isEmpty) {
+        print('❌ ERROR: Employee ID is null or empty');
+        print('❌ Available user keys: ${user.keys.toList()}');
+        print('❌ User values: ${user.values.toList()}');
+        
+        if (mounted) {
+          final errorMsg = 'Employee ID not found. Available keys: ${user.keys.join(", ")}. Please login again.';
+          _showError(errorMsg);
+          setState(() {
+            _projectsError = errorMsg;
+            _projects = [];
+            _areaOfWorkList = [];
+          });
+        }
+        return;
+      }
+      
+      // Fetch area of work
+      List<dynamic> areaOfWork = [];
+      try {
+        areaOfWork = await _apiService.getAreaOfWork();
+        debugPrint('Loaded ${areaOfWork.length} area of work items');
+      } catch (e) {
+        debugPrint('Error fetching area of work: $e');
+        // Continue even if area of work fails
+      }
+      
+      // Fetch assigned projects from project plans (matching frontend logic)
+      List<dynamic> assignedProjects = [];
+      try {
+        print('📡 Calling API: getEmployeeAssignedProjects with employeeId: $employeeId');
+        // Use the API endpoint to get assigned projects with allotted hours
+        assignedProjects = await _apiService.getEmployeeAssignedProjects(employeeId: employeeId);
+        print('✅ Loaded ${assignedProjects.length} assigned projects from project plans');
+        
+        if (assignedProjects.isEmpty) {
+          print('⚠️ No assigned projects found for employeeId: $employeeId');
+          // Show helpful message to user
+          if (mounted) {
+            setState(() {
+              _projectsError = 'No assigned projects found. Please contact your manager to assign projects.';
+            });
+          }
+        } else {
+          // Clear any previous errors on success
+          if (mounted) {
+            setState(() {
+              _projectsError = null;
+            });
+          }
+        }
+      } catch (e) {
+        print('❌ Error fetching assigned projects from project plans: $e');
+        print('❌ Error type: ${e.runtimeType}');
+        if (e is DioException) {
+          print('❌ DioException details:');
+          print('  Status code: ${e.response?.statusCode}');
+          print('  Response data: ${e.response?.data}');
+          print('  Request path: ${e.requestOptions.path}');
+          print('  Request query: ${e.requestOptions.queryParameters}');
+          print('  Base URL: ${e.requestOptions.baseUrl}');
+        }
+        
+        // Store error message for UI display
+        if (mounted) {
+          final errorMessage = e is DioException 
+              ? 'Failed to load projects: ${e.response?.statusCode ?? 'Network error'}'
+              : 'Failed to load projects. Please try again.';
+          setState(() {
+            _projectsError = errorMessage;
+          });
+          _showError(errorMessage);
+        }
+        
+        // Don't fallback to all projects - only show assigned projects
+        assignedProjects = [];
+      }
+      
+      if (mounted) {
+        setState(() {
+          _projects = assignedProjects; // Only assigned projects from plans
+          _areaOfWorkList = areaOfWork;
+          _projectsError = null; // Clear error on success
+        });
+      }
     } catch (e) {
-      debugPrint('Error loading projects and area of work: $e');
-      setState(() {
-        _projects = [];
-        _areaOfWorkList = [];
-      });
+      debugPrint('❌ Unexpected error loading projects and area of work: $e');
+      debugPrint('Error stack: ${StackTrace.current}');
+      if (mounted) {
+        _showError('Unexpected error loading data. Please try again.');
+        setState(() {
+          _projects = [];
+          _areaOfWorkList = [];
+        });
+      }
     } finally {
       if (mounted) {
         setState(() => _isLoadingProjects = false);
@@ -167,11 +289,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       ),
       body: Consumer<AttendanceProvider>(
         builder: (context, attendanceProvider, _) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+          return RefreshIndicator(
+            onRefresh: _loadProjectsAndAreaOfWork,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                 // Status Card with Modern Design
                 Container(
                   decoration: BoxDecoration(
@@ -244,6 +368,63 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
+                        // Show error message if projects failed to load
+                        if (_projectsError != null)
+                          Card(
+                            color: Colors.red.shade50,
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.error_outline, color: Colors.red.shade700),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          'Error loading projects',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.red.shade700,
+                                          ),
+                                        ),
+                                      ),
+                                      IconButton(
+                                        icon: Icon(Icons.refresh, color: Colors.red.shade700),
+                                        onPressed: _loadProjectsAndAreaOfWork,
+                                        tooltip: 'Retry',
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _projectsError!,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.red.shade600,
+                                    ),
+                                  ),
+                                  // Debug info in release builds (helpful for troubleshooting)
+                                  if (kDebugMode)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 8.0),
+                                      child: Text(
+                                        'User ID: ${Provider.of<AuthProvider>(context, listen: false).user?['id'] ?? 'null'}\n'
+                                        'Employee ID: ${Provider.of<AuthProvider>(context, listen: false).user?['employeeId'] ?? 'null'}\n'
+                                        'EMPID: ${Provider.of<AuthProvider>(context, listen: false).user?['EMPID'] ?? 'null'}',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey.shade700,
+                                          fontFamily: 'monospace',
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        if (_projectsError != null) const SizedBox(height: 16),
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(20.0),
@@ -432,7 +613,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     padding: EdgeInsets.all(16.0),
                     child: Center(child: CircularProgressIndicator()),
                   ),
-              ],
+                ],
+              ),
             ),
           );
         },
