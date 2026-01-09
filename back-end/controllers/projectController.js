@@ -56,20 +56,51 @@ export const createProject = asyncHandler(async (req, res) => {
     console.warn("Could not check for description column:", error.message);
   }
 
+  // Check if removed columns still exist and need NULL values
+  const checkColumnExists = async (columnName) => {
+    try {
+      const columnCheckSql = `
+        SELECT COUNT(*) as count 
+        FROM information_schema.COLUMNS 
+        WHERE table_schema = DATABASE() 
+        AND table_name = 'project' 
+        AND column_name = ?
+      `;
+      const columnCheck = await query(columnCheckSql, [columnName]);
+      return columnCheck.length > 0 && columnCheck[0].count > 0;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const removedColumns = ['orderId', 'positionNumber', 'subPositionNumber', 'taskJobNo', 'referenceNo'];
+  const columnsToInclude = [];
+  const valuesToInclude = [];
+
+  // Check each removed column and include with NULL if it exists
+  for (const col of removedColumns) {
+    const exists = await checkColumnExists(col);
+    if (exists) {
+      columnsToInclude.push(col);
+      valuesToInclude.push(null);
+    }
+  }
+
   // Build SQL dynamically based on available columns
-  let columns = ['tlName', 'orderId', 'positionNumber', 'subPositionNumber', 'projectNo', 'taskJobNo', 'referenceNo', 'desciplineCode', 'projectName', 'subDivision'];
+  let columns = ['tlName', 'projectNo', 'desciplineCode', 'projectName', 'subDivision'];
   let values = [
     req.body.tlName,
-    req.body.orderId,
-    req.body.positionNumber,
-    req.body.subPositionNumber,
     req.body.projectNo,
-    req.body.taskJobNo,
-    req.body.referenceNo,
     req.body.desciplineCode,
     req.body.projectName,
     req.body.subDivision,
   ];
+
+  // Add removed columns with NULL values if they exist
+  if (columnsToInclude.length > 0) {
+    columns = [...columnsToInclude, ...columns];
+    values = [...valuesToInclude, ...values];
+  }
 
   if (includeDescription) {
     columns.push('description');
@@ -231,31 +262,57 @@ export const updateProject = asyncHandler(async (req, res) => {
     console.warn("Could not check for description column:", error.message);
   }
 
+  // Check if removed columns still exist and need NULL values
+  const checkColumnExists = async (columnName) => {
+    try {
+      const columnCheckSql = `
+        SELECT COUNT(*) as count 
+        FROM information_schema.COLUMNS 
+        WHERE table_schema = DATABASE() 
+        AND table_name = 'project' 
+        AND column_name = ?
+      `;
+      const columnCheck = await query(columnCheckSql, [columnName]);
+      return columnCheck.length > 0 && columnCheck[0].count > 0;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const removedColumns = ['orderId', 'positionNumber', 'subPositionNumber', 'taskJobNo', 'referenceNo'];
+  const updateFieldsToInclude = [];
+  const valuesToInclude = [];
+
+  // Check each removed column and include with NULL if it exists
+  for (const col of removedColumns) {
+    const exists = await checkColumnExists(col);
+    if (exists) {
+      updateFieldsToInclude.push(`${col} = ?`);
+      valuesToInclude.push(null);
+    }
+  }
+
   // Build SQL dynamically based on available columns
   let updateFields = [
     'tlName = ?',
-    'orderId = ?',
-    'positionNumber = ?',
-    'subPositionNumber = ?',
     'projectNo = ?',
-    'taskJobNo = ?',
-    'referenceNo = ?',
     'desciplineCode = ?',
     'projectName = ?',
     'subDivision = ?',
   ];
   let values = [
     req.body.tlName,
-    req.body.orderId,
-    req.body.positionNumber,
-    req.body.subPositionNumber,
     req.body.projectNo,
-    req.body.taskJobNo,
-    req.body.referenceNo,
     req.body.desciplineCode,
     req.body.projectName,
     req.body.subDivision,
   ];
+
+  // Add removed columns with NULL values if they exist
+  if (updateFieldsToInclude.length > 0) {
+    updateFields = [...updateFieldsToInclude, ...updateFields];
+    values = [...valuesToInclude, ...values];
+  }
 
   if (includeDescription) {
     updateFields.push('description = ?');

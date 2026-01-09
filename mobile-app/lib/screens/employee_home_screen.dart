@@ -42,6 +42,8 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
   String _selectedAreaOfWork = '';
   List<dynamic> _projects = [];
   List<dynamic> _areaOfWorkList = [];
+  List<dynamic> _assignedProjectPlans = [];
+  bool _loadingProjectPlans = false;
   final TextEditingController _referenceNoController = TextEditingController();
   
   @override
@@ -66,6 +68,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
       }
     });
     _loadProjectsAndAreaOfWork();
+    _loadAssignedProjectPlans();
   }
 
   Future<void> _loadProjectsAndAreaOfWork() async {
@@ -109,6 +112,39 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
       });
     } catch (e) {
       debugPrint('Error loading projects and area of work: $e');
+    }
+  }
+
+  Future<void> _loadAssignedProjectPlans() async {
+    setState(() => _loadingProjectPlans = true);
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final user = authProvider.user;
+      final employeeId = user?['id']?.toString() ?? user?['employeeId']?.toString();
+      
+      if (employeeId != null && employeeId.isNotEmpty) {
+        try {
+          final projectPlans = await _apiService.getEmployeeAssignedProjects(employeeId: employeeId);
+          setState(() {
+            _assignedProjectPlans = projectPlans;
+            _loadingProjectPlans = false;
+          });
+        } catch (e) {
+          debugPrint('Error fetching assigned project plans: $e');
+          setState(() {
+            _assignedProjectPlans = [];
+            _loadingProjectPlans = false;
+          });
+        }
+      } else {
+        setState(() {
+          _assignedProjectPlans = [];
+          _loadingProjectPlans = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading assigned project plans: $e');
+      setState(() => _loadingProjectPlans = false);
     }
   }
 
@@ -736,10 +772,11 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
 
     return Stack(
       children: [
-        RefreshIndicator(
+          RefreshIndicator(
           onRefresh: () async {
             await _loadData();
             await _checkTodayAttendance();
+            await _loadAssignedProjectPlans();
           },
           child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -829,6 +866,32 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
               ),
             ),
             const SizedBox(height: 24),
+            
+            // Assigned Project Plans Section
+            if (_assignedProjectPlans.isNotEmpty) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Assigned Project Plans',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  if (_loadingProjectPlans)
+                    const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              ..._assignedProjectPlans.map((plan) => _buildProjectPlanCard(plan)).toList(),
+              const SizedBox(height: 24),
+            ],
             
             // Check-In/Check-Out Card
             Card(
@@ -1517,6 +1580,646 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
         Text(
           value,
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProjectPlanCard(Map<String, dynamic> plan) {
+    final planName = plan['plan_name']?.toString() ?? plan['planName']?.toString() ?? 'N/A';
+    final projectName = plan['project_name']?.toString() ?? 
+                       plan['projectName']?.toString() ?? 
+                       plan['project']?['projectName']?.toString() ?? 'N/A';
+    final allottedHours = plan['allotted_hours']?.toString() ?? 
+                         plan['allottedHours']?.toString() ?? 
+                         plan['employee_hours']?.toString() ?? 
+                         '0';
+    final timePeriod = plan['time_period']?.toString() ?? 
+                      plan['timePeriod']?.toString() ?? 'N/A';
+    final status = plan['status']?.toString() ?? 'draft';
+    final startDate = plan['start_date']?.toString() ?? 
+                     plan['startDate']?.toString();
+    final endDate = plan['end_date']?.toString() ?? 
+                   plan['endDate']?.toString();
+    
+    Color statusColor;
+    String statusText;
+    switch (status.toLowerCase()) {
+      case 'active':
+        statusColor = Colors.green;
+        statusText = 'Active';
+        break;
+      case 'completed':
+        statusColor = Colors.blue;
+        statusText = 'Completed';
+        break;
+      case 'cancelled':
+        statusColor = Colors.red;
+        statusText = 'Cancelled';
+        break;
+      default:
+        statusColor = Colors.orange;
+        statusText = 'Draft';
+    }
+
+    String formatDate(String? dateStr) {
+      if (dateStr == null || dateStr.isEmpty) return 'N/A';
+      try {
+        final date = DateTime.tryParse(dateStr);
+        if (date != null) {
+          return DateFormat('MMM dd, yyyy').format(date);
+        }
+      } catch (e) {
+        debugPrint('Error parsing date: $e');
+      }
+      return dateStr;
+    }
+
+    String formatTimePeriod(String period) {
+      switch (period.toLowerCase()) {
+        case 'weekly':
+          return 'Weekly';
+        case 'monthly':
+          return 'Monthly';
+        case '3_months':
+          return '3 Months';
+        case '6_months':
+          return '6 Months';
+        case '9_months':
+          return '9 Months';
+        case 'yearly':
+          return 'Yearly';
+        default:
+          return period;
+      }
+    }
+
+    return InkWell(
+      onTap: () => _showProjectPlanWorkDetails(plan),
+      borderRadius: BorderRadius.circular(12),
+      child: Card(
+        elevation: 2,
+        margin: const EdgeInsets.only(bottom: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        planName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        projectName,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[700],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: statusColor.withOpacity(0.3)),
+                  ),
+                  child: Text(
+                    statusText,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: statusColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildPlanInfoItem(
+                    Icons.access_time,
+                    '$allottedHours hrs',
+                    Colors.blue,
+                  ),
+                ),
+                Expanded(
+                  child: _buildPlanInfoItem(
+                    Icons.calendar_today,
+                    formatTimePeriod(timePeriod),
+                    Colors.purple,
+                  ),
+                ),
+              ],
+            ),
+            if (startDate != null || endDate != null) ...[
+              const SizedBox(height: 8),
+              Divider(height: 1, color: Colors.grey[300]),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  if (startDate != null)
+                    Expanded(
+                      child: _buildPlanInfoItem(
+                        Icons.play_arrow,
+                        'Start: ${formatDate(startDate)}',
+                        Colors.green,
+                      ),
+                    ),
+                  if (endDate != null)
+                    Expanded(
+                      child: _buildPlanInfoItem(
+                        Icons.stop,
+                        'End: ${formatDate(endDate)}',
+                        Colors.orange,
+                      ),
+                    ),
+                ],
+              ),
+            ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showProjectPlanWorkDetails(Map<String, dynamic> plan) async {
+    final planName = plan['plan_name']?.toString() ?? plan['planName']?.toString() ?? 'N/A';
+    final projectName = plan['project_name']?.toString() ?? 
+                       plan['projectName']?.toString() ?? 
+                       plan['project']?['projectName']?.toString() ?? 'N/A';
+    final projectId = plan['project_id']?.toString() ?? 
+                     plan['projectId']?.toString() ?? 
+                     plan['project']?['id']?.toString();
+    
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final user = authProvider.user;
+      final employeeId = user?['id']?.toString() ?? user?['employeeId']?.toString();
+      
+      if (employeeId == null || employeeId.isEmpty) {
+        Navigator.pop(context); // Close loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Employee ID not found')),
+        );
+        return;
+      }
+
+      // Fetch work details for this employee
+      final allWorkDetails = await _apiService.getWorkDetails(employeeId: employeeId);
+      
+      // Filter work details by project name
+      final filteredWorkDetails = allWorkDetails.where((work) {
+        final workProjectName = work['projectName']?.toString() ?? '';
+        return workProjectName.toLowerCase() == projectName.toLowerCase();
+      }).toList();
+
+      // Close loading dialog
+      Navigator.pop(context);
+
+      // Show work details bottom sheet
+      if (mounted) {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (context) => _buildWorkDetailsBottomSheet(
+            planName: planName,
+            projectName: projectName,
+            workDetails: filteredWorkDetails,
+          ),
+        );
+      }
+    } catch (e) {
+      Navigator.pop(context); // Close loading
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading work details: $e')),
+        );
+      }
+    }
+  }
+
+  Widget _buildWorkDetailsBottomSheet({
+    required String planName,
+    required String projectName,
+    required List<dynamic> workDetails,
+  }) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.9,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            planName,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            projectName,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              // Work Details List
+              Expanded(
+                child: workDetails.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.work_outline,
+                              size: 64,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No work details found',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Work details for this project plan will appear here',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[500],
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        controller: scrollController,
+                        padding: const EdgeInsets.all(16),
+                        itemCount: workDetails.length,
+                        itemBuilder: (context, index) {
+                          final work = workDetails[index];
+                          return _buildWorkDetailCard(work);
+                        },
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildWorkDetailCard(Map<String, dynamic> work) {
+    final date = work['sentDate']?.toString() ?? 
+                work['date']?.toString() ?? 
+                work['workDate']?.toString() ?? 'N/A';
+    final clockIn = work['clockInTime']?.toString() ?? 
+                   work['clockIn']?.toString() ?? 
+                   work['inTime']?.toString() ?? 'N/A';
+    final clockOut = work['clockOutTime']?.toString() ?? 
+                    work['clockOut']?.toString() ?? 
+                    work['outTime']?.toString() ?? 'N/A';
+    final totalHours = work['totalHours']?.toString() ?? 
+                      work['hours']?.toString() ?? 
+                      '0';
+    final status = work['status']?.toString() ?? 'pending';
+    final areaOfWork = work['areaofWork']?.toString() ?? 
+                      work['areaOfWork']?.toString() ?? '';
+    final referenceNo = work['referenceNo']?.toString() ?? '';
+
+    Color statusColor;
+    String statusText;
+    IconData statusIcon;
+    switch (status.toLowerCase()) {
+      case 'completed':
+        statusColor = Colors.green;
+        statusText = 'Completed';
+        statusIcon = Icons.check_circle;
+        break;
+      case 'active':
+        statusColor = Colors.blue;
+        statusText = 'Active';
+        statusIcon = Icons.play_circle;
+        break;
+      case 'approved':
+        statusColor = Colors.green;
+        statusText = 'Approved';
+        statusIcon = Icons.check_circle;
+        break;
+      case 'rejected':
+        statusColor = Colors.red;
+        statusText = 'Rejected';
+        statusIcon = Icons.cancel;
+        break;
+      default:
+        statusColor = Colors.orange;
+        statusText = 'Pending';
+        statusIcon = Icons.pending;
+    }
+
+    String formatDateTime(String? dateTimeStr) {
+      if (dateTimeStr == null || dateTimeStr.isEmpty || dateTimeStr == 'N/A') {
+        return 'N/A';
+      }
+      try {
+        final dateTime = DateTime.tryParse(dateTimeStr);
+        if (dateTime != null) {
+          return DateFormat('MMM dd, yyyy HH:mm').format(dateTime);
+        }
+      } catch (e) {
+        debugPrint('Error parsing datetime: $e');
+      }
+      return dateTimeStr;
+    }
+
+    String formatDate(String? dateStr) {
+      if (dateStr == null || dateStr.isEmpty || dateStr == 'N/A') {
+        return 'N/A';
+      }
+      try {
+        // Handle date strings that might be just dates
+        if (dateStr.length >= 10) {
+          final date = DateTime.tryParse(dateStr.substring(0, 10));
+          if (date != null) {
+            return DateFormat('MMM dd, yyyy').format(date);
+          }
+        }
+        final date = DateTime.tryParse(dateStr);
+        if (date != null) {
+          return DateFormat('MMM dd, yyyy').format(date);
+        }
+      } catch (e) {
+        debugPrint('Error parsing date: $e');
+      }
+      return dateStr;
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        formatDate(date),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (referenceNo.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Ref: $referenceNo',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: statusColor.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(statusIcon, size: 14, color: statusColor),
+                      const SizedBox(width: 4),
+                      Text(
+                        statusText,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: statusColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildWorkDetailInfo(
+                    Icons.login,
+                    'Clock In',
+                    formatDateTime(clockIn),
+                    Colors.green,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildWorkDetailInfo(
+                    Icons.logout,
+                    'Clock Out',
+                    formatDateTime(clockOut),
+                    Colors.orange,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.access_time, size: 20, color: Colors.blue),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Total Hours',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[700],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    '$totalHours hrs',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (areaOfWork.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.work_outline, size: 16, color: Colors.grey[600]),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Area: $areaOfWork',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWorkDetailInfo(IconData icon, String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 12,
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlanInfoItem(IconData icon, String text, Color color) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[700],
+              fontWeight: FontWeight.w500,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ],
     );

@@ -19,6 +19,7 @@ import {
   Stack,
   Chip,
   OutlinedInput,
+  Autocomplete,
 } from "@mui/material";
 import {
   ArrowBack,
@@ -47,8 +48,10 @@ function AddProject() {
   } = useForm();
   const [empList, setEmpList] = useState(null); // For Team Lead selection
   const [allEmployees, setAllEmployees] = useState([]); // For employee assignment
-  const [rowData, setRowData] = useState([]);
   const [selectedEmployees, setSelectedEmployees] = useState([]);
+  const [existingProjects, setExistingProjects] = useState([]);
+  const [existingProjectNos, setExistingProjectNos] = useState([]);
+  const [existingDisciplineCodes, setExistingDisciplineCodes] = useState([]);
 
   let formDatas = watch();
   const navigate = useNavigate();
@@ -72,7 +75,25 @@ function AddProject() {
         }
       })
       .catch((err) => console.log(err));
-    getProjectDetails();
+
+    // Fetch existing projects to get project numbers and discipline codes
+    axios
+      .get(`${commonData?.APIKEY}/getProject`)
+      .then((res) => {
+        if (res.data.Status === "Success") {
+          const projects = res.data.Result || [];
+          setExistingProjects(projects);
+          
+          // Extract unique project numbers
+          const projectNos = [...new Set(projects.map(p => p.projectNo).filter(Boolean))];
+          setExistingProjectNos(projectNos.sort());
+          
+          // Extract unique discipline codes
+          const disciplineCodes = [...new Set(projects.map(p => p.desciplineCode).filter(Boolean))];
+          setExistingDisciplineCodes(disciplineCodes.sort());
+        }
+      })
+      .catch((err) => console.log(err));
   }, []);
 
   React.useEffect(() => {
@@ -82,43 +103,31 @@ function AddProject() {
   }, [id]);
 
   const onSubmit = (data) => {
-    const isNumberIncluded = rowData.some(
-      (item) => Number(item.referenceNo) === Number(formDatas?.referenceNo)
+    let foundEmployee = empList?.find(
+      (employee) => employee.id === data?.tlID
     );
-    if (isNumberIncluded) {
-      alert(`${formDatas?.referenceNo} is already existing in Reference No`);
-    } else {
-      let foundEmployee = empList?.find(
-        (employee) => employee.id === data?.tlID
-      );
-      let tempData = {
-        ...data,
-        tlName: foundEmployee?.employeeName,
-        employeeIds: selectedEmployees, // Include selected employee IDs
-      };
-      axios
-        .post(`${commonData?.APIKEY}/project/create`, tempData)
-        .then((res) => {
-          if (res.data.Error) {
-            alert(res.data.Error);
-          } else {
-            navigate("/Dashboard/Projects");
-          }
-        })
-        .catch((err) => console.log(err));
-    }
+    let tempData = {
+      ...data,
+      tlName: foundEmployee?.employeeName,
+      employeeIds: selectedEmployees, // Include selected employee IDs
+    };
+    axios
+      .post(`${commonData?.APIKEY}/project/create`, tempData)
+      .then((res) => {
+        if (res.data.Error) {
+          alert(res.data.Error);
+        } else {
+          navigate("/Dashboard/Projects");
+        }
+      })
+      .catch((err) => console.log(err));
   };
 
   const getEmployeeDetails = async (id) => {
     await axios.get(`${commonData?.APIKEY}/getProject/${id}`).then((res) => {
       let tempData = {
         tlID: res?.data?.Result?.tlID,
-        orderId: res?.data?.Result?.orderId,
-        positionNumber: res?.data?.Result?.positionNumber,
-        subPositionNumber: res?.data?.Result?.subPositionNumber,
         projectNo: res?.data?.Result?.projectNo,
-        taskJobNo: res?.data?.Result?.taskJobNo,
-        referenceNo: res?.data?.Result?.referenceNo,
         desciplineCode: res?.data?.Result?.desciplineCode,
         projectName: res?.data?.Result?.projectName,
         subDivision: res?.data?.Result?.subDivision,
@@ -160,19 +169,6 @@ function AddProject() {
       .catch((err) => console.log(err));
   };
 
-  const getProjectDetails = () => {
-    axios
-      .get(`${commonData?.APIKEY}/getProject`)
-      .then((res) => {
-        if (res.data.Status === "Success") {
-          console.log(res.data.Result, "rowData321423");
-          setRowData(res.data.Result);
-        } else {
-          alert("Error");
-        }
-      })
-      .catch((err) => console.log(err));
-  };
 
   return (
     <Box sx={{ p: 3 }}>
@@ -275,109 +271,31 @@ function AddProject() {
 
                   <Grid item xs={12} sm={6}>
                     <Controller
-                      name="orderId"
-                      control={control}
-                      defaultValue=""
-                      render={({ field }) => (
-                        <TextField
-                          {...field}
-                          fullWidth
-                          label="Order ID"
-                          type="number"
-                          error={Boolean(errors.orderId)}
-                          helperText={errors.orderId?.message}
-                        />
-                      )}
-                    />
-                  </Grid>
-
-                  <Grid item xs={12} sm={6}>
-                    <Controller
-                      name="positionNumber"
-                      control={control}
-                      defaultValue=""
-                      render={({ field }) => (
-                        <TextField
-                          {...field}
-                          fullWidth
-                          label="Position Number"
-                          type="number"
-                          error={Boolean(errors.positionNumber)}
-                          helperText={errors.positionNumber?.message}
-                        />
-                      )}
-                    />
-                  </Grid>
-
-                  <Grid item xs={12} sm={6}>
-                    <Controller
-                      name="subPositionNumber"
-                      control={control}
-                      defaultValue=""
-                      render={({ field }) => (
-                        <TextField
-                          {...field}
-                          fullWidth
-                          label="Sub Position Number"
-                          type="number"
-                          error={Boolean(errors.subPositionNumber)}
-                          helperText={errors.subPositionNumber?.message}
-                        />
-                      )}
-                    />
-                  </Grid>
-
-                  <Grid item xs={12} sm={6}>
-                    <Controller
                       name="projectNo"
                       control={control}
                       defaultValue=""
                       rules={{ required: "Project No is required" }}
-                      render={({ field }) => (
-                        <TextField
+                      render={({ field: { onChange, value, ...field } }) => (
+                        <Autocomplete
                           {...field}
-                          fullWidth
-                          label="Project No"
-                          error={Boolean(errors.projectNo)}
-                          helperText={errors.projectNo?.message}
-                        />
-                      )}
-                    />
-                  </Grid>
-
-                  <Grid item xs={12} sm={6}>
-                    <Controller
-                      name="taskJobNo"
-                      control={control}
-                      defaultValue=""
-                      rules={{ required: "Task/Job No is required" }}
-                      render={({ field }) => (
-                        <TextField
-                          {...field}
-                          fullWidth
-                          label="Task / Job No"
-                          type="number"
-                          error={Boolean(errors.taskJobNo)}
-                          helperText={errors.taskJobNo?.message}
-                        />
-                      )}
-                    />
-                  </Grid>
-
-                  <Grid item xs={12} sm={6}>
-                    <Controller
-                      name="referenceNo"
-                      control={control}
-                      defaultValue=""
-                      rules={{ required: "Reference No is required" }}
-                      render={({ field }) => (
-                        <TextField
-                          {...field}
-                          fullWidth
-                          label="Reference No"
-                          type="number"
-                          error={Boolean(errors.referenceNo)}
-                          helperText={errors.referenceNo?.message}
+                          freeSolo
+                          options={existingProjectNos}
+                          value={value || ""}
+                          onChange={(event, newValue) => {
+                            onChange(newValue || "");
+                          }}
+                          onInputChange={(event, newInputValue) => {
+                            onChange(newInputValue || "");
+                          }}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              fullWidth
+                              label="Project No"
+                              error={Boolean(errors.projectNo)}
+                              helperText={errors.projectNo?.message || `Existing: ${existingProjectNos.length} project numbers`}
+                            />
+                          )}
                         />
                       )}
                     />
@@ -389,13 +307,27 @@ function AddProject() {
                       control={control}
                       defaultValue=""
                       rules={{ required: "Discipline Code is required" }}
-                      render={({ field }) => (
-                        <TextField
+                      render={({ field: { onChange, value, ...field } }) => (
+                        <Autocomplete
                           {...field}
-                          fullWidth
-                          label="Discipline Code"
-                          error={Boolean(errors.desciplineCode)}
-                          helperText={errors.desciplineCode?.message}
+                          freeSolo
+                          options={existingDisciplineCodes}
+                          value={value || ""}
+                          onChange={(event, newValue) => {
+                            onChange(newValue || "");
+                          }}
+                          onInputChange={(event, newInputValue) => {
+                            onChange(newInputValue || "");
+                          }}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              fullWidth
+                              label="Discipline Code"
+                              error={Boolean(errors.desciplineCode)}
+                              helperText={errors.desciplineCode?.message || `Existing: ${existingDisciplineCodes.length} discipline codes`}
+                            />
+                          )}
                         />
                       )}
                     />

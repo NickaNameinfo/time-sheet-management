@@ -502,7 +502,7 @@ const CommonSidebar = ({
       >
         <Box
           component="img"
-          src={`${config?.baseUrl || commonData?.BASEURL}/src/assets/logo.png`}
+          src={`/logo.png`}
           alt="Logo"
           sx={{ 
             width: 56, 
