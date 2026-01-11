@@ -422,6 +422,209 @@ export const getMenuPermissionsByRole = asyncHandler(async (req, res) => {
   }
 });
 
+// Get menu permissions for logged-in employee (considers both role and employee-specific permissions)
+export const getMenuPermissionsByEmployee = asyncHandler(async (req, res) => {
+  // IMPORTANT: req.id is the employee.id from database (used in menu_employee_permissions.employee_id)
+  // req.employeeId is the EMPID (employee number), NOT the database ID
+  // We need to use req.id (employee.id) for the JOIN, not req.employeeId (EMPID)
+  const employeeId = req.id; // This is the employee.id from database
+  const role = req.role; // From auth middleware
+  
+  console.log("getMenuPermissionsByEmployee called with:", { 
+    employeeId: req.id, // employee.id from database
+    employeeId_EMPID: req.employeeId, // EMPID (employee number)
+    role,
+    reqEmployeeName: req.employeeName
+  });
+  
+  // If no employeeId, try to resolve from EMPID
+  let dbEmployeeId = employeeId;
+  if (!dbEmployeeId && req.employeeId) {
+    try {
+      // Find employee.id by EMPID
+      const empCheckSql = "SELECT id FROM employee WHERE EMPID = ? LIMIT 1";
+      const empCheck = await query(empCheckSql, [req.employeeId]);
+      if (empCheck.length > 0) {
+        dbEmployeeId = empCheck[0].id;
+        console.log(`Resolved employeeId from EMPID ${req.employeeId} -> ${dbEmployeeId}`);
+      }
+    } catch (err) {
+      console.warn("Could not resolve employee ID from EMPID:", err.message);
+    }
+  }
+  
+  if (!role) {
+    return sendError(res, "Role is required", 400);
+  }
+  
+  try {
+    // Normalize role - handle both "admin" and "Admin"
+    const normalizedRole = role.trim().toLowerCase();
+    const roleVariations = [normalizedRole];
+    
+    // Add capitalized version for admin
+    if (normalizedRole === 'admin') {
+      roleVariations.push('Admin');
+    } else if (normalizedRole === 'hr') {
+      roleVariations.push('HR');
+    } else if (normalizedRole === 'tl' || normalizedRole === 'teamlead') {
+      roleVariations.push('TL', 'TeamLead');
+    } else if (normalizedRole === 'employee') {
+      roleVariations.push('Employee');
+    }
+    
+    // Get all active menu permissions
+    // Use COALESCE to handle NULL values from LEFT JOIN
+    let sql = `
+      SELECT 
+        mp.*,
+        COALESCE(mep.view_permission, 0) as emp_view_permission,
+        COALESCE(mep.add_permission, 0) as emp_add_permission,
+        COALESCE(mep.edit_permission, 0) as emp_edit_permission,
+        COALESCE(mep.delete_permission, 0) as emp_delete_permission,
+        COALESCE(mep.all_permission, 0) as emp_all_permission
+      FROM menu_permissions mp
+      LEFT JOIN menu_employee_permissions mep ON mp.id = mep.menu_permission_id AND mep.employee_id = ?
+      WHERE mp.is_active = TRUE
+    `;
+    
+    const params = dbEmployeeId ? [dbEmployeeId] : [null];
+    
+    console.log(`Querying menu permissions with employeeId (db): ${dbEmployeeId}, role: ${role}`);
+    
+    sql += " ORDER BY mp.display_order ASC, mp.menu_title ASC";
+    
+    const results = await query(sql, params);
+    
+    console.log(`Found ${results.length} active menu permissions`);
+    
+    // Helper to parse JSON fields
+    const parseJsonField = (field) => {
+      if (!field) return [];
+      try {
+        if (typeof field === 'string') {
+          return JSON.parse(field);
+        } else if (Array.isArray(field)) {
+          return field;
+        }
+      } catch (e) {
+        return [];
+      }
+      return [];
+    };
+    
+    // Helper to check if role matches (case-insensitive)
+    const roleMatches = (roleInArray) => {
+      if (!roleInArray) return false;
+      const normalized = roleInArray.trim().toLowerCase();
+      return roleVariations.some(variation => variation.toLowerCase() === normalized);
+    };
+    
+    // Filter and format results based on permissions
+    const formattedResults = results
+      .map((row) => {
+        const allowedRoles = parseJsonField(row.allowed_roles);
+        const viewPermission = parseJsonField(row.view_permission);
+        const addPermission = parseJsonField(row.add_permission);
+        const editPermission = parseJsonField(row.edit_permission);
+        const deletePermission = parseJsonField(row.delete_permission);
+        const allPermission = parseJsonField(row.all_permission);
+        
+        // Check if employee has view permission
+        let canView = false;
+        let permissionSource = 'none';
+        
+        // Check employee-specific permissions first (they override role permissions)
+        // Note: emp_view_permission and emp_all_permission come from the LEFT JOIN as 0/1 (tinyint) or NULL
+        if (dbEmployeeId) {
+          // Convert to boolean - MySQL returns 0/1 as numbers, need to check explicitly
+          const empAllPermission = row.emp_all_permission === 1 || row.emp_all_permission === true || row.emp_all_permission === '1';
+          const empViewPermission = row.emp_view_permission === 1 || row.emp_view_permission === true || row.emp_view_permission === '1';
+          
+          console.log(`Menu ${row.menu_key} (id: ${row.id}) - Employee ${dbEmployeeId} permissions:`, {
+            emp_all_permission: row.emp_all_permission,
+            emp_view_permission: row.emp_view_permission,
+            empAllPermission,
+            empViewPermission
+          });
+          
+          // Check if employee has all_permission (1 = true, 0 = false, NULL = no permission set)
+          if (empAllPermission) {
+            canView = true;
+            permissionSource = 'employee_all_permission';
+            console.log(`✓ Employee ${dbEmployeeId} has all_permission for menu ${row.menu_key}`);
+          } 
+          // Check if employee has view_permission
+          else if (empViewPermission) {
+            canView = true;
+            permissionSource = 'employee_view_permission';
+            console.log(`✓ Employee ${dbEmployeeId} has view_permission for menu ${row.menu_key}`);
+          }
+        }
+        
+        // If no employee-specific permission, check role-based permissions
+        if (!canView) {
+          // Check all_permission first (highest priority)
+          const hasAllPermission = allPermission.some(roleMatches);
+          if (hasAllPermission) {
+            canView = true;
+            permissionSource = 'role_all_permission';
+            console.log(`✓ Role ${role} has all_permission for menu ${row.menu_key}`);
+          } else {
+            // Check view_permission
+            const hasViewPermission = viewPermission.some(roleMatches);
+            // Or check allowed_roles (legacy support)
+            const hasAllowedRole = allowedRoles.some(roleMatches);
+            canView = hasViewPermission || hasAllowedRole;
+            if (canView) {
+              permissionSource = hasViewPermission ? 'role_view_permission' : 'role_allowed_roles';
+              console.log(`✓ Role ${role} has ${permissionSource} for menu ${row.menu_key}`);
+            } else {
+              console.log(`✗ No permission for menu ${row.menu_key} - role: ${role}, allowed_roles: ${JSON.stringify(allowedRoles)}, view_permission: ${JSON.stringify(viewPermission)}`);
+            }
+          }
+        }
+        
+        // Only return menus the employee can view
+        if (!canView) return null;
+        
+        return {
+          id: row.id,
+          menu_key: row.menu_key,
+          menu_title: row.menu_title,
+          menu_path: row.menu_path,
+          menu_icon: row.menu_icon,
+          parent_menu: row.parent_menu,
+          display_order: row.display_order || 0,
+          is_active: row.is_active,
+          allowed_roles: allowedRoles,
+          view_permission: viewPermission,
+          add_permission: addPermission,
+          edit_permission: editPermission,
+          delete_permission: deletePermission,
+          all_permission: allPermission,
+          // Employee-specific permissions
+          emp_view_permission: row.emp_view_permission || false,
+          emp_add_permission: row.emp_add_permission || false,
+          emp_edit_permission: row.emp_edit_permission || false,
+          emp_delete_permission: row.emp_delete_permission || false,
+          emp_all_permission: row.emp_all_permission || false,
+        };
+      })
+      .filter(item => item !== null); // Remove null items (menus without permission)
+    
+    console.log(`Returning ${formattedResults.length} menus for role: ${role} (normalized: ${normalizedRole})`);
+    
+    return sendSuccess(res, formattedResults);
+  } catch (error) {
+    if (error.code === 'ER_NO_SUCH_TABLE') {
+      console.warn("Menu permissions table does not exist. Returning empty array.");
+      return sendSuccess(res, []);
+    }
+    throw error;
+  }
+});
+
 export const updateMenuPermission = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { 
@@ -482,72 +685,152 @@ export const updateMenuPermission = asyncHandler(async (req, res) => {
 });
 
 export const bulkUpdateMenuPermissions = asyncHandler(async (req, res) => {
+  console.log("bulkUpdateMenuPermissions called");
+  console.log("Request body:", JSON.stringify(req.body, null, 2));
+
   const { permissions } = req.body;
-  
-  if (!Array.isArray(permissions)) {
-    return sendError(res, "Permissions must be an array", 400);
+
+  if (!Array.isArray(permissions) || permissions.length === 0) {
+    return sendError(res, "Permissions array is required", 400);
   }
-  
+
   try {
-    // Use transaction-like approach
+    /* --------------------------------------------------
+       CHECK EXISTING COLUMNS (SAFE DEFAULT = TRUE)
+    -------------------------------------------------- */
+    let hasViewPermission = true;
+    let hasAddPermission = true;
+    let hasEditPermission = true;
+    let hasDeletePermission = true;
+    let hasAllPermission = true;
+
+    try {
+      const cols = await query(`
+        SELECT COLUMN_NAME 
+        FROM information_schema.COLUMNS 
+        WHERE table_schema = DATABASE()
+        AND table_name = 'menu_permissions'
+      `);
+
+      const names = cols.map(c => c.COLUMN_NAME);
+      hasViewPermission = names.includes("view_permission");
+      hasAddPermission = names.includes("add_permission");
+      hasEditPermission = names.includes("edit_permission");
+      hasDeletePermission = names.includes("delete_permission");
+      hasAllPermission = names.includes("all_permission");
+    } catch (e) {
+      console.warn("Column check skipped:", e.message);
+    }
+
+    let updated = 0;
+    let errors = [];
+
+    /* --------------------------------------------------
+       LOOP PERMISSIONS
+    -------------------------------------------------- */
     for (const perm of permissions) {
-      const { 
-        id, 
-        allowed_roles, 
-        is_active, 
-        display_order,
-        view_permission,
-        add_permission,
-        edit_permission,
-        delete_permission,
-        all_permission
-      } = perm;
-      
-      if (!id) continue;
-      
+      console.log("Processing:", perm);
+
+      const { id } = perm;
+      if (!id) {
+        errors.push("Missing id");
+        continue;
+      }
+
       let updateFields = [];
       let updateValues = [];
-      
-      const addJsonField = (fieldName, value) => {
-        if (value !== undefined) {
-          const rolesJson = JSON.stringify(Array.isArray(value) ? value : [value]);
-          updateFields.push(`${fieldName} = ?`);
-          updateValues.push(rolesJson);
-        }
+
+      /* --------------------------------------------------
+         ALWAYS UPDATE allowed_roles (DEFAULT [])
+      -------------------------------------------------- */
+      const allowedRoles =
+        perm.allowed_roles === null
+          ? null
+          : JSON.stringify(
+              Array.isArray(perm.allowed_roles)
+                ? perm.allowed_roles
+                : []
+            );
+
+      updateFields.push("allowed_roles = ?");
+      updateValues.push(allowedRoles);
+
+      /* --------------------------------------------------
+         HELPER FOR JSON COLUMNS
+      -------------------------------------------------- */
+      const jsonField = (col, exists) => {
+        if (!exists) return;
+        if (!Object.prototype.hasOwnProperty.call(perm, col)) return;
+
+        updateFields.push(`${col} = ?`);
+        updateValues.push(
+          perm[col] === null
+            ? null
+            : JSON.stringify(Array.isArray(perm[col]) ? perm[col] : [])
+        );
       };
-      
-      addJsonField("allowed_roles", allowed_roles);
-      addJsonField("view_permission", view_permission);
-      addJsonField("add_permission", add_permission);
-      addJsonField("edit_permission", edit_permission);
-      addJsonField("delete_permission", delete_permission);
-      addJsonField("all_permission", all_permission);
-      
-      if (is_active !== undefined) {
+
+      jsonField("view_permission", hasViewPermission);
+      jsonField("add_permission", hasAddPermission);
+      jsonField("edit_permission", hasEditPermission);
+      jsonField("delete_permission", hasDeletePermission);
+      jsonField("all_permission", hasAllPermission);
+
+      /* --------------------------------------------------
+         is_active (0 OR 1 SAFE)
+      -------------------------------------------------- */
+      if (Object.prototype.hasOwnProperty.call(perm, "is_active")) {
         updateFields.push("is_active = ?");
-        updateValues.push(is_active);
+        updateValues.push(Number(perm.is_active));
       }
-      
-      if (display_order !== undefined) {
+
+      /* --------------------------------------------------
+         display_order
+      -------------------------------------------------- */
+      if (Object.prototype.hasOwnProperty.call(perm, "display_order")) {
         updateFields.push("display_order = ?");
-        updateValues.push(display_order);
+        updateValues.push(perm.display_order);
       }
-      
-      if (updateFields.length > 0) {
-        updateValues.push(id);
-        const sql = `UPDATE menu_permissions SET ${updateFields.join(", ")} WHERE id = ?`;
+
+      /* --------------------------------------------------
+         EXECUTE (NO EMPTY CHECK ❌ REMOVED)
+      -------------------------------------------------- */
+      const sql = `
+        UPDATE menu_permissions
+        SET ${updateFields.join(", ")}
+        WHERE id = ?
+      `;
+
+      updateValues.push(id);
+
+      console.log("SQL:", sql);
+      console.log("VALUES:", updateValues);
+
+      try {
         await query(sql, updateValues);
+        updated++;
+      } catch (err) {
+        console.error(err);
+        errors.push(`ID ${id}: ${err.message}`);
       }
     }
-    
-    return sendSuccess(res, null, "Menu permissions updated successfully");
-  } catch (error) {
-    if (error.code === 'ER_NO_SUCH_TABLE') {
-      return sendError(res, "Menu permissions table does not exist", 404);
+
+    if (updated === 0) {
+      return sendError(res, errors.join("; ") || "No records updated", 400);
     }
-    throw error;
+
+    return sendSuccess(
+      res,
+      { updated, errors },
+      "Menu permissions updated successfully"
+    );
+  } catch (err) {
+    console.error(err);
+    return sendError(res, err.message || "Internal Server Error", 500);
   }
 });
+
+
 
 // Employee Menu Permissions
 export const getEmployeeMenuPermissions = asyncHandler(async (req, res) => {
@@ -589,11 +872,43 @@ export const getEmployeeMenuPermissions = asyncHandler(async (req, res) => {
 export const updateEmployeeMenuPermission = asyncHandler(async (req, res) => {
   const { menuPermissionId, employeeId, view_permission, add_permission, edit_permission, delete_permission, all_permission } = req.body;
   
+  console.log("updateEmployeeMenuPermission called with:", {
+    menuPermissionId,
+    employeeId,
+    view_permission,
+    add_permission,
+    edit_permission,
+    delete_permission,
+    all_permission
+  });
+  
   if (!menuPermissionId || !employeeId) {
     return sendError(res, "menuPermissionId and employeeId are required", 400);
   }
   
   try {
+    // Convert boolean values to 1/0 for MySQL
+    // Handle both boolean and number inputs (true/1 = 1, false/0 = 0)
+    const toBoolean = (val) => {
+      if (val === true || val === 1 || val === '1' || val === 'true') return 1;
+      if (val === false || val === 0 || val === '0' || val === 'false' || val === null || val === undefined) return 0;
+      return val ? 1 : 0;
+    };
+    
+    const viewPerm = toBoolean(view_permission);
+    const addPerm = toBoolean(add_permission);
+    const editPerm = toBoolean(edit_permission);
+    const deletePerm = toBoolean(delete_permission);
+    const allPerm = toBoolean(all_permission);
+    
+    console.log("Converted permissions:", {
+      viewPerm,
+      addPerm,
+      editPerm,
+      deletePerm,
+      allPerm
+    });
+    
     // Check if record exists
     const checkSql = "SELECT id FROM menu_employee_permissions WHERE menu_permission_id = ? AND employee_id = ?";
     const existing = await query(checkSql, [menuPermissionId, employeeId]);
@@ -606,18 +921,20 @@ export const updateEmployeeMenuPermission = asyncHandler(async (req, res) => {
             add_permission = ?,
             edit_permission = ?,
             delete_permission = ?,
-            all_permission = ?
+            all_permission = ?,
+            updated_at = NOW()
         WHERE menu_permission_id = ? AND employee_id = ?
       `;
       await query(updateSql, [
-        view_permission || false,
-        add_permission || false,
-        edit_permission || false,
-        delete_permission || false,
-        all_permission || false,
+        viewPerm,
+        addPerm,
+        editPerm,
+        deletePerm,
+        allPerm,
         menuPermissionId,
         employeeId
       ]);
+      console.log(`Updated employee permission for menu ${menuPermissionId}, employee ${employeeId}`);
     } else {
       // Insert new record
       const insertSql = `
@@ -628,16 +945,18 @@ export const updateEmployeeMenuPermission = asyncHandler(async (req, res) => {
       await query(insertSql, [
         menuPermissionId,
         employeeId,
-        view_permission || false,
-        add_permission || false,
-        edit_permission || false,
-        delete_permission || false,
-        all_permission || false
+        viewPerm,
+        addPerm,
+        editPerm,
+        deletePerm,
+        allPerm
       ]);
+      console.log(`Inserted new employee permission for menu ${menuPermissionId}, employee ${employeeId}`);
     }
     
     return sendSuccess(res, null, "Employee menu permission updated successfully");
   } catch (error) {
+    console.error("Error updating employee menu permission:", error);
     if (error.code === 'ER_NO_SUCH_TABLE') {
       return sendError(res, "Menu employee permissions table does not exist", 404);
     }
@@ -669,16 +988,24 @@ export const bulkUpdateEmployeeMenuPermissions = asyncHandler(async (req, res) =
         VALUES ?
       `;
       
+      // Convert boolean values to 1/0 for MySQL
+      const toBoolean = (val) => {
+        if (val === true || val === 1 || val === '1' || val === 'true') return 1;
+        if (val === false || val === 0 || val === '0' || val === 'false' || val === null || val === undefined) return 0;
+        return val ? 1 : 0;
+      };
+      
       const values = employeePermissions.map(ep => [
         menuPermissionId,
         ep.employee_id,
-        ep.view_permission || false,
-        ep.add_permission || false,
-        ep.edit_permission || false,
-        ep.delete_permission || false,
-        ep.all_permission || false
+        toBoolean(ep.view_permission),
+        toBoolean(ep.add_permission),
+        toBoolean(ep.edit_permission),
+        toBoolean(ep.delete_permission),
+        toBoolean(ep.all_permission)
       ]);
       
+      console.log(`Bulk updating ${values.length} employee permissions for menu ${menuPermissionId}`);
       await query(insertSql, [values]);
     }
     

@@ -54,6 +54,7 @@ import {
   PhoneAndroid,
   Email,
   Notifications,
+  CalendarToday,
 } from "@mui/icons-material";
 
 // Icon mapping for menu items
@@ -79,6 +80,8 @@ const iconMap = {
   PhoneAndroid: PhoneAndroid,
   Email: Email,
   Notifications: Notifications,
+  CalendarToday: CalendarToday,
+  List: List,
 };
 
 const CommonSidebar = ({ 
@@ -93,9 +96,9 @@ const CommonSidebar = ({
   const [openMenus, setOpenMenus] = useState({});
   const { logout, roles, user } = useAuth();
 
-  // Fetch menu permissions from database
+  // Fetch menu permissions for logged-in employee (filtered by role and employee-specific permissions)
   const { data: menuPermissionsData, loading: permissionsLoading } = useApi(
-    () => apiService.getMenuPermissions(),
+    () => apiService.getMenuPermissionsByEmployee(),
     []
   );
 
@@ -166,24 +169,23 @@ const CommonSidebar = ({
   }, [menuPermissionsData]);
 
   // Check if user has permission for a menu item
+  // Since we're using getMenuPermissionsByEmployee, all returned menus are already filtered
+  // So if a menu is in the data, the user has permission to view it
   const hasPermission = (menuPath, menuKey) => {
     const perm = menuPermissionsMap[menuPath] || menuPermissionsMap[menuKey];
-    if (!perm || !perm.is_active) return false;
-    
-    // If no roles specified, deny access
-    if (!perm.allowed_roles || perm.allowed_roles.length === 0) return false;
-    
-    // If user has no roles, deny access
-    if (!normalizedRoles || normalizedRoles.length === 0) return false;
-    
-    // Check if any of user's roles match allowed roles (case-insensitive)
-    const hasAccess = normalizedRoles.some(userRole => 
-      perm.allowed_roles.some(allowedRole => 
-        userRole === allowedRole?.toLowerCase()
-      )
-    );
-    
-    return hasAccess;
+    // Handle both boolean and number (1/0) for is_active
+    const isActive = perm?.is_active === true || perm?.is_active === 1 || perm?.is_active === '1';
+    const hasPerm = perm && isActive;
+    if (!hasPerm) {
+      console.log(`No permission for menu: ${menuKey} (${menuPath})`, {
+        foundInMap: !!perm,
+        isActive: perm?.is_active,
+        isActiveType: typeof perm?.is_active,
+        menuPermissionsMapKeys: Object.keys(menuPermissionsMap)
+      });
+    }
+    // If menu exists in the filtered data, user has permission
+    return hasPerm;
   };
 
   // Build menu structure from permissions
@@ -194,6 +196,12 @@ const CommonSidebar = ({
     const data = Array.isArray(menuPermissionsData) 
       ? menuPermissionsData 
       : menuPermissionsData?.Result || [];
+    
+    console.log("CommonSidebar - Processing menu data:", {
+      dataLength: data.length,
+      basePath,
+      menuItems: data.map(item => ({ key: item.menu_key, path: item.menu_path, is_active: item.is_active }))
+    });
     
     // Common menu path mappings - map Dashboard paths to current base path
     const getMappedPath = (originalPath) => {
@@ -245,7 +253,8 @@ const CommonSidebar = ({
           'budget_tracking',
           'productivity',
           'approval_center',
-          'automated_reports'
+          'automated_reports',
+          'sales' // Add Sales menu key
         ];
         
         // Check if path starts with basePath (direct match)
@@ -281,13 +290,20 @@ const CommonSidebar = ({
             '/Dashboard/Budget',
             '/Dashboard/Productivity',
             '/Dashboard/Approvals',
-            '/Dashboard/Reports'
+            '/Dashboard/Reports',
+            '/Dashboard/Sales' // Add Sales menu
           ];
           
           if (dashboardFeaturePaths.some(feature => item.menu_path.startsWith(feature))) {
             // Check permission - if user has permission, include it
             return hasPermission(item.menu_path, item.menu_key);
           }
+        }
+        
+        // If menu is in the filtered data from API, user has permission - include it
+        // This handles cases where the menu path doesn't match basePath but user has permission
+        if (hasPermission(item.menu_path, item.menu_key)) {
+          return true;
         }
         
         return false;
@@ -304,6 +320,12 @@ const CommonSidebar = ({
         // keep it as Dashboard path so it routes correctly
         if (basePath !== '/Dashboard' && menuPath.startsWith('/Dashboard/')) {
           // Keep Dashboard path for features that don't have role-specific routes
+          // This includes Sales menu and other Dashboard-only features
+          menuPath = item.menu_path;
+        }
+        
+        // Ensure Sales menu paths are kept as Dashboard paths
+        if (item.menu_path && item.menu_path.startsWith('/Dashboard/Sales')) {
           menuPath = item.menu_path;
         }
         
@@ -627,11 +649,13 @@ const CommonSidebar = ({
                   'budget_tracking', 
                   'productivity', 
                   'approval_center', 
-                  'automated_reports'
+                  'automated_reports',
+                  'sales' // Add Sales menu
                 ];
                 
                 // Check by menu_key
                 if (featureMenuKeys.includes(item.menu_key)) {
+                  console.log(`✓ Including ${item.menu_key} in featureItems (by menu_key)`);
                   return true;
                 }
                 
@@ -645,24 +669,46 @@ const CommonSidebar = ({
                   '/Dashboard/Budget',
                   '/Dashboard/Productivity',
                   '/Dashboard/Approvals',
-                  '/Dashboard/Reports'
+                  '/Dashboard/Reports',
+                  '/Dashboard/Sales' // Add Sales menu path
                 ];
                 
-                return featurePaths.some(path => 
+                const matchesPath = featurePaths.some(path => 
                   item.menu_path?.startsWith(path) || item.original_path?.startsWith(path)
                 );
+                
+                if (matchesPath) {
+                  console.log(`✓ Including ${item.menu_key} (${item.menu_path}) in featureItems (by path)`);
+                }
+                
+                return matchesPath;
               });
               const commonItems = menuItems.rootItems.filter(item => 
                 ['time_management', 'apply_leave', 'compoff', 'employee_dashboard', 
                  'teamlead_dashboard', 'project_work_details'].includes(item.menu_key)
               );
+              console.log("CommonSidebar - Menu categorization:", {
+                totalRootItems: menuItems.rootItems.length,
+                rootItemKeys: menuItems.rootItems.map(i => i.menu_key),
+                mainMenuItems: mainMenuItems.length,
+                featureItems: featureItems.length,
+                featureItemsKeys: featureItems.map(i => i.menu_key),
+                commonItems: commonItems.length
+              });
+              
               // Get parent menu items (items that have children) - for nested menus
+              // Also include uncategorized items that don't fit in other categories
               const nestedMenuItems = menuItems.rootItems.filter(item => {
                 const hasChildren = menuItems.grouped[item.menu_key]?.length > 0;
                 const isInCategory = mainMenuItems.includes(item) || 
                                     featureItems.includes(item) || 
                                     commonItems.includes(item);
-                return hasChildren && !isInCategory;
+                // Include if it has children OR if it's not in any category (to catch uncategorized items)
+                const shouldInclude = (hasChildren && !isInCategory) || (!isInCategory && !hasChildren);
+                if (shouldInclude && !hasChildren) {
+                  console.log(`Including uncategorized item ${item.menu_key} in nestedMenuItems`);
+                }
+                return shouldInclude;
               });
               
               // Sort nested menus: Approvals, Reports, Settings

@@ -175,6 +175,14 @@ export const apiService = {
   clockOut: (data) => api.post("/project/workDetails/clockOut", data),
   getTodayClockStatus: (params) => api.get("/getWorkDetails", { params }),
 
+  // CRM Management
+  createCrm: (data) => api.post("/crm/create", data),
+  getCrmList: (params) => api.get("/crm/list", { params }),
+  getCrmSummary: (params) => api.get("/crm/summary", { params }),
+  getCrm: (id) => api.get(`/crm/${id}`),
+  updateCrm: (id, data) => api.put(`/crm/update/${id}`, data),
+  deleteCrm: (id) => api.delete(`/crm/delete/${id}`),
+
   // Team Lead
   createTeamLead: (data) => api.post("/lead/create", data),
   getTeamLeads: () => api.get("/getLead"),
@@ -197,8 +205,9 @@ export const apiService = {
   // Menu Permissions
   getMenuPermissions: (params) => api.get("/menu-permissions", { params }),
   getMenuPermissionsByRole: (role) => api.get("/menu-permissions/role", { params: { role } }),
+  getMenuPermissionsByEmployee: () => api.get("/menu-permissions/my-permissions"), // Gets menus for logged-in employee based on their role and employee-specific permissions
   updateMenuPermission: (id, data) => api.put(`/menu-permissions/${id}`, data),
-  bulkUpdateMenuPermissions: (data) => api.put("/menu-permissions/bulk", data),
+  bulkUpdateMenuPermissions: (data) => api.put("/menu-permissions/admin/bulk", data),
   
   // Employee Menu Permissions
   getEmployeeMenuPermissions: (params) => api.get("/menu-permissions/employee", { params }),

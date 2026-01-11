@@ -21,13 +21,28 @@ export const apiLimiter = rateLimit({
 
 // Strict rate limiter for authentication endpoints
 export const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 login requests per windowMs
+  windowMs: isDevelopment ? 5 * 60 * 1000 : 15 * 60 * 1000, // 5 minutes in development, 15 minutes in production
+  max: isDevelopment ? 100 : 5, // Very lenient in development (100 attempts), strict in production (5 attempts)
   message: {
     Status: "Error",
-    Error: "Too many login attempts, please try again later.",
+    Error: isDevelopment 
+      ? "Too many login attempts. In development mode, you can restart the server to reset the limit, or wait 5 minutes."
+      : "Too many login attempts, please try again later.",
   },
-  skipSuccessfulRequests: true, // Don't count successful requests
+  skipSuccessfulRequests: true, // Don't count successful requests - only failed attempts count
+  standardHeaders: true,
+  legacyHeaders: false,
+  // In development, allow bypass via environment variable or if rate limit is disabled
+  skip: (req) => {
+    if (isDevelopment) {
+      // Allow bypass if DISABLE_RATE_LIMIT is set to 'true'
+      if (process.env.DISABLE_RATE_LIMIT === 'true') {
+        console.log('Rate limiting bypassed for:', req.path);
+        return true;
+      }
+    }
+    return false;
+  },
 });
 
 // File upload rate limiter

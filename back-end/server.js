@@ -26,6 +26,7 @@ import billingRoutes from "./routes/billingRoutes.js";
 import productivityRoutes from "./routes/productivityRoutes.js";
 import approvalRoutes from "./routes/approvalRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
+import crmRoutes from "./routes/crmRoutes.js";
 
 // Load environment variables
 dotenv.config();
@@ -107,6 +108,7 @@ app.use("/", billingRoutes);
 app.use("/", productivityRoutes);
 app.use("/", approvalRoutes);
 app.use("/", reportRoutes);
+app.use("/", crmRoutes);
 
 // Health check endpoint
 app.get("/health", (req, res) => {

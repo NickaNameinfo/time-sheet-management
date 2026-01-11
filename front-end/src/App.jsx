@@ -66,6 +66,10 @@ import BudgetTracking from "./components/BudgetTracking";
 import BillingManagement from "./components/BillingManagement";
 import ProductivityDashboard from "./components/ProductivityDashboard";
 import ApprovalCenter from "./components/ApprovalCenter";
+// Sales/CRM Components
+import AddCrmDate from "./Admin/Sales/AddCrmDate";
+import CrmList from "./Admin/Sales/CrmList";
+import CrmSummary from "./Admin/Sales/CrmSummary";
 
 function App() {
   return (
@@ -123,6 +127,11 @@ function App() {
           <Route path="/Dashboard/Billing" element={<BillingManagement />}></Route>
           <Route path="/Dashboard/Productivity" element={<ProductivityDashboard />}></Route>
           <Route path="/Dashboard/Approvals" element={<ApprovalCenter />}></Route>
+          {/* Sales/CRM Routes */}
+          <Route path="/Dashboard/Sales" element={<CrmList />}></Route>
+          <Route path="/Dashboard/Sales/AddCrmDate/:id?" element={<AddCrmDate />}></Route>
+          <Route path="/Dashboard/Sales/CrmList" element={<CrmList />}></Route>
+          <Route path="/Dashboard/Sales/CrmSummary" element={<CrmSummary />}></Route>
           {/* <Route path="/Dashboard/employeeEdit/:id" element={<EditEmployee />}></Route> */}
           <Route path="/Dashboard/EmployeeHome" element={<EmployeeHome />}></Route>
           <Route path="/Dashboard/AddProjectDetails" element={<AddProjectDetails />}></Route>

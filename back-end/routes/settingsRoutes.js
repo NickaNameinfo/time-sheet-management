@@ -19,6 +19,7 @@ import {
   getAdminCount,
   getMenuPermissions,
   getMenuPermissionsByRole,
+  getMenuPermissionsByEmployee,
   updateMenuPermission,
   bulkUpdateMenuPermissions,
   getEmployeeMenuPermissions,
@@ -68,8 +69,9 @@ router.get("/adminCount", getAdminCount);
 // Menu Permissions
 router.get("/menu-permissions", getMenuPermissions);
 router.get("/menu-permissions/role", getMenuPermissionsByRole);
-router.put("/menu-permissions/:id", updateMenuPermission);
-router.put("/menu-permissions/bulk", bulkUpdateMenuPermissions);
+router.get("/menu-permissions/my-permissions", verifyUser, getMenuPermissionsByEmployee); // Get menus for logged-in employee
+router.put("/menu-permissions/:id", verifyUser, updateMenuPermission);
+router.put("/menu-permissions/admin/bulk", verifyUser, bulkUpdateMenuPermissions);
 
 // Employee Menu Permissions
 router.get("/menu-permissions/employee", getEmployeeMenuPermissions);
