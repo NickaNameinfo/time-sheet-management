@@ -70,6 +70,17 @@ import ApprovalCenter from "./components/ApprovalCenter";
 import AddCrmDate from "./Admin/Sales/AddCrmDate";
 import CrmList from "./Admin/Sales/CrmList";
 import CrmSummary from "./Admin/Sales/CrmSummary";
+// Investment / KYC
+import InvestmentGate from "./pages/Investment/InvestmentGate";
+import KycStatus from "./pages/Investment/KycStatus";
+import KycForm from "./pages/Investment/KycForm";
+import MySelfReports from "./pages/Investment/MySelfReports";
+import InvestmentReports from "./pages/Investment/InvestmentReports";
+import UpdateKycStatus from "./pages/Investment/UpdateKycStatus";
+import AdminUserReports from "./pages/Investment/AdminUserReports";
+import WithdrawalRequests from "./pages/Investment/WithdrawalRequests";
+import ReferralEarnings from "./pages/Investment/ReferralEarnings";
+import ReferralReports from "./pages/Investment/ReferralReports";
 
 function App() {
   return (
@@ -132,6 +143,17 @@ function App() {
           <Route path="/Dashboard/Sales/AddCrmDate/:id?" element={<AddCrmDate />}></Route>
           <Route path="/Dashboard/Sales/CrmList" element={<CrmList />}></Route>
           <Route path="/Dashboard/Sales/CrmSummary" element={<CrmSummary />}></Route>
+          {/* Investment / KYC (My Self auth) */}
+          <Route path="/Dashboard/Investment" element={<InvestmentGate><KycStatus /></InvestmentGate>}></Route>
+          <Route path="/Dashboard/Investment/KYC" element={<InvestmentGate><KycStatus /></InvestmentGate>}></Route>
+          <Route path="/Dashboard/Investment/KYC/Submit" element={<InvestmentGate><KycForm /></InvestmentGate>}></Route>
+          <Route path="/Dashboard/Investment/MySelfReports" element={<InvestmentGate><MySelfReports /></InvestmentGate>}></Route>
+          <Route path="/Dashboard/Investment/Reports" element={<InvestmentGate><InvestmentReports /></InvestmentGate>}></Route>
+          <Route path="/Dashboard/Investment/UpdateKycStatus" element={<UpdateKycStatus />}></Route>
+          <Route path="/Dashboard/Investment/AdminUserReports" element={<AdminUserReports />}></Route>
+          <Route path="/Dashboard/Investment/WithdrawalRequests" element={<WithdrawalRequests />}></Route>
+          <Route path="/Dashboard/Investment/ReferralEarnings" element={<ReferralEarnings />}></Route>
+          <Route path="/Dashboard/Investment/ReferralReports" element={<ReferralReports />}></Route>
           {/* <Route path="/Dashboard/employeeEdit/:id" element={<EditEmployee />}></Route> */}
           <Route path="/Dashboard/EmployeeHome" element={<EmployeeHome />}></Route>
           <Route path="/Dashboard/AddProjectDetails" element={<AddProjectDetails />}></Route>

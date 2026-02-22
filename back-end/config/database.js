@@ -11,6 +11,7 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME || "signup",
   connectionLimit: 10,
   queueLimit: 0,
+  timezone: "Z", // Interpret TIMESTAMP/datetime as UTC for consistent dates
 });
 
 // Create connection pool for biometric database

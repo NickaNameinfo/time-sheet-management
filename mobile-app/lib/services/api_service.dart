@@ -1482,5 +1482,39 @@ class ApiService {
       rethrow;
     }
   }
+
+  // Admin: Investment KYC list and update status (requires admin role)
+  Future<List<dynamic>> getInvestmentKycListAdmin() async {
+    try {
+      final response = await _dio.get(AppConfig.adminInvestmentKycList);
+      if (response.data['Status'] != 'Success') {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Failed to load KYC list');
+      }
+      final result = response.data['Result'];
+      if (result is Map && result['list'] != null) return result['list'] as List;
+      if (result is List) return result;
+      return [];
+    } catch (e) {
+      _logger.e('Get investment KYC list admin error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateInvestmentKycStatus({required int userId, required String status, String? adminNote}) async {
+    try {
+      final data = <String, dynamic>{'user_id': userId, 'status': status};
+      if (status == 'REJECTED' && adminNote != null && adminNote.trim().isNotEmpty) data['admin_note'] = adminNote.trim();
+      final response = await _dio.patch(
+        AppConfig.adminInvestmentKycStatus,
+        data: data,
+      );
+      if (response.data['Status'] != 'Success') {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Update failed');
+      }
+    } catch (e) {
+      _logger.e('Update investment KYC status error: $e');
+      rethrow;
+    }
+  }
 }
 

@@ -11,6 +11,7 @@ import 'package:timesheet_mobile/providers/timesheet_provider.dart';
 import 'package:timesheet_mobile/providers/shift_provider.dart';
 import 'package:timesheet_mobile/providers/notification_provider.dart';
 import 'package:timesheet_mobile/providers/offline_provider.dart';
+import 'package:timesheet_mobile/providers/challenge_auth_provider.dart';
 import 'package:timesheet_mobile/services/notification_service.dart';
 import 'package:timesheet_mobile/services/offline_service.dart';
 import 'package:timesheet_mobile/services/background_timer_service.dart';
@@ -98,6 +99,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ShiftProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => OfflineProvider()),
+        ChangeNotifierProvider(create: (_) => ChallengeAuthProvider()),
       ],
       child: MaterialApp(
         title: 'Time Sheet Management',

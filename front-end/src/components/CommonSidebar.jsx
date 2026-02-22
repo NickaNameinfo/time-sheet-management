@@ -31,6 +31,7 @@ import { apiService } from "../services/api";
 import { useApi } from "../hooks/useApi";
 import commonData from "../../common.json";
 import config from "../config/index.js";
+import logoImage from "../assets/logo.png";
 
 import {
   Dashboard as DashboardIcon,
@@ -55,6 +56,8 @@ import {
   Email,
   Notifications,
   CalendarToday,
+  Savings,
+  PendingActions,
 } from "@mui/icons-material";
 
 // Icon mapping for menu items
@@ -82,6 +85,7 @@ const iconMap = {
   Notifications: Notifications,
   CalendarToday: CalendarToday,
   List: List,
+  Savings: Savings,
 };
 
 const CommonSidebar = ({ 
@@ -524,7 +528,7 @@ const CommonSidebar = ({
       >
         <Box
           component="img"
-          src={`/logo.png`}
+          src={logoImage}
           alt="Logo"
           sx={{ 
             width: 56, 
@@ -795,6 +799,255 @@ const CommonSidebar = ({
                         </Typography>
                       </Box>
                       {commonItems.map(item => renderMenuItem(item))}
+                    </>
+                  )}
+
+                  {/* Investment Section - New menus (Dashboard only) */}
+                  {basePath === "/Dashboard" && (
+                    <>
+                      <Divider sx={{ my: 1.5, mx: 2 }} />
+                      <Box sx={{ px: 2, py: 1.5, mb: 0.5 }}>
+                        <Typography 
+                          variant="overline" 
+                          sx={{ 
+                            color: "text.secondary", 
+                            fontSize: "0.7rem",
+                            fontWeight: 700,
+                            letterSpacing: "0.1em",
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          Investment
+                        </Typography>
+                      </Box>
+                      <ListItem disablePadding sx={{ mb: 0.5, px: 1.5 }}>
+                        <ListItemButton
+                          component={Link}
+                          to="/Dashboard/Investment/KYC"
+                          selected={location.pathname === "/Dashboard/Investment" || location.pathname === "/Dashboard/Investment/KYC"}
+                          sx={{
+                            borderRadius: 3,
+                            minHeight: 48,
+                            px: 2,
+                            py: 1.25,
+                            "&.Mui-selected": {
+                              background: "linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%)",
+                              color: "primary.main",
+                            },
+                            "&:hover": { bgcolor: "action.hover", transform: "translateX(4px)" },
+                            transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                          }}
+                        >
+                          <ListItemIcon sx={{ minWidth: 44, color: location.pathname.startsWith("/Dashboard/Investment") ? "primary.main" : "text.secondary" }}>
+                            <Savings />
+                          </ListItemIcon>
+                          <ListItemText primary={<Typography variant="body2" fontWeight={500}>KYC Status</Typography>} />
+                        </ListItemButton>
+                      </ListItem>
+                      <ListItem disablePadding sx={{ mb: 0.5, px: 1.5 }}>
+                        <ListItemButton
+                          component={Link}
+                          to="/Dashboard/Investment/KYC/Submit"
+                          selected={location.pathname === "/Dashboard/Investment/KYC/Submit"}
+                          sx={{
+                            borderRadius: 3,
+                            minHeight: 48,
+                            px: 2,
+                            py: 1.25,
+                            pl: 4,
+                            "&.Mui-selected": {
+                              background: "linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%)",
+                              color: "primary.main",
+                            },
+                            "&:hover": { bgcolor: "action.hover", transform: "translateX(4px)" },
+                            transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                          }}
+                        >
+                          <ListItemIcon sx={{ minWidth: 44, color: location.pathname === "/Dashboard/Investment/KYC/Submit" ? "primary.main" : "text.secondary" }}>
+                            <Person />
+                          </ListItemIcon>
+                          <ListItemText primary={<Typography variant="body2" fontWeight={500}>Submit / Update KYC</Typography>} />
+                        </ListItemButton>
+                      </ListItem>
+                      <ListItem disablePadding sx={{ mb: 0.5, px: 1.5 }}>
+                        <ListItemButton
+                          component={Link}
+                          to="/Dashboard/Investment/MySelfReports"
+                          selected={location.pathname === "/Dashboard/Investment/MySelfReports"}
+                          sx={{
+                            borderRadius: 3,
+                            minHeight: 48,
+                            px: 2,
+                            py: 1.25,
+                            pl: 4,
+                            "&.Mui-selected": {
+                              background: "linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%)",
+                              color: "primary.main",
+                            },
+                            "&:hover": { bgcolor: "action.hover", transform: "translateX(4px)" },
+                            transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                          }}
+                        >
+                          <ListItemIcon sx={{ minWidth: 44, color: location.pathname === "/Dashboard/Investment/MySelfReports" ? "primary.main" : "text.secondary" }}>
+                            <Assessment />
+                          </ListItemIcon>
+                          <ListItemText primary={<Typography variant="body2" fontWeight={500}>My Self Reports</Typography>} />
+                        </ListItemButton>
+                      </ListItem>
+                      <ListItem disablePadding sx={{ mb: 0.5, px: 1.5 }}>
+                        <ListItemButton
+                          component={Link}
+                          to="/Dashboard/Investment/Reports"
+                          selected={location.pathname === "/Dashboard/Investment/Reports"}
+                          sx={{
+                            borderRadius: 3,
+                            minHeight: 48,
+                            px: 2,
+                            py: 1.25,
+                            pl: 4,
+                            "&.Mui-selected": {
+                              background: "linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%)",
+                              color: "primary.main",
+                            },
+                            "&:hover": { bgcolor: "action.hover", transform: "translateX(4px)" },
+                            transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                          }}
+                        >
+                          <ListItemIcon sx={{ minWidth: 44, color: location.pathname === "/Dashboard/Investment/Reports" ? "primary.main" : "text.secondary" }}>
+                            <TrendingUp />
+                          </ListItemIcon>
+                          <ListItemText primary={<Typography variant="body2" fontWeight={500}>Investment Reports</Typography>} />
+                        </ListItemButton>
+                      </ListItem>
+                      {normalizedRoles?.includes?.("admin") && (
+                      <>
+                      <ListItem disablePadding sx={{ mb: 0.5, px: 1.5 }}>
+                        <ListItemButton
+                          component={Link}
+                          to="/Dashboard/Investment/UpdateKycStatus"
+                          selected={location.pathname === "/Dashboard/Investment/UpdateKycStatus"}
+                          sx={{
+                            borderRadius: 3,
+                            minHeight: 48,
+                            px: 2,
+                            py: 1.25,
+                            pl: 4,
+                            "&.Mui-selected": {
+                              background: "linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%)",
+                              color: "primary.main",
+                            },
+                            "&:hover": { bgcolor: "action.hover", transform: "translateX(4px)" },
+                            transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                          }}
+                        >
+                          <ListItemIcon sx={{ minWidth: 44, color: location.pathname === "/Dashboard/Investment/UpdateKycStatus" ? "primary.main" : "text.secondary" }}>
+                            <CheckCircle />
+                          </ListItemIcon>
+                          <ListItemText primary={<Typography variant="body2" fontWeight={500}>Update KYC Status</Typography>} />
+                        </ListItemButton>
+                      </ListItem>
+                      <ListItem disablePadding sx={{ mb: 0.5, px: 1.5 }}>
+                        <ListItemButton
+                          component={Link}
+                          to="/Dashboard/Investment/AdminUserReports"
+                          selected={location.pathname === "/Dashboard/Investment/AdminUserReports"}
+                          sx={{
+                            borderRadius: 3,
+                            minHeight: 48,
+                            px: 2,
+                            py: 1.25,
+                            pl: 4,
+                            "&.Mui-selected": {
+                              background: "linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%)",
+                              color: "primary.main",
+                            },
+                            "&:hover": { bgcolor: "action.hover", transform: "translateX(4px)" },
+                            transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                          }}
+                        >
+                          <ListItemIcon sx={{ minWidth: 44, color: location.pathname === "/Dashboard/Investment/AdminUserReports" ? "primary.main" : "text.secondary" }}>
+                            <People />
+                          </ListItemIcon>
+                          <ListItemText primary={<Typography variant="body2" fontWeight={500}>User Reports</Typography>} />
+                        </ListItemButton>
+                      </ListItem>
+                      <ListItem disablePadding sx={{ mb: 0.5, px: 1.5 }}>
+                        <ListItemButton
+                          component={Link}
+                          to="/Dashboard/Investment/WithdrawalRequests"
+                          selected={location.pathname === "/Dashboard/Investment/WithdrawalRequests"}
+                          sx={{
+                            borderRadius: 3,
+                            minHeight: 48,
+                            px: 2,
+                            py: 1.25,
+                            pl: 4,
+                            "&.Mui-selected": {
+                              background: "linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%)",
+                              color: "primary.main",
+                            },
+                            "&:hover": { bgcolor: "action.hover", transform: "translateX(4px)" },
+                            transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                          }}
+                        >
+                          <ListItemIcon sx={{ minWidth: 44, color: location.pathname === "/Dashboard/Investment/WithdrawalRequests" ? "primary.main" : "text.secondary" }}>
+                            <PendingActions />
+                          </ListItemIcon>
+                          <ListItemText primary={<Typography variant="body2" fontWeight={500}>Withdrawal Requests</Typography>} />
+                        </ListItemButton>
+                      </ListItem>
+                      <ListItem disablePadding sx={{ mb: 0.5, px: 1.5 }}>
+                        <ListItemButton
+                          component={Link}
+                          to="/Dashboard/Investment/ReferralEarnings"
+                          selected={location.pathname === "/Dashboard/Investment/ReferralEarnings"}
+                          sx={{
+                            borderRadius: 3,
+                            minHeight: 48,
+                            px: 2,
+                            py: 1.25,
+                            pl: 4,
+                            "&.Mui-selected": {
+                              background: "linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%)",
+                              color: "primary.main",
+                            },
+                            "&:hover": { bgcolor: "action.hover", transform: "translateX(4px)" },
+                            transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                          }}
+                        >
+                          <ListItemIcon sx={{ minWidth: 44, color: location.pathname === "/Dashboard/Investment/ReferralEarnings" ? "primary.main" : "text.secondary" }}>
+                            <People />
+                          </ListItemIcon>
+                          <ListItemText primary={<Typography variant="body2" fontWeight={500}>Referral – Approve</Typography>} />
+                        </ListItemButton>
+                      </ListItem>
+                      <ListItem disablePadding sx={{ mb: 0.5, px: 1.5 }}>
+                        <ListItemButton
+                          component={Link}
+                          to="/Dashboard/Investment/ReferralReports"
+                          selected={location.pathname === "/Dashboard/Investment/ReferralReports"}
+                          sx={{
+                            borderRadius: 3,
+                            minHeight: 48,
+                            px: 2,
+                            py: 1.25,
+                            pl: 4,
+                            "&.Mui-selected": {
+                              background: "linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%)",
+                              color: "primary.main",
+                            },
+                            "&:hover": { bgcolor: "action.hover", transform: "translateX(4px)" },
+                            transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                          }}
+                        >
+                          <ListItemIcon sx={{ minWidth: 44, color: location.pathname === "/Dashboard/Investment/ReferralReports" ? "primary.main" : "text.secondary" }}>
+                            <Assessment />
+                          </ListItemIcon>
+                          <ListItemText primary={<Typography variant="body2" fontWeight={500}>Referral Reports</Typography>} />
+                        </ListItemButton>
+                      </ListItem>
+                      </>
+                      )}
                     </>
                   )}
                 </>

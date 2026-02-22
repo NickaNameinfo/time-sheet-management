@@ -279,11 +279,18 @@ function AddCrmDate() {
                           >
                             <MenuItem value="New">New</MenuItem>
                             <MenuItem value="Attended">Attended</MenuItem>
+                            <MenuItem value="Follow Up">Follow Up</MenuItem>
+                            <MenuItem value="Not Attended">Not Attended</MenuItem>
+                            <MenuItem value="Details Pending">Details Pending</MenuItem>
                             <MenuItem value="Rescheduled">Rescheduled</MenuItem>
                             <MenuItem value="Message Send">Message Send</MenuItem>
-                            <MenuItem value="Converted">Converted</MenuItem>
+                            <MenuItem value="Product Provided">Product Provided</MenuItem>
                             <MenuItem value="Not Interest">Not Interest</MenuItem>
+                            <MenuItem value="Registered Pending">Registered Pending</MenuItem>
+                            <MenuItem value="Pending Product Update">Pending Product Update</MenuItem>
+                            <MenuItem value="Online Order Enable Pending">Online Order Enable Pending</MenuItem>
                             <MenuItem value="Need Other Service">Need Other Service</MenuItem>
+                            <MenuItem value="Service Provider">Service Provider</MenuItem>
                           </Select>
                           {errors.status && (
                             <FormHelperText>{errors.status.message}</FormHelperText>

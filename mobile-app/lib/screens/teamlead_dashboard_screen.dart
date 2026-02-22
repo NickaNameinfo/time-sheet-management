@@ -31,9 +31,15 @@ class _TeamLeadDashboardScreenState extends State<TeamLeadDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<AuthProvider>().user;
+    final name = (user?['tlName'] ?? user?['leadName'] ?? user?['employeeName'] ?? user?['userName'] ?? 'User').toString();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Team Lead Dashboard'),
+        title: Text(
+          'Hello, $name!',
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        centerTitle: false,
         actions: [
           Consumer<AuthProvider>(
             builder: (context, authProvider, _) {

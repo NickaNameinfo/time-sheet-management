@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:timesheet_mobile/providers/auth_provider.dart';
 import 'package:timesheet_mobile/services/api_service.dart';
 import 'package:timesheet_mobile/screens/login_screen.dart';
+import 'package:timesheet_mobile/screens/investment/update_kyc_status_screen.dart';
 
 class EmployeeProfileScreen extends StatelessWidget {
   const EmployeeProfileScreen({super.key});
@@ -77,6 +78,20 @@ class EmployeeProfileScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+                if ((user['role']?.toString().toLowerCase() ?? '') == 'admin') ...[
+                  const SizedBox(height: 16),
+                  Card(
+                    child: ListTile(
+                      leading: Icon(Icons.verified_user, color: Theme.of(context).colorScheme.primary),
+                      title: const Text('Update KYC Status'),
+                      subtitle: const Text('Admin: set KYC status for investment users'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const UpdateKycStatusScreen()),
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 24),
                 // Logout Button
                 Card(

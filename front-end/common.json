@@ -1,4 +1,4 @@
 {
-  "APIKEY": "http://localhost:10000",
+  "APIKEY": "https://nicknameinfo.net/timesheet",
   "BASEURL": "http://localhost:5173"
 }

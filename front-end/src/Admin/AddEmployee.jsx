@@ -33,6 +33,7 @@ import {
   Save,
   AttachMoney,
   Description,
+  LockReset,
 } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
@@ -67,6 +68,8 @@ function AddEmployee({ from }) {
       mother_name: "",
       parent_contact: "",
       parent_address: "",
+      newPassword: "",
+      confirmPassword: "",
     },
   });
 
@@ -199,16 +202,21 @@ function AddEmployee({ from }) {
     setError("");
     const formData = new FormData();
 
-    // Append all form fields
+    // Append all form fields (exclude password-update-only and image keys)
+    const skipKeys = ["employeeImage", "newPassword", "confirmPassword"];
     Object.keys(data).forEach((key) => {
-      if (key !== "employeeImage" && data[key] !== null && data[key] !== undefined) {
-        if (dayjs.isDayjs(data[key])) {
-          formData.append(key, data[key].format("YYYY-MM-DD"));
-        } else {
-          formData.append(key, data[key]);
-        }
+      if (skipKeys.includes(key) || data[key] === null || data[key] === undefined) return;
+      if (key === "password" && id) return; // Edit mode: use newPassword below if provided
+      if (dayjs.isDayjs(data[key])) {
+        formData.append(key, data[key].format("YYYY-MM-DD"));
+      } else {
+        formData.append(key, data[key]);
       }
     });
+    // When editing, append new password only if user filled the update-password fields
+    if (id && data.newPassword?.trim()) {
+      formData.append("password", data.newPassword.trim());
+    }
 
     // Append image if selected
     if (employeeImage) {
@@ -398,6 +406,76 @@ function AddEmployee({ from }) {
                         )}
                       />
                     </Grid>
+                  )}
+
+                  {id && (
+                    <>
+                      <Grid item xs={12}>
+                        <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1, mb: 0.5 }}>
+                          Update password (optional)
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <Controller
+                          name="newPassword"
+                          control={control}
+                          rules={{
+                            minLength: {
+                              value: 6,
+                              message: "Password must be at least 6 characters",
+                            },
+                            validate: (val) => {
+                              const confirm = watch("confirmPassword");
+                              if (confirm && !val) return "Enter new password";
+                              if (val && val.length < 6) return "Password must be at least 6 characters";
+                              return true;
+                            },
+                          }}
+                          render={({ field }) => (
+                            <TextField
+                              {...field}
+                              fullWidth
+                              label="New password"
+                              type="password"
+                              placeholder="Leave blank to keep current"
+                              error={Boolean(errors.newPassword)}
+                              helperText={errors.newPassword?.message}
+                              InputProps={{
+                                startAdornment: <LockReset sx={{ mr: 1, color: "text.secondary" }} />,
+                              }}
+                            />
+                          )}
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <Controller
+                          name="confirmPassword"
+                          control={control}
+                          rules={{
+                            validate: (val) => {
+                              const newPwd = watch("newPassword");
+                              if (newPwd && !val) return "Confirm the new password";
+                              if (newPwd && val !== newPwd) return "Passwords do not match";
+                              return true;
+                            },
+                          }}
+                          render={({ field }) => (
+                            <TextField
+                              {...field}
+                              fullWidth
+                              label="Confirm new password"
+                              type="password"
+                              placeholder="Re-enter new password"
+                              error={Boolean(errors.confirmPassword)}
+                              helperText={errors.confirmPassword?.message}
+                              InputProps={{
+                                startAdornment: <LockReset sx={{ mr: 1, color: "text.secondary" }} />,
+                              }}
+                            />
+                          )}
+                        />
+                      </Grid>
+                    </>
                   )}
 
                   <Grid item xs={12} sm={6}>

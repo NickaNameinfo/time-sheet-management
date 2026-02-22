@@ -8,6 +8,12 @@ import 'package:timesheet_mobile/screens/employee_compoff_screen.dart';
 import 'package:timesheet_mobile/screens/employee_profile_screen.dart';
 import 'package:timesheet_mobile/screens/employee_shift_details_screen.dart';
 import 'package:timesheet_mobile/screens/login_screen.dart';
+import 'package:timesheet_mobile/screens/challenge/challenge_dashboard_screen.dart';
+import 'package:timesheet_mobile/screens/challenge/challenge_login_screen.dart';
+import 'package:timesheet_mobile/providers/challenge_auth_provider.dart';
+import 'package:timesheet_mobile/services/challenge_api_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timesheet_mobile/utils/app_config.dart';
 
 class EmployeeDashboardScreen extends StatefulWidget {
   const EmployeeDashboardScreen({super.key});
@@ -27,11 +33,51 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
     const EmployeeProfileScreen(),
   ];
 
+  Future<void> _openMySelf() async {
+    final prefs = await SharedPreferences.getInstance();
+    final challengeToken = prefs.getString(AppConfig.challengeTokenKey);
+    if (challengeToken != null) {
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const ChallengeDashboardScreen()),
+      );
+      return;
+    }
+    final employeeToken = prefs.getString(AppConfig.tokenKey);
+    if (employeeToken != null) {
+      try {
+        final result = await ChallengeApiService().accessWithEmployeeToken(employeeToken);
+        final token = result['token'] as String?;
+        final user = result['user'] as Map<String, dynamic>?;
+        if (token != null && user != null && mounted) {
+          await context.read<ChallengeAuthProvider>().setSessionFromSso(token, user);
+          if (!mounted) return;
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const ChallengeDashboardScreen()),
+          );
+          return;
+        }
+      } catch (_) {
+        // SSO failed (e.g. no employee email); fall back to login screen
+      }
+    }
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ChallengeLoginScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<AuthProvider>().user;
+    final name = (user?['employeeName'] ?? user?['userName'] ?? 'User').toString();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Time Sheet'),
+        title: Text(
+          'Hello, $name!',
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        centerTitle: false,
         automaticallyImplyLeading: false,
         actions: [
           Consumer<AuthProvider>(
@@ -75,8 +121,14 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
       ),
       body: _screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
+        currentIndex: _currentIndex.clamp(0, 4),
+        onTap: (index) async {
+          if (index == 5) {
+            await _openMySelf();
+            return;
+          }
+          setState(() => _currentIndex = index);
+        },
         type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(
@@ -98,6 +150,10 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
             label: 'Profile',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.self_improvement_rounded),
+            label: 'My Self',
           ),
         ],
       ),

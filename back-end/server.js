@@ -27,6 +27,12 @@ import productivityRoutes from "./routes/productivityRoutes.js";
 import approvalRoutes from "./routes/approvalRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
 import crmRoutes from "./routes/crmRoutes.js";
+import challengeRoutes from "./routes/challengeRoutes.js";
+import challengeAdminRoutes from "./routes/challengeAdminRoutes.js";
+import investmentRoutes from "./routes/investmentRoutes.js";
+import investmentAdminRoutes from "./routes/investmentAdminRoutes.js";
+import { runChallengeEodJob } from "./jobs/challengeEodJob.js";
+import { runKycVerificationJob, runMaturityCheckJob } from "./jobs/investmentJobs.js";
 
 // Load environment variables
 dotenv.config();
@@ -68,7 +74,7 @@ app.use(
       // Default: allow if in config
       callback(null, true);
     },
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     credentials: true,
   })
 );
@@ -109,6 +115,24 @@ app.use("/", productivityRoutes);
 app.use("/", approvalRoutes);
 app.use("/", reportRoutes);
 app.use("/", crmRoutes);
+app.use("/", challengeRoutes);
+app.use("/", challengeAdminRoutes);
+app.use("/", investmentRoutes);
+app.use("/", investmentAdminRoutes);
+
+// Challenge EOD job: mark pending days as missed (run every hour)
+setInterval(() => {
+  runChallengeEodJob().catch((err) => console.error("[Challenge EOD job error]", err));
+}, 60 * 60 * 1000);
+runChallengeEodJob().catch((err) => console.error("[Challenge EOD job error]", err));
+
+// Investment: KYC 24h verification + daily maturity check (every hour)
+setInterval(() => {
+  runKycVerificationJob().catch((err) => console.error("[Investment KYC job error]", err));
+  runMaturityCheckJob().catch((err) => console.error("[Investment maturity job error]", err));
+}, 60 * 60 * 1000);
+runKycVerificationJob().catch((err) => console.error("[Investment KYC job error]", err));
+runMaturityCheckJob().catch((err) => console.error("[Investment maturity job error]", err));
 
 // Health check endpoint
 app.get("/health", (req, res) => {

@@ -21,9 +21,14 @@ class AuthProvider with ChangeNotifier {
   String? get error => _error;
   
   AuthProvider() {
-    _checkAuthStatus();
+    // No existing-session check on startup (removed for fresh install behavior)
   }
-  
+
+  /// Call this when you need to restore session from storage (e.g. after login flow supports "remember me").
+  Future<void> restoreSessionIfSaved() async {
+    await _checkAuthStatus();
+  }
+
   Future<void> _checkAuthStatus() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(AppConfig.tokenKey);

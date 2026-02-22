@@ -21,8 +21,8 @@ api.interceptors.request.use(
       }
       // For other POST/PUT/DELETE requests that require auth, add token to body
       // The backend verifyUser middleware checks req.body.tokensss, req.cookies.token, or Authorization header
-      else if (["post", "put", "delete"].includes(config.method?.toLowerCase())) {
-        // Add token to request body for POST/PUT/DELETE
+      else if (["post", "put", "patch", "delete"].includes(config.method?.toLowerCase())) {
+        // Add token to request body for POST/PUT/PATCH/DELETE (backend may check req.body.tokensss)
         if (config.data && typeof config.data === "object" && !(config.data instanceof FormData)) {
           config.data = { ...config.data, tokensss: token };
         }
@@ -59,16 +59,18 @@ api.interceptors.response.use(
     }
 
     // Handle 401 Unauthorized - Token expired or invalid
-    // Only logout on 401 if it's not from a public endpoint
+    // Don't logout on 401 for public endpoints or admin report endpoints (let the page show the error)
     if (error.response?.status === 401) {
       const publicEndpoints = ["/settings", "/discipline", "/designation", "/areaofwork", "/variation"];
-      const isPublicEndpoint = publicEndpoints.some(endpoint => 
+      const noLogoutOn401 = ["/admin/challenge/", "/admin/investment/"];
+      const isPublicEndpoint = publicEndpoints.some(endpoint =>
         error.config?.url?.includes(endpoint)
       );
-      
-      // Only logout if it's not a public endpoint
-      if (!isPublicEndpoint) {
-        // Clear token and redirect to login
+      const isAdminReportEndpoint = noLogoutOn401.some(endpoint =>
+        error.config?.url?.includes(endpoint)
+      );
+
+      if (!isPublicEndpoint && !isAdminReportEndpoint) {
         localStorage.removeItem("token");
         if (window.location.pathname !== "/" && !window.location.pathname.includes("/login")) {
           window.location.href = "/";
@@ -329,6 +331,26 @@ export const apiService = {
   // App Settings
   getAppSettings: () => api.get("/settings/app-settings"),
   updateAppSettings: (data) => api.put("/settings/app-settings", data),
+
+  // Investment Admin (KYC list & update status)
+  getInvestmentKycListAdmin: () => api.get("/admin/investment/kyc"),
+  getKycDocument: (userId, type) => api.get(`/admin/investment/kyc/document/${userId}/${type}`, { responseType: "blob" }),
+  updateInvestmentKycStatus: (data) => api.patch("/admin/investment/kyc/status", data),
+
+  // Admin: view user investment & My Self reports
+  getAdminChallengeUsers: () => api.get("/admin/challenge/users"),
+  getAdminChallengeReports: (userId) => api.get("/admin/challenge/reports", { params: { user_id: userId } }),
+  getAdminInvestmentReports: (params) => api.get("/admin/investment/reports", { params: params || {} }),
+  getAdminInvestmentReportById: (id) => api.get(`/admin/investment/reports/${id}`),
+
+  // Admin: withdrawal requests (early withdrawal before 15 days – 3% deduction, approval required)
+  getWithdrawalRequests: (params) => api.get("/admin/investment/withdrawal-requests", { params: params || {} }),
+  updateWithdrawalRequestStatus: (id, data) => api.patch(`/admin/investment/withdrawal-requests/${id}`, data),
+
+  // Admin: referral earnings (list and approve/reject)
+  getReferralEarnings: (params) => api.get("/admin/investment/referral-earnings", { params: params || {} }),
+  backfillReferralEarnings: () => api.post("/admin/investment/referral-earnings/backfill"),
+  updateReferralEarningStatus: (id, data) => api.patch(`/admin/investment/referral-earnings/${id}`, data),
 };
 
 export default api;

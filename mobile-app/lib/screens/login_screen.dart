@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:timesheet_mobile/providers/auth_provider.dart';
 import 'package:timesheet_mobile/screens/employee_dashboard_screen.dart';
 import 'package:timesheet_mobile/screens/hr_dashboard_screen.dart';
+import 'package:timesheet_mobile/screens/splash_screen.dart';
 import 'package:timesheet_mobile/screens/teamlead_dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -78,16 +79,18 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
         child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const SizedBox(height: 40),
+          child: Stack(
+            children: [
+              Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SizedBox(height: 40),
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
@@ -251,6 +254,19 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
+          ),
+      Positioned(
+        top: 0,
+        left: 0,
+        child: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 28),
+          onPressed: () => Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const SplashScreen()),
+          ),
+          tooltip: 'Back',
+        ),
+      ),
+            ],
           ),
         ),
       ),
