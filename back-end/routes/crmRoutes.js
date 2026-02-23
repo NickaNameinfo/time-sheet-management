@@ -12,7 +12,7 @@ import { verifyUser } from "../middleware/auth.js";
 const router = express.Router();
 
 // CRM routes - all require authentication
-router.post("/crm/create", verifyUser, createCrm);
+router.post("/crm/create", createCrm);
 router.get("/crm/list", verifyUser, getCrmList);
 router.get("/crm/summary", verifyUser, getCrmSummary);
 router.get("/crm/:id", verifyUser, getCrmById);
