@@ -459,15 +459,32 @@ export const getProjectEmployees = asyncHandler(async (req, res) => {
 });
 
 // Get assigned projects for an employee from project plans
+// Matches project_plans + project_plan_employees: returns all assignments for the employee.
+// employee_id can be employee.id (DB pk) or employee.EMPID.
 export const getEmployeeAssignedProjects = asyncHandler(async (req, res) => {
   const { employee_id } = req.query;
   
   if (!employee_id) {
     return sendError(res, "Employee ID is required", 400);
   }
+
+  const paramId = parseInt(employee_id, 10);
+  if (isNaN(paramId)) {
+    return sendError(res, "Invalid employee ID", 400);
+  }
+
+  // Resolve to employee.id (project_plan_employees.employee_id references employee.id)
+  let employeeDbId = paramId;
+  const lookup = await query(
+    "SELECT id FROM employee WHERE id = ? OR EMPID = ? LIMIT 1",
+    [paramId, paramId]
+  );
+  if (lookup.length > 0) {
+    employeeDbId = lookup[0].id;
+  }
   
-  // Get all active project plans where employee is assigned
-  // Only select columns that exist in the project table
+  // All rows from project_plan_employees for this employee, joined to project_plans and project.
+  // Exclude only: assignment status 'removed', plan status 'cancelled'. Include active & completed plans.
   const sql = `
     SELECT 
       pp.id as plan_id,
@@ -476,6 +493,8 @@ export const getEmployeeAssignedProjects = asyncHandler(async (req, res) => {
       pp.start_date,
       pp.end_date,
       pp.status as plan_status,
+      pp.total_allotted_hours as plan_total_hours,
+      ppe.id as assignment_id,
       ppe.allotted_hours,
       ppe.assigned_date,
       ppe.status as assignment_status,
@@ -492,14 +511,13 @@ export const getEmployeeAssignedProjects = asyncHandler(async (req, res) => {
     FROM project_plan_employees ppe
     INNER JOIN project_plans pp ON ppe.project_plan_id = pp.id
     INNER JOIN project p ON pp.project_id = p.id
-    WHERE ppe.employee_id = ? 
-      AND ppe.status != 'removed'
-      AND pp.status IN ('active', 'draft')
-      AND CURDATE() BETWEEN pp.start_date AND pp.end_date
+    WHERE ppe.employee_id = ?
+      AND (ppe.status IS NULL OR ppe.status != 'removed')
+      AND (pp.status IS NULL OR pp.status != 'cancelled')
     ORDER BY pp.start_date DESC, p.projectName ASC
   `;
   
-  const assignedProjects = await query(sql, [employee_id]);
+  const assignedProjects = await query(sql, [employeeDbId]);
   
   return sendSuccess(res, assignedProjects);
 });
