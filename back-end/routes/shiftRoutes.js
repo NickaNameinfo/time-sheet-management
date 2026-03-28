@@ -14,7 +14,7 @@ import { verifyUser } from "../middleware/auth.js";
 
 const router = express.Router();
 
-router.get("/shifts", getShifts);
+router.get("/shifts", verifyUser, getShifts);
 router.post("/shifts", verifyUser, createShift);
 router.put("/shifts/:id", verifyUser, updateShift);
 router.delete("/shifts/:id", verifyUser, deleteShift);

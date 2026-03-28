@@ -6,11 +6,10 @@ INSERT INTO `menu_permissions` (`menu_key`, `menu_title`, `menu_path`, `menu_ico
 -- Project Planning (Main feature)
 ('project_planning', 'Project Planning', '/Dashboard/project-planning', 'AccountTree', NULL, '["Admin"]', TRUE, 4),
 
--- Team Leads Management (Main feature)
-('manage_team_leads', 'Manage Team Leads', '/Dashboard/lead', 'People', NULL, '["Admin"]', TRUE, 2.5),
+-- Team Leads / HR admin screens removed from menus (inactive)
+('manage_team_leads', 'Manage Team Leads', '/Dashboard/lead', 'People', NULL, '["Admin"]', FALSE, 2.5),
 
--- HR Management (Main feature)
-('manage_hr', 'Manage HR', '/Dashboard/hr', 'People', NULL, '["Admin"]', TRUE, 2.6),
+('manage_hr', 'Manage HR', '/Dashboard/hr', 'People', NULL, '["Admin"]', FALSE, 2.6),
 
 -- Parent Menus (needed for nested menu structure)
 -- Note: These parent menus are referenced by submenu items but were missing from the database

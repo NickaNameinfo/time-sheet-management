@@ -1,9 +1,10 @@
-import { query } from "../config/database.js";
+import { getTenantQuery } from "../config/database.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
 // Get OT Rules
 export const getOTRules = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { country } = req.query;
   let sql = "SELECT * FROM ot_rules WHERE is_active = TRUE";
   const params = [];
@@ -13,12 +14,13 @@ export const getOTRules = asyncHandler(async (req, res) => {
     params.push(country);
   }
 
-  const results = await query(sql, params);
+  const results = await q(sql, params);
   return sendSuccess(res, results);
 });
 
 // Create/Update OT Rules
 export const createOTRule = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const {
     country,
     daily_hours_limit,
@@ -32,7 +34,7 @@ export const createOTRule = asyncHandler(async (req, res) => {
 
   // Check if rule exists for country
   const checkSql = "SELECT id FROM ot_rules WHERE country = ?";
-  const existing = await query(checkSql, [country]);
+  const existing = await q(checkSql, [country]);
 
   if (existing.length > 0) {
     // Update existing
@@ -47,7 +49,7 @@ export const createOTRule = asyncHandler(async (req, res) => {
         night_shift_end = ?
       WHERE country = ?
     `;
-    await query(updateSql, [
+    await q(updateSql, [
       daily_hours_limit,
       weekly_hours_limit,
       friday_multiplier,
@@ -67,7 +69,7 @@ export const createOTRule = asyncHandler(async (req, res) => {
         night_shift_start, night_shift_end
       ) VALUES (?)
     `;
-    await query(insertSql, [[
+    await q(insertSql, [[
       country || "UAE",
       daily_hours_limit || 8.0,
       weekly_hours_limit || 48.0,
@@ -83,6 +85,7 @@ export const createOTRule = asyncHandler(async (req, res) => {
 
 // Calculate Overtime for Employee
 export const calculateOvertime = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { employeeId, startDate, endDate } = req.body;
 
   if (!employeeId || !startDate || !endDate) {
@@ -91,7 +94,7 @@ export const calculateOvertime = asyncHandler(async (req, res) => {
 
   // Get OT rules
   const rulesSql = "SELECT * FROM ot_rules WHERE is_active = TRUE LIMIT 1";
-  const rules = await query(rulesSql);
+  const rules = await q(rulesSql);
   if (rules.length === 0) {
     return sendError(res, "OT rules not configured", 404);
   }
@@ -99,7 +102,7 @@ export const calculateOvertime = asyncHandler(async (req, res) => {
 
   // Get employee first (needed for userName to query workdetails)
   const employeeSql = "SELECT * FROM employee WHERE EMPID = ? OR id = ?";
-  const employees = await query(employeeSql, [employeeId, employeeId]);
+  const employees = await q(employeeSql, [employeeId, employeeId]);
   if (employees.length === 0) {
     return sendError(res, "Employee not found", 404);
   }
@@ -118,7 +121,7 @@ export const calculateOvertime = asyncHandler(async (req, res) => {
     AND status = 'approved'
     ORDER BY sentDate
   `;
-  const workDetails = await query(workDetailsSql, [
+  const workDetails = await q(workDetailsSql, [
     employee.userName, 
     startDate, endDate,
     startDate, endDate
@@ -132,7 +135,7 @@ export const calculateOvertime = asyncHandler(async (req, res) => {
     ORDER BY employee_id DESC, effective_date DESC
     LIMIT 1
   `;
-  const billingRates = await query(billingRateSql, [
+  const billingRates = await q(billingRateSql, [
     employee.id,
     employee.designation,
     employee.discipline,
@@ -236,6 +239,7 @@ export const calculateOvertime = asyncHandler(async (req, res) => {
 
 // Get OT Records
 export const getOTRecords = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { employeeId, startDate, endDate, status } = req.query;
   let sql = "SELECT ot.*, e.employeeName, e.EMPID FROM ot_records ot";
   sql += " LEFT JOIN employee e ON ot.employee_id = e.id WHERE 1=1";
@@ -260,12 +264,13 @@ export const getOTRecords = asyncHandler(async (req, res) => {
 
   sql += " ORDER BY ot.attendance_date DESC";
 
-  const results = await query(sql, params);
+  const results = await q(sql, params);
   return sendSuccess(res, results);
 });
 
 // Approve/Reject OT
 export const approveOT = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { id } = req.params;
   const { status, comments, approverId } = req.body;
 
@@ -283,16 +288,16 @@ export const approveOT = asyncHandler(async (req, res) => {
     WHERE id = ?
   `;
 
-  await query(updateSql, [status, approverId, approverId, comments, id]);
+  await q(updateSql, [status, approverId, approverId, comments, id]);
 
   // Add to approval history
-  const otRecord = await query("SELECT * FROM ot_records WHERE id = ?", [id]);
+  const otRecord = await q("SELECT * FROM ot_records WHERE id = ?", [id]);
   if (otRecord.length > 0) {
     const historySql = `
       INSERT INTO approval_history (entity_type, entity_id, approver_id, approval_level, status, comments)
       VALUES (?, ?, ?, ?, ?, ?)
     `;
-    await query(historySql, ["overtime", id, approverId, 1, status, comments]);
+    await q(historySql, ["overtime", id, approverId, 1, status, comments]);
   }
 
   return sendSuccess(res, null, `OT ${status} successfully`);
@@ -300,6 +305,7 @@ export const approveOT = asyncHandler(async (req, res) => {
 
 // Bulk Insert OT Records
 export const bulkInsertOTRecords = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { otRecords } = req.body;
 
   if (!Array.isArray(otRecords) || otRecords.length === 0) {
@@ -326,7 +332,7 @@ export const bulkInsertOTRecords = asyncHandler(async (req, res) => {
     record.approverId || null,
   ]);
 
-  await query(insertSql, [values]);
+  await q(insertSql, [values]);
   return sendSuccess(res, null, `${otRecords.length} OT records created successfully`);
 });
 

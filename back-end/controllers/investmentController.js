@@ -1,5 +1,5 @@
 import Razorpay from "razorpay";
-import { query } from "../config/database.js";
+import { getTenantQuery } from "../config/database.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
@@ -23,41 +23,43 @@ function requireVerifiedKyc(rows) {
 }
 
 export const getPlans = asyncHandler(async (req, res) => {
-  const plans = await query(
+  const q = getTenantQuery(req);
+  const plans = await q(
     "SELECT id, name, category, min_amount, max_amount, interest_percentage, lockin_days FROM investment_plans WHERE is_active = 1 ORDER BY category, min_amount"
   );
   return sendSuccess(res, { plans });
 });
 
 export const getDashboard = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const userId = req.challengeUserId;
-  const kycRows = await query("SELECT status FROM investment_kyc WHERE user_id = ?", [userId]);
+  const kycRows = await q("SELECT status FROM investment_kyc WHERE user_id = ?", [userId]);
   const kycStatus = kycRows.length > 0 ? kycRows[0].status : null;
 
-  const [totalInvested] = await query(
+  const [totalInvested] = await q(
     "SELECT COALESCE(SUM(amount), 0) AS total FROM investments WHERE user_id = ?",
     [userId]
   );
-  const [activeCount] = await query(
+  const [activeCount] = await q(
     "SELECT COUNT(*) AS cnt FROM investments WHERE user_id = ? AND status = 'ACTIVE'",
     [userId]
   );
-  const [maturedCount] = await query(
+  const [maturedCount] = await q(
     "SELECT COUNT(*) AS cnt FROM investments WHERE user_id = ? AND status IN ('MATURED', 'WITHDRAWN')",
     [userId]
   );
-  const withdrawals = await query(
+  const withdrawals = await q(
     "SELECT SUM(w.interest_earned) AS earned FROM withdrawals w INNER JOIN investments i ON w.investment_id = i.id WHERE i.user_id = ?",
     [userId]
   );
   const totalEarnings = (withdrawals[0] && Number(withdrawals[0].earned)) || 0;
 
-  const upcoming = await query(
+  const upcoming = await q(
     "SELECT id, amount, maturity_date, interest_percentage FROM investments WHERE user_id = ? AND status = 'ACTIVE' ORDER BY maturity_date ASC LIMIT 5",
     [userId]
   );
 
-  const withdrawableRows = await query(
+  const withdrawableRows = await q(
     `SELECT i.id, i.amount, i.interest_percentage, i.lockin_days, i.start_date, i.maturity_date, DATEDIFF(CURDATE(), i.start_date) AS days_held
      FROM investments i WHERE i.user_id = ? AND i.status = 'ACTIVE'`,
     [userId]
@@ -70,7 +72,7 @@ export const getDashboard = asyncHandler(async (req, res) => {
     withdrawableBalance += principal + interest;
   }
 
-  const pendingWithdrawals = await query(
+  const pendingWithdrawals = await q(
     `SELECT r.id, r.investment_id, r.requested_amount, r.amount_after_deduction, r.days_held, r.status, r.requested_at, i.amount AS investment_amount
      FROM investment_withdrawal_requests r
      JOIN investments i ON i.id = r.investment_id
@@ -78,7 +80,7 @@ export const getDashboard = asyncHandler(async (req, res) => {
      ORDER BY r.requested_at DESC`,
     [userId]
   );
-  const recentApproved = await query(
+  const recentApproved = await q(
     `SELECT r.id, r.investment_id, r.amount_after_deduction, r.status, r.reviewed_at,
       DATE_FORMAT(DATE_ADD(r.reviewed_at, INTERVAL 36 HOUR), '%Y-%m-%dT%H:%i:%s.000Z') AS settlement_date
      FROM investment_withdrawal_requests r
@@ -90,11 +92,11 @@ export const getDashboard = asyncHandler(async (req, res) => {
   let referralBalancePending = 0;
   let referralBalanceApproved = 0;
   try {
-    const [refPending] = await query(
+    const [refPending] = await q(
       "SELECT COALESCE(SUM(referral_amount), 0) AS total FROM referral_earnings WHERE referrer_user_id = ? AND status = 'PENDING_APPROVAL'",
       [userId]
     );
-    const [refApproved] = await query(
+    const [refApproved] = await q(
       "SELECT COALESCE(SUM(referral_amount), 0) AS total FROM referral_earnings WHERE referrer_user_id = ? AND status = 'APPROVED'",
       [userId]
     );
@@ -119,11 +121,12 @@ export const getDashboard = asyncHandler(async (req, res) => {
 });
 
 export const validateCheckout = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const userId = req.challengeUserId;
   const { plan_id, amount } = req.body;
   if (!plan_id || amount == null) return sendError(res, "plan_id and amount required", 400);
 
-  const plans = await query("SELECT * FROM investment_plans WHERE id = ? AND is_active = 1", [plan_id]);
+  const plans = await q("SELECT * FROM investment_plans WHERE id = ? AND is_active = 1", [plan_id]);
   if (plans.length === 0) return sendError(res, "Invalid plan", 404);
 
   const plan = plans[0];
@@ -154,11 +157,12 @@ export const validateCheckout = asyncHandler(async (req, res) => {
 });
 
 export const createRazorpayOrder = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const userId = req.challengeUserId;
   const { plan_id, amount } = req.body;
   if (!plan_id || amount == null) return sendError(res, "plan_id and amount required", 400);
 
-  const plans = await query("SELECT * FROM investment_plans WHERE id = ? AND is_active = 1", [plan_id]);
+  const plans = await q("SELECT * FROM investment_plans WHERE id = ? AND is_active = 1", [plan_id]);
   if (plans.length === 0) return sendError(res, "Invalid plan", 404);
 
   const plan = plans[0];
@@ -190,17 +194,20 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
   });
 });
 
+// Payment success callback: always create investment record. KYC is NOT required here (payment already completed).
+// Record is created even when KYC is not verified; kyc_verified_at_investment is set only when KYC was VERIFIED at time of investment.
 export const createInvestmentAfterPayment = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const userId = req.challengeUserId;
   const { plan_id, amount, transaction_id } = req.body;
   if (!plan_id || amount == null || !transaction_id) {
     return sendError(res, "plan_id, amount and transaction_id required", 400);
   }
 
-  const duplicate = await query("SELECT id FROM investments WHERE user_id = ? AND transaction_id = ?", [userId, transaction_id]);
+  const duplicate = await q("SELECT id FROM investments WHERE user_id = ? AND transaction_id = ?", [userId, transaction_id]);
   if (duplicate.length > 0) return sendSuccess(res, { investment_id: duplicate[0].id }, "Investment already recorded (idempotent).");
 
-  const plans = await query("SELECT * FROM investment_plans WHERE id = ? AND is_active = 1", [plan_id]);
+  const plans = await q("SELECT * FROM investment_plans WHERE id = ? AND is_active = 1", [plan_id]);
   if (plans.length === 0) return sendError(res, "Invalid plan", 404);
 
   const plan = plans[0];
@@ -216,35 +223,47 @@ export const createInvestmentAfterPayment = asyncHandler(async (req, res) => {
   const maturityDate = new Date(startDate);
   maturityDate.setDate(maturityDate.getDate() + plan.lockin_days);
 
-  const result = await query(
+  const result = await q(
     `INSERT INTO investments (user_id, plan_id, amount, interest_percentage, lockin_days, start_date, maturity_date, status, transaction_id)
      VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?)`,
     [userId, plan_id, amt, plan.interest_percentage, plan.lockin_days, startDate.toISOString().split("T")[0], maturityDate.toISOString().split("T")[0], transaction_id]
   );
   const insertId = result.insertId;
 
-  await query(
+  // Mark whether KYC was verified at time of investment (NULL = KYC not verified; used for reporting "KYC not verified")
+  try {
+    const kycRows = await q("SELECT status FROM investment_kyc WHERE user_id = ?", [userId]);
+    const kycVerified = kycRows.length > 0 && kycRows[0].status === "VERIFIED";
+    await q(
+      "UPDATE investments SET kyc_verified_at_investment = ? WHERE id = ?",
+      [kycVerified ? new Date() : null, insertId]
+    );
+  } catch (err) {
+    if (err.code !== "ER_BAD_FIELD_ERROR") console.warn("[createInvestmentAfterPayment] kyc_verified_at_investment update skipped:", err.message);
+  }
+
+  await q(
     "INSERT INTO investment_audit_log (user_id, action, entity_type, entity_id, details) VALUES (?, 'INVESTMENT_CREATED', 'investment', ?, ?)",
     [userId, insertId, JSON.stringify({ amount: amt, plan_id, transaction_id })]
   );
 
   const maturityStr = maturityDate.toISOString().split("T")[0];
-  await query(
+  await q(
     "INSERT INTO investment_notifications (user_id, title, message) VALUES (?, ?, ?)",
     [userId, "Investment Successful", `Your maturity date is ${maturityStr}.`]
   );
 
   // Referral: 2% of referred user's first investment to referrer (pending admin approval)
   try {
-    const investmentCount = await query("SELECT COUNT(*) AS cnt FROM investments WHERE user_id = ?", [userId]);
+    const investmentCount = await q("SELECT COUNT(*) AS cnt FROM investments WHERE user_id = ?", [userId]);
     const isFirstInvestment = Number(investmentCount[0]?.cnt) === 1;
     if (isFirstInvestment) {
-      const userRows = await query("SELECT referred_by_user_id FROM challenge_users WHERE id = ?", [userId]);
+      const userRows = await q("SELECT referred_by_user_id FROM challenge_users WHERE id = ?", [userId]);
       const referredByUserId = userRows[0]?.referred_by_user_id;
       if (referredByUserId != null) {
         const referralAmount = Math.round(amt * 0.02 * 100) / 100;
         if (referralAmount > 0) {
-          await query(
+          await q(
             `INSERT INTO referral_earnings (referrer_user_id, referred_user_id, investment_id, first_investment_amount, referral_amount, status)
              VALUES (?, ?, ?, ?, ?, 'PENDING_APPROVAL')`,
             [referredByUserId, userId, insertId, amt, referralAmount]
@@ -265,8 +284,9 @@ export const createInvestmentAfterPayment = asyncHandler(async (req, res) => {
 });
 
 export const listInvestments = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const userId = req.challengeUserId;
-  const list = await query(
+  const list = await q(
     `SELECT i.id, i.plan_id, i.amount, i.interest_percentage, i.lockin_days, i.start_date, i.maturity_date, i.status, i.transaction_id, i.created_at,
       p.name AS plan_name, p.category,
       w.withdrawn_at, w.withdrawal_amount,
@@ -282,20 +302,21 @@ export const listInvestments = asyncHandler(async (req, res) => {
 });
 
 export const getReferralStats = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const userId = req.challengeUserId;
   let pending = 0;
   let approved = 0;
   let totalReferrals = 0;
   try {
-    const [p] = await query(
+    const [p] = await q(
       "SELECT COALESCE(SUM(referral_amount), 0) AS total FROM referral_earnings WHERE referrer_user_id = ? AND status = 'PENDING_APPROVAL'",
       [userId]
     );
-    const [a] = await query(
+    const [a] = await q(
       "SELECT COALESCE(SUM(referral_amount), 0) AS total FROM referral_earnings WHERE referrer_user_id = ? AND status = 'APPROVED'",
       [userId]
     );
-    const [c] = await query(
+    const [c] = await q(
       "SELECT COUNT(*) AS cnt FROM referral_earnings WHERE referrer_user_id = ?",
       [userId]
     );
@@ -311,10 +332,11 @@ export const getReferralStats = asyncHandler(async (req, res) => {
 });
 
 export const getReferralHistory = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const userId = req.challengeUserId;
   let list = [];
   try {
-    list = await query(
+    list = await q(
       `SELECT r.id, r.referred_user_id, r.investment_id, r.first_investment_amount, r.referral_amount, r.status, r.created_at, r.approved_at,
         u.email AS referred_email, u.name AS referred_name
        FROM referral_earnings r
@@ -328,12 +350,13 @@ export const getReferralHistory = asyncHandler(async (req, res) => {
 });
 
 export const getWithdrawPreview = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const userId = req.challengeUserId;
   const { investment_id } = req.params;
-  const kycRows = await query("SELECT status FROM investment_kyc WHERE user_id = ?", [userId]);
+  const kycRows = await q("SELECT status FROM investment_kyc WHERE user_id = ?", [userId]);
   const check = requireVerifiedKyc(kycRows);
 
-  const invRows = await query(
+  const invRows = await q(
     "SELECT i.*, p.name AS plan_name FROM investments i LEFT JOIN investment_plans p ON i.plan_id = p.id WHERE i.id = ? AND i.user_id = ?",
     [investment_id, userId]
   );
@@ -354,7 +377,7 @@ export const getWithdrawPreview = asyncHandler(async (req, res) => {
   const effectiveAmount = amountAfterDeduction;
   const meetsMinWithdrawal = effectiveAmount >= MIN_WITHDRAWAL_AMOUNT;
 
-  const requestRows = await query(
+  const requestRows = await q(
     "SELECT id, status, requested_amount, deduction_amount, amount_after_deduction, requested_at, reviewed_at, admin_note, settlement_status, settlement_date FROM investment_withdrawal_requests WHERE investment_id = ? ORDER BY requested_at DESC LIMIT 1",
     [inv.id]
   );
@@ -405,15 +428,16 @@ export const getWithdrawPreview = asyncHandler(async (req, res) => {
 });
 
 export const withdraw = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const userId = req.challengeUserId;
   const { investment_id } = req.body;
   if (!investment_id) return sendError(res, "investment_id required", 400);
 
-  const kycRows = await query("SELECT status FROM investment_kyc WHERE user_id = ?", [userId]);
+  const kycRows = await q("SELECT status FROM investment_kyc WHERE user_id = ?", [userId]);
   const check = requireVerifiedKyc(kycRows);
   if (!check.allowed) return sendError(res, "Complete KYC verification to withdraw. Go to Investment → KYC and submit your details.", 403);
 
-  const invRows = await query("SELECT * FROM investments WHERE id = ? AND user_id = ?", [investment_id, userId]);
+  const invRows = await q("SELECT * FROM investments WHERE id = ? AND user_id = ?", [investment_id, userId]);
   if (invRows.length === 0) return sendError(res, "Investment not found", 404);
   const inv = invRows[0];
   if (inv.status !== "ACTIVE") return sendError(res, "Investment is not active", 400);
@@ -435,18 +459,18 @@ export const withdraw = asyncHandler(async (req, res) => {
   if (daysCompleted < MIN_HOLDING_DAYS_FOR_WITHDRAWAL) {
     const deductionAmount = Math.round((totalWithdrawable * (EARLY_WITHDRAWAL_DEDUCTION_PERCENT / 100)) * 100) / 100;
     const amountAfterDeduction = Math.round((totalWithdrawable - deductionAmount) * 100) / 100;
-    const pending = await query(
+    const pending = await q(
       "SELECT id FROM investment_withdrawal_requests WHERE investment_id = ? AND status = 'PENDING_APPROVAL'",
       [inv.id]
     );
     if (pending.length > 0) return sendError(res, "A withdrawal request for this investment is already pending approval.", 400);
 
-    await query(
+    await q(
       `INSERT INTO investment_withdrawal_requests (user_id, investment_id, requested_amount, deduction_percent, deduction_amount, amount_after_deduction, days_held, status, requested_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING_APPROVAL', UTC_TIMESTAMP())`,
       [userId, inv.id, totalWithdrawable, EARLY_WITHDRAWAL_DEDUCTION_PERCENT, deductionAmount, amountAfterDeduction, daysCompleted]
     );
-    await query(
+    await q(
       "INSERT INTO investment_audit_log (user_id, action, entity_type, entity_id, details) VALUES (?, 'WITHDRAWAL_REQUEST', 'withdrawal_request', ?, ?)",
       [userId, inv.id, JSON.stringify({ requested_amount: totalWithdrawable, deduction_amount: deductionAmount, amount_after_deduction: amountAfterDeduction })]
     );
@@ -459,12 +483,12 @@ export const withdraw = asyncHandler(async (req, res) => {
   }
 
   const withdrawalAmount = totalWithdrawable;
-  await query("UPDATE investments SET status = 'WITHDRAWN', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [inv.id]);
-  await query(
+  await q("UPDATE investments SET status = 'WITHDRAWN', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [inv.id]);
+  await q(
     "INSERT INTO withdrawals (investment_id, principal_amount, interest_earned, withdrawal_amount) VALUES (?, ?, ?, ?)",
     [inv.id, principal, interestEarned, withdrawalAmount]
   );
-  await query(
+  await q(
     "INSERT INTO investment_audit_log (user_id, action, entity_type, entity_id, details) VALUES (?, 'WITHDRAWAL', 'withdrawal', ?, ?)",
     [userId, inv.id, JSON.stringify({ withdrawal_amount: withdrawalAmount, interest_earned: interestEarned })]
   );
@@ -478,6 +502,7 @@ export const withdraw = asyncHandler(async (req, res) => {
 });
 
 export const getReports = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const userId = req.challengeUserId;
   const { date_from, date_to, status, plan_type, amount_min, amount_max } = req.query;
 
@@ -506,14 +531,15 @@ export const getReports = asyncHandler(async (req, res) => {
   if (amount_max != null && amount_max !== "") { sql += " AND i.amount <= ?"; params.push(Number(amount_max)); }
 
   sql += " ORDER BY i.created_at DESC";
-  const rows = await query(sql, params);
+  const rows = await q(sql, params);
   return sendSuccess(res, { reports: rows });
 });
 
 export const getReportById = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const userId = req.challengeUserId;
   const { id } = req.params;
-  const rows = await query(
+  const rows = await q(
     `SELECT i.id, i.amount, i.interest_percentage, i.lockin_days, i.start_date, i.maturity_date, i.status, i.created_at, i.transaction_id, p.name AS plan_name, p.category,
       DATEDIFF(COALESCE(DATE(w.withdrawn_at), CURDATE()), i.start_date) AS days_held,
       COALESCE(w.interest_earned, 0) AS earned_amount, w.withdrawn_at, w.withdrawal_amount,
@@ -536,6 +562,7 @@ export const getReportById = asyncHandler(async (req, res) => {
 
 // Admin: get investment reports for any user (user_id in query)
 export const getReportsAdmin = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const userId = req.query.user_id;
   if (!userId) return sendError(res, "user_id is required", 400);
   const { date_from, date_to, status, plan_type, amount_min, amount_max } = req.query;
@@ -557,14 +584,15 @@ export const getReportsAdmin = asyncHandler(async (req, res) => {
   if (amount_max != null && amount_max !== "") { sql += " AND i.amount <= ?"; params.push(Number(amount_max)); }
 
   sql += " ORDER BY i.created_at DESC";
-  const rows = await query(sql, params);
+  const rows = await q(sql, params);
   return sendSuccess(res, { reports: rows });
 });
 
 // Admin: get single investment report by id (any user)
 export const getReportByIdAdmin = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { id } = req.params;
-  const rows = await query(
+  const rows = await q(
     `SELECT i.id, i.amount, i.interest_percentage, i.lockin_days, i.start_date, i.maturity_date, i.status, i.created_at, i.transaction_id, p.name AS plan_name, p.category,
       DATEDIFF(COALESCE(DATE(w.withdrawn_at), CURDATE()), i.start_date) AS days_held,
       COALESCE(w.interest_earned, 0) AS earned_amount, w.withdrawn_at
@@ -580,6 +608,7 @@ export const getReportByIdAdmin = asyncHandler(async (req, res) => {
 
 // Admin: list withdrawal requests (pending or all)
 export const listWithdrawalRequests = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { status } = req.query;
   let sql = `SELECT r.id, r.user_id, r.investment_id, r.requested_amount, r.deduction_percent, r.deduction_amount, r.amount_after_deduction, r.days_held, r.status, r.requested_at, r.reviewed_at, r.admin_note, r.settlement_status, r.settlement_date,
     i.amount AS investment_amount, i.start_date, i.interest_percentage, i.lockin_days,
@@ -593,7 +622,7 @@ export const listWithdrawalRequests = asyncHandler(async (req, res) => {
   const params = [];
   if (status) { sql += " AND r.status = ?"; params.push(status); }
   sql += " ORDER BY r.requested_at DESC";
-  const rows = await query(sql, params);
+  const rows = await q(sql, params);
   // Normalize timestamps to ISO UTC so frontend displays correct local time
   const toIsoUtc = (d) => (d instanceof Date ? d.toISOString() : d == null ? null : new Date(d).toISOString());
   const toDateStr = (d) => (d instanceof Date ? d.toISOString().slice(0, 10) : d == null ? null : String(d).slice(0, 10));
@@ -608,11 +637,12 @@ export const listWithdrawalRequests = asyncHandler(async (req, res) => {
 
 // Admin: approve or reject withdrawal request; or update settlement (status/date) for approved requests
 export const updateWithdrawalRequestStatus = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const adminUserId = req.user?.id;
   const { id } = req.params;
   const { status, admin_note, settlement_status: bodySettlementStatus, settlement_date: bodySettlementDate } = req.body;
 
-  const existing = await query("SELECT * FROM investment_withdrawal_requests WHERE id = ?", [id]);
+  const existing = await q("SELECT * FROM investment_withdrawal_requests WHERE id = ?", [id]);
   if (existing.length === 0) return sendError(res, "Withdrawal request not found", 404);
   const reqRow = existing[0];
   const isApproved = reqRow.status === "APPROVED";
@@ -635,7 +665,7 @@ export const updateWithdrawalRequestStatus = asyncHandler(async (req, res) => {
     }
     if (updates.length === 0) return sendSuccess(res, { request_id: id }, "No settlement fields to update.");
     params.push(id);
-    await query(
+    await q(
       `UPDATE investment_withdrawal_requests SET ${updates.join(", ")} WHERE id = ? AND status = 'APPROVED'`,
       params
     );
@@ -650,35 +680,35 @@ export const updateWithdrawalRequestStatus = asyncHandler(async (req, res) => {
   const userId = reqRow.user_id;
   const amountAfterDeduction = Number(reqRow.amount_after_deduction);
 
-  await query(
+  await q(
     "UPDATE investment_withdrawal_requests SET status = ?, reviewed_at = UTC_TIMESTAMP(), reviewed_by = ?, admin_note = ?, settlement_status = IF(? = 'APPROVED', 'PENDING', NULL), settlement_date = IF(? = 'APPROVED', DATE(DATE_ADD(UTC_TIMESTAMP(), INTERVAL 36 HOUR)), NULL) WHERE id = ?",
     [status, adminUserId || null, admin_note || null, status, status, id]
   );
 
   if (status === "REJECTED") {
-    await query(
+    await q(
       "INSERT INTO investment_notifications (user_id, title, message) VALUES (?, ?, ?)",
       [userId, "Withdrawal request declined", admin_note ? `Your early withdrawal request was declined. Note: ${admin_note}` : "Your early withdrawal request was declined."]
     );
     return sendSuccess(res, { request_id: id, status: "REJECTED" }, "Withdrawal request rejected.");
   }
 
-  const invRows = await query("SELECT * FROM investments WHERE id = ? AND user_id = ? AND status = 'ACTIVE'", [investmentId, userId]);
+  const invRows = await q("SELECT * FROM investments WHERE id = ? AND user_id = ? AND status = 'ACTIVE'", [investmentId, userId]);
   if (invRows.length === 0) return sendError(res, "Investment no longer active or not found", 400);
   const inv = invRows[0];
   const principal = Number(inv.amount);
   const interestEarned = Math.round(Math.max(0, amountAfterDeduction - principal) * 100) / 100;
 
-  await query("UPDATE investments SET status = 'WITHDRAWN', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [investmentId]);
-  await query(
+  await q("UPDATE investments SET status = 'WITHDRAWN', updated_at = CURRENT_TIMESTAMP WHERE id = ?", [investmentId]);
+  await q(
     "INSERT INTO withdrawals (investment_id, principal_amount, interest_earned, withdrawal_amount) VALUES (?, ?, ?, ?)",
     [investmentId, principal, interestEarned, amountAfterDeduction]
   );
-  await query(
+  await q(
     "INSERT INTO investment_audit_log (user_id, action, entity_type, entity_id, details) VALUES (?, 'WITHDRAWAL', 'withdrawal', ?, ?)",
     [userId, investmentId, JSON.stringify({ withdrawal_amount: amountAfterDeduction, early_withdrawal_request_id: id, admin_approved: true })]
   );
-  await query(
+  await q(
     "INSERT INTO investment_notifications (user_id, title, message) VALUES (?, ?, ?)",
     [userId, "Withdrawal approved", `Your early withdrawal request has been approved. Amount credited: ₹${amountAfterDeduction.toFixed(2)} (after 3% deduction).`]
   );
@@ -687,6 +717,7 @@ export const updateWithdrawalRequestStatus = asyncHandler(async (req, res) => {
 });
 
 export const listReferralEarningsForAdmin = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { status, date_from, date_to, referrer_email, referred_email, referrer_id, referred_id } = req.query;
   let list = [];
   try {
@@ -721,7 +752,7 @@ export const listReferralEarningsForAdmin = asyncHandler(async (req, res) => {
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-    list = await query(
+    list = await q(
       `SELECT r.id, r.referrer_user_id, r.referred_user_id, r.investment_id, r.first_investment_amount, r.referral_amount, r.status, r.created_at, r.approved_at,
         referrer.email AS referrer_email, referrer.name AS referrer_name,
         referred.email AS referred_email, referred.name AS referred_name
@@ -744,23 +775,24 @@ export const listReferralEarningsForAdmin = asyncHandler(async (req, res) => {
  * referral record failed to create). Creates one row per referred user's first investment.
  */
 export const backfillReferralEarnings = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   let created = 0;
   try {
-    const referredUsers = await query(
+    const referredUsers = await q(
       "SELECT id AS referred_user_id, referred_by_user_id FROM challenge_users WHERE referred_by_user_id IS NOT NULL"
     );
     for (const u of referredUsers) {
-      const firstInv = await query(
+      const firstInv = await q(
         "SELECT id, amount FROM investments WHERE user_id = ? ORDER BY id ASC LIMIT 1",
         [u.referred_user_id]
       );
       if (firstInv.length === 0) continue;
       const inv = firstInv[0];
-      const existing = await query("SELECT id FROM referral_earnings WHERE investment_id = ?", [inv.id]);
+      const existing = await q("SELECT id FROM referral_earnings WHERE investment_id = ?", [inv.id]);
       if (existing.length > 0) continue;
       const referralAmount = Math.round(Number(inv.amount) * 0.02 * 100) / 100;
       if (referralAmount <= 0) continue;
-      await query(
+      await q(
         `INSERT INTO referral_earnings (referrer_user_id, referred_user_id, investment_id, first_investment_amount, referral_amount, status)
          VALUES (?, ?, ?, ?, ?, 'PENDING_APPROVAL')`,
         [u.referred_by_user_id, u.referred_user_id, inv.id, Number(inv.amount), referralAmount]
@@ -775,21 +807,22 @@ export const backfillReferralEarnings = asyncHandler(async (req, res) => {
 });
 
 export const approveReferralEarning = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { id } = req.params;
   const { status } = req.body;
   if (!status || !["APPROVED", "REJECTED"].includes(status)) {
     return sendError(res, "status must be APPROVED or REJECTED", 400);
   }
-  const rows = await query("SELECT id, referrer_user_id, referred_user_id, referral_amount, status FROM referral_earnings WHERE id = ?", [id]);
+  const rows = await q("SELECT id, referrer_user_id, referred_user_id, referral_amount, status FROM referral_earnings WHERE id = ?", [id]);
   if (rows.length === 0) return sendError(res, "Referral earning not found", 404);
   const row = rows[0];
   if (row.status !== "PENDING_APPROVAL") return sendError(res, "Referral is not pending approval", 400);
-  await query(
+  await q(
     "UPDATE referral_earnings SET status = ?, approved_at = UTC_TIMESTAMP() WHERE id = ?",
     [status, id]
   );
   if (status === "APPROVED") {
-    await query(
+    await q(
       "INSERT INTO investment_notifications (user_id, title, message) VALUES (?, ?, ?)",
       [row.referrer_user_id, "Referral approved", `Your referral bonus of ₹${Number(row.referral_amount).toFixed(2)} has been approved and is now withdrawable.`]
     );
@@ -798,8 +831,9 @@ export const approveReferralEarning = asyncHandler(async (req, res) => {
 });
 
 export const getNotifications = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const userId = req.challengeUserId;
-  const rows = await query(
+  const rows = await q(
     "SELECT id, title, message, read_at, created_at FROM investment_notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50",
     [userId]
   );
@@ -807,8 +841,9 @@ export const getNotifications = asyncHandler(async (req, res) => {
 });
 
 export const markNotificationRead = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const userId = req.challengeUserId;
   const { id } = req.params;
-  await query("UPDATE investment_notifications SET read_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?", [id, userId]);
+  await q("UPDATE investment_notifications SET read_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?", [id, userId]);
   return sendSuccess(res, null, "Marked as read");
 });

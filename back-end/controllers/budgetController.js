@@ -1,9 +1,10 @@
-import { query } from "../config/database.js";
+import { getTenantQuery } from "../config/database.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
 // Get Project Budget
 export const getProjectBudget = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { projectId } = req.params;
 
   const sql = `
@@ -13,13 +14,14 @@ export const getProjectBudget = asyncHandler(async (req, res) => {
     WHERE pb.project_id = ?
     ORDER BY pb.created_at DESC
   `;
-  const results = await query(sql, [projectId]);
+  const results = await q(sql, [projectId]);
 
   return sendSuccess(res, results);
 });
 
 // Create/Update Project Budget
 export const setProjectBudget = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { projectId } = req.params;
   const { budgetAmount, budgetHours, currency, budgetType, startDate, endDate } = req.body;
 
@@ -29,7 +31,7 @@ export const setProjectBudget = asyncHandler(async (req, res) => {
 
   // Check if budget exists
   const checkSql = "SELECT id FROM project_budgets WHERE project_id = ? AND budget_type = ?";
-  const existing = await query(checkSql, [projectId, budgetType || "total"]);
+  const existing = await q(checkSql, [projectId, budgetType || "total"]);
 
   if (existing.length > 0) {
     // Update
@@ -42,7 +44,7 @@ export const setProjectBudget = asyncHandler(async (req, res) => {
         end_date = ?
       WHERE project_id = ? AND budget_type = ?
     `;
-    await query(updateSql, [
+    await q(updateSql, [
       budgetAmount,
       budgetHours,
       currency || "AED",
@@ -58,7 +60,7 @@ export const setProjectBudget = asyncHandler(async (req, res) => {
       INSERT INTO project_budgets (project_id, budget_amount, budget_hours, currency, budget_type, start_date, end_date)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
-    await query(insertSql, [
+    await q(insertSql, [
       projectId,
       budgetAmount,
       budgetHours,
@@ -73,6 +75,7 @@ export const setProjectBudget = asyncHandler(async (req, res) => {
 
 // Track Project Cost
 export const trackProjectCost = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { projectId } = req.params;
   const { costDate, employeeCost, overheadCost, materialCost, hoursSpent } = req.body;
 
@@ -89,7 +92,7 @@ export const trackProjectCost = asyncHandler(async (req, res) => {
     INSERT INTO project_costs (project_id, cost_date, employee_cost, overhead_cost, material_cost, total_cost, hours_spent)
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `;
-  await query(insertSql, [
+  await q(insertSql, [
     projectId,
     costDate,
     employeeCost || 0,
@@ -104,6 +107,7 @@ export const trackProjectCost = asyncHandler(async (req, res) => {
 
 // Get Project Costs
 export const getProjectCosts = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { projectId } = req.params;
   const { startDate, endDate } = req.query;
 
@@ -121,12 +125,13 @@ export const getProjectCosts = asyncHandler(async (req, res) => {
 
   sql += " ORDER BY cost_date DESC";
 
-  const results = await query(sql, params);
+  const results = await q(sql, params);
   return sendSuccess(res, results);
 });
 
 // Get Budget vs Actual Report
 export const getBudgetVsActual = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { projectId } = req.params;
 
   // Get budget
@@ -136,7 +141,7 @@ export const getBudgetVsActual = asyncHandler(async (req, res) => {
     ORDER BY created_at DESC 
     LIMIT 1
   `;
-  const budgets = await query(budgetSql, [projectId]);
+  const budgets = await q(budgetSql, [projectId]);
   const budget = budgets[0] || { budget_amount: 0, budget_hours: 0 };
 
   // Get actual costs
@@ -147,13 +152,13 @@ export const getBudgetVsActual = asyncHandler(async (req, res) => {
     FROM project_costs
     WHERE project_id = ?
   `;
-  const costs = await query(costsSql, [projectId]);
+  const costs = await q(costsSql, [projectId]);
   const actual = costs[0] || { total_cost: 0, total_hours: 0 };
 
   // Get approved hours from work details
   // workdetails table uses referenceNo or projectName, not projectNo
   const projectSql = "SELECT referenceNo, projectName FROM project WHERE id = ?";
-  const projects = await query(projectSql, [projectId]);
+  const projects = await q(projectSql, [projectId]);
   let actualHours = 0;
   
   if (projects.length > 0) {
@@ -164,7 +169,7 @@ export const getBudgetVsActual = asyncHandler(async (req, res) => {
       WHERE (referenceNo = ? OR projectName = ?)
       AND status = 'approved'
     `;
-    const hours = await query(hoursSql, [project.referenceNo || project.projectName, project.projectName]);
+    const hours = await q(hoursSql, [project.referenceNo || project.projectName, project.projectName]);
     actualHours = parseFloat(hours[0]?.total_hours || 0);
   }
 
@@ -199,6 +204,7 @@ export const getBudgetVsActual = asyncHandler(async (req, res) => {
 
 // Update Project Budget by ID
 export const updateProjectBudget = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { id } = req.params;
   const { budgetAmount, budgetHours, currency, budgetType, startDate, endDate } = req.body;
 
@@ -208,7 +214,7 @@ export const updateProjectBudget = asyncHandler(async (req, res) => {
 
   // Check if budget exists
   const checkSql = "SELECT id FROM project_budgets WHERE id = ?";
-  const existing = await query(checkSql, [id]);
+  const existing = await q(checkSql, [id]);
 
   if (existing.length === 0) {
     return sendError(res, "Budget not found", 404);
@@ -225,7 +231,7 @@ export const updateProjectBudget = asyncHandler(async (req, res) => {
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
   `;
-  await query(updateSql, [
+  await q(updateSql, [
     budgetAmount,
     budgetHours,
     currency || "AED",
@@ -240,23 +246,25 @@ export const updateProjectBudget = asyncHandler(async (req, res) => {
 
 // Delete Project Budget
 export const deleteProjectBudget = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { id } = req.params;
 
   const checkSql = "SELECT id FROM project_budgets WHERE id = ?";
-  const existing = await query(checkSql, [id]);
+  const existing = await q(checkSql, [id]);
 
   if (existing.length === 0) {
     return sendError(res, "Budget not found", 404);
   }
 
   const deleteSql = "DELETE FROM project_budgets WHERE id = ?";
-  await query(deleteSql, [id]);
+  await q(deleteSql, [id]);
 
   return sendSuccess(res, null, "Budget deleted successfully");
 });
 
 // Update Project Cost
 export const updateProjectCost = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { id } = req.params;
   const { costDate, employeeCost, overheadCost, materialCost, hoursSpent } = req.body;
 
@@ -266,7 +274,7 @@ export const updateProjectCost = asyncHandler(async (req, res) => {
 
   // Check if cost exists
   const checkSql = "SELECT id FROM project_costs WHERE id = ?";
-  const existing = await query(checkSql, [id]);
+  const existing = await q(checkSql, [id]);
 
   if (existing.length === 0) {
     return sendError(res, "Cost not found", 404);
@@ -287,7 +295,7 @@ export const updateProjectCost = asyncHandler(async (req, res) => {
       hours_spent = ?
     WHERE id = ?
   `;
-  await query(updateSql, [
+  await q(updateSql, [
     costDate,
     employeeCost || 0,
     overheadCost || 0,
@@ -302,28 +310,30 @@ export const updateProjectCost = asyncHandler(async (req, res) => {
 
 // Delete Project Cost
 export const deleteProjectCost = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { id } = req.params;
 
   const checkSql = "SELECT id FROM project_costs WHERE id = ?";
-  const existing = await query(checkSql, [id]);
+  const existing = await q(checkSql, [id]);
 
   if (existing.length === 0) {
     return sendError(res, "Cost not found", 404);
   }
 
   const deleteSql = "DELETE FROM project_costs WHERE id = ?";
-  await query(deleteSql, [id]);
+  await q(deleteSql, [id]);
 
   return sendSuccess(res, null, "Cost deleted successfully");
 });
 
 // Get Profitability Report
 export const getProfitabilityReport = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { projectId } = req.params;
 
   // Get project
   const projectSql = "SELECT * FROM project WHERE id = ?";
-  const projects = await query(projectSql, [projectId]);
+  const projects = await q(projectSql, [projectId]);
   if (projects.length === 0) {
     return sendError(res, "Project not found", 404);
   }
@@ -335,7 +345,7 @@ export const getProfitabilityReport = asyncHandler(async (req, res) => {
     FROM invoices
     WHERE project_id = ? AND status = 'paid'
   `;
-  const revenue = await query(revenueSql, [projectId]);
+  const revenue = await q(revenueSql, [projectId]);
   const totalRevenue = parseFloat(revenue[0]?.total_revenue || 0);
 
   // Get total costs
@@ -344,7 +354,7 @@ export const getProfitabilityReport = asyncHandler(async (req, res) => {
     FROM project_costs
     WHERE project_id = ?
   `;
-  const costs = await query(costsSql, [projectId]);
+  const costs = await q(costsSql, [projectId]);
   const totalCost = parseFloat(costs[0]?.total_cost || 0);
 
   const profit = totalRevenue - totalCost;

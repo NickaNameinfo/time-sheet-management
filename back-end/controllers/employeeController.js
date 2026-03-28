@@ -1,14 +1,116 @@
 import bcrypt from "bcrypt";
-import { query } from "../config/database.js";
+import { getTenantQuery, query as primaryQuery } from "../config/database.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
+function normalizeEmailKey(email) {
+  return (email || "").toString().trim().toLowerCase();
+}
+
+/**
+ * company_users (primary DB) lists Super Admin–managed company logins.
+ * Match employee.employeeEmail to show approved vs not on the employee grid.
+ */
+async function fetchCompanyLoginInfoByCompanyId(companyId) {
+  const cid = Number(companyId);
+  if (!cid || Number.isNaN(cid)) return null;
+  try {
+    const rows = await primaryQuery(
+      `SELECT cu.email, cu.is_active,
+        CASE WHEN cu.created_at = (
+          SELECT MIN(cu2.created_at) FROM company_users cu2 WHERE cu2.company_id = cu.company_id
+        ) THEN 'super_admin_created' ELSE 'company_created' END AS created_source
+       FROM company_users cu
+       WHERE cu.company_id = ?`,
+      [cid]
+    );
+    const map = new Map();
+    for (const r of rows || []) {
+      const key = normalizeEmailKey(r.email);
+      if (!key) continue;
+      map.set(key, {
+        is_active: r.is_active === 1 || r.is_active === true,
+        created_source: r.created_source,
+      });
+    }
+    return map;
+  } catch (err) {
+    if (err?.code === "ER_NO_SUCH_TABLE" || err?.code === "ER_BAD_DB_ERROR") return null;
+    throw err;
+  }
+}
+
+function enrichEmployeeWithCompanyLogin(row, loginMap) {
+  if (!loginMap) {
+    return { ...row, company_login_status: null, company_login_detail: null };
+  }
+  const key = normalizeEmailKey(row.employeeEmail);
+  if (!key) {
+    return { ...row, company_login_status: "none", company_login_detail: "no_email" };
+  }
+  const info = loginMap.get(key);
+  if (!info) {
+    return { ...row, company_login_status: "none", company_login_detail: "not_in_company_logins" };
+  }
+  if (!info.is_active) {
+    return { ...row, company_login_status: "inactive", company_login_detail: "login_disabled" };
+  }
+  const fromSuperAdmin = info.created_source === "super_admin_created";
+  return {
+    ...row,
+    company_login_status: fromSuperAdmin ? "approved_super_admin" : "approved_company",
+    company_login_detail: fromSuperAdmin ? "first_company_login" : "company_added_login",
+  };
+}
+
+/**
+ * EMPID may be numeric or alphanumeric (e.g. NN001). DB column should be VARCHAR — INT coerced non-numeric to 0.
+ * When missing or numeric ≤0, fall back to primary key `id` as string.
+ */
+function normalizeEmpIdValue(empId, rowId) {
+  if (empId === undefined || empId === null) {
+    return rowId != null ? String(rowId) : null;
+  }
+  const s = String(empId).trim();
+  if (s === "") {
+    return rowId != null ? String(rowId) : null;
+  }
+  if (/^\d+$/.test(s)) {
+    const n = parseInt(s, 10);
+    if (Number.isNaN(n) || n <= 0) {
+      return rowId != null ? String(rowId) : null;
+    }
+    return s;
+  }
+  return s;
+}
+
+/** Only auto-fill EMPID on create when user did not provide a real code (empty or numeric 0). Alphanumeric codes are kept. */
+function shouldDefaultEmpIdOnCreate(empId) {
+  if (empId === undefined || empId === null) return true;
+  const s = String(empId).trim();
+  if (s === "") return true;
+  if (/^\d+$/.test(s)) {
+    const n = parseInt(s, 10);
+    return Number.isNaN(n) || n <= 0;
+  }
+  return false;
+}
+
+/** DB column `discipline` is NOT NULL — use empty string when omitted. */
+function disciplineOrEmpty(value) {
+  if (value == null || value === "") return "";
+  const s = String(value).trim();
+  return s;
+}
+
 export const createEmployee = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { userName } = req.body;
 
   // Check if userName already exists
   const checkSql = "SELECT COUNT(*) AS count FROM employee WHERE `userName` = ?";
-  const checkResult = await query(checkSql, [userName]);
+  const checkResult = await q(checkSql, [userName]);
 
   if (checkResult[0].count > 0) {
     return sendError(res, "userName already exists", 409);
@@ -38,7 +140,7 @@ export const createEmployee = asyncHandler(async (req, res) => {
     req.body.userName,
     hashedPassword,
     req.body.role?.toString(),
-    req.body.discipline,
+    disciplineOrEmpty(req.body.discipline),
     req.body.designation,
     req.body.date,
     imageFilename,
@@ -53,46 +155,78 @@ export const createEmployee = asyncHandler(async (req, res) => {
     req.body.parent_address || null,
   ];
 
-  await query(sql, [values]);
+  const insertResult = await q(sql, [values]);
+  const insertId = insertResult?.insertId;
+  if (insertId && shouldDefaultEmpIdOnCreate(req.body.EMPID)) {
+    await q("UPDATE employee SET `EMPID` = ? WHERE `id` = ?", [String(insertId), insertId]);
+  }
+
   return sendSuccess(res, null, "Employee created successfully");
 });
 
 export const getEmployees = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const sql = "SELECT * FROM employee";
-  const results = await query(sql);
-  return sendSuccess(res, results);
+  const results = await q(sql);
+  const loginMap =
+    req.company_id != null && req.company_id !== ""
+      ? await fetchCompanyLoginInfoByCompanyId(req.company_id)
+      : null;
+
+  const normalized = (results || []).map((row) => {
+    const base = {
+      ...row,
+      EMPID: normalizeEmpIdValue(row.EMPID, row.id) ?? row.EMPID,
+    };
+    return enrichEmployeeWithCompanyLogin(base, loginMap);
+  });
+  return sendSuccess(res, normalized);
 });
 
 export const getEmployeeById = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { id } = req.params;
   const sql = "SELECT * FROM employee WHERE id = ?";
-  const results = await query(sql, [id]);
+  const results = await q(sql, [id]);
 
   if (results.length === 0) {
     return sendError(res, "Employee not found", 404);
   }
 
-  return sendSuccess(res, results[0]);
+  const row = results[0];
+  const loginMap =
+    req.company_id != null && req.company_id !== ""
+      ? await fetchCompanyLoginInfoByCompanyId(req.company_id)
+      : null;
+  const base = {
+    ...row,
+    EMPID: normalizeEmpIdValue(row.EMPID, row.id) ?? row.EMPID,
+  };
+  const normalized = enrichEmployeeWithCompanyLogin(base, loginMap);
+  return sendSuccess(res, normalized);
 });
 
 export const updateEmployee = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { id } = req.params;
   const { userName } = req.body;
 
   // Check if userName already exists for a different employee
   const checkSql =
     "SELECT COUNT(*) AS count FROM employee WHERE `userName` = ? AND `id` <> ?";
-  const checkResult = await query(checkSql, [userName, id]);
+  const checkResult = await q(checkSql, [userName, id]);
 
   if (checkResult[0].count > 0) {
     return sendError(res, "userName already exists", 409);
   }
 
+  const empidForUpdate = normalizeEmpIdValue(req.body.EMPID, id);
+
   let updateSql =
     "UPDATE employee SET `employeeName`=?, `EMPID`=?, `employeeEmail`=?, `userName`=?";
   const values = [
     req.body.employeeName,
-    req.body.EMPID,
+    empidForUpdate,
     req.body.employeeEmail,
     req.body.userName,
   ];
@@ -110,9 +244,9 @@ export const updateEmployee = asyncHandler(async (req, res) => {
     values.push(req.body.role.toString());
   }
 
-  if (req.body.discipline) {
+  if (req.body.discipline !== undefined) {
     updateSql += ", `discipline`=?";
-    values.push(req.body.discipline);
+    values.push(disciplineOrEmpty(req.body.discipline));
   }
 
   if (req.body.designation) {
@@ -178,20 +312,22 @@ export const updateEmployee = asyncHandler(async (req, res) => {
   updateSql += " WHERE `id`=?";
   values.push(id);
 
-  await query(updateSql, values);
+  await q(updateSql, values);
   return sendSuccess(res, null, "Employee updated successfully");
 });
 
 export const deleteEmployee = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { id } = req.params;
   const sql = "DELETE FROM employee WHERE id = ?";
-  await query(sql, [id]);
+  await q(sql, [id]);
   return sendSuccess(res, null, "Employee deleted successfully");
 });
 
 export const getEmployeeCount = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const sql = "SELECT count(id) as employee FROM employee";
-  const results = await query(sql);
+  const results = await q(sql);
   return sendSuccess(res, results[0]);
 });
 

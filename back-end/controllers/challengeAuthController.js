@@ -1,6 +1,6 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { query } from "../config/database.js";
+import { getTenantQuery, query } from "../config/database.js";
 import config from "../config/index.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
@@ -290,23 +290,33 @@ export const changePassword = asyncHandler(async (req, res) => {
  * So logged-in Time Sheet users can access My Self without logging in again.
  */
 export const accessWithEmployee = asyncHandler(async (req, res) => {
-  const employeeId = req.id;
-  if (!employeeId) {
-    return sendError(res, "Employee session required", 401);
+  const qTenant = getTenantQuery(req);
+  const employeeId = req.id ?? null;
+  const loginKey = String(req.userName || "").trim().toLowerCase();
+
+  let empRows = [];
+  if (employeeId) {
+    empRows = await qTenant(
+      "SELECT id, employeeName, employeeEmail, userName FROM employee WHERE id = ? LIMIT 1",
+      [employeeId]
+    );
+  } else if (loginKey) {
+    // Company login tokens often do not carry employee id; resolve by email/username.
+    empRows = await qTenant(
+      "SELECT id, employeeName, employeeEmail, userName FROM employee WHERE LOWER(TRIM(employeeEmail)) = ? OR LOWER(TRIM(userName)) = ? LIMIT 1",
+      [loginKey, loginKey]
+    );
   }
 
-  const empRows = await query(
-    "SELECT id, employeeName, employeeEmail, userName FROM employee WHERE id = ?",
-    [employeeId]
-  );
   if (empRows.length === 0) {
-    return sendError(res, "Employee not found", 404);
+    return sendError(res, "Employee not found for current session", 404);
   }
 
   const emp = empRows[0];
+  const resolvedEmployeeId = emp.id || employeeId || 0;
   let email = (emp.employeeEmail || "").toString().trim().toLowerCase();
   if (!email) {
-    const userName = (emp.userName || `emp-${employeeId}`).toString().trim();
+    const userName = (emp.userName || `emp-${resolvedEmployeeId}`).toString().trim();
     email = `${userName.replace(/[^a-z0-9._-]/gi, "_")}@employee.local`;
   }
 
@@ -317,21 +327,36 @@ export const accessWithEmployee = asyncHandler(async (req, res) => {
 
   if (challengeUser.length === 0) {
     const name = emp.employeeName || emp.userName || "User";
-    const placeholderPhone = `emp-${employeeId}`;
+    const placeholderPhone = `emp-${resolvedEmployeeId || Date.now()}`;
     const hashedPassword = await bcrypt.hash(String(placeholderPhone + email).trim(), 10);
-    await query(
+    const insertResult = await query(
       "INSERT INTO challenge_users (name, phone, email, password) VALUES (?, ?, ?, ?)",
       [name, placeholderPhone, email, hashedPassword]
     );
-    const newId = (await query("SELECT LAST_INSERT_ID() as id"))[0].id;
-    await query(
-      "INSERT INTO challenge_user_settings (user_id) VALUES (?) ON DUPLICATE KEY UPDATE user_id=user_id",
-      [newId]
-    );
-    challengeUser = await query(
-      "SELECT id, name, phone, email, age, gender, location, address, created_at FROM challenge_users WHERE id = ?",
-      [newId]
-    );
+    const newId = Number(insertResult?.insertId || 0);
+    if (!newId) {
+      // Fallback: fetch by email if insertId isn't returned by driver/connection.
+      const created = await query("SELECT id FROM challenge_users WHERE email = ? LIMIT 1", [email]);
+      const fallbackId = Number(created?.[0]?.id || 0);
+      if (!fallbackId) return sendError(res, "Failed to resolve My Self user after creation", 500);
+      await query(
+        "INSERT INTO challenge_user_settings (user_id) VALUES (?) ON DUPLICATE KEY UPDATE user_id=user_id",
+        [fallbackId]
+      );
+      challengeUser = await query(
+        "SELECT id, name, phone, email, age, gender, location, address, created_at FROM challenge_users WHERE id = ?",
+        [fallbackId]
+      );
+    } else {
+      await query(
+        "INSERT INTO challenge_user_settings (user_id) VALUES (?) ON DUPLICATE KEY UPDATE user_id=user_id",
+        [newId]
+      );
+      challengeUser = await query(
+        "SELECT id, name, phone, email, age, gender, location, address, created_at FROM challenge_users WHERE id = ?",
+        [newId]
+      );
+    }
   }
 
   const user = challengeUser[0];

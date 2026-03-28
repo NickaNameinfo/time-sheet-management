@@ -3,7 +3,7 @@ import { query } from "../config/database.js";
 const menuItems = [
   {
     menu_key: 'sales',
-    menu_title: 'Sales',
+    menu_title: 'Sales Department',
     menu_path: '/Dashboard/Sales',
     menu_icon: 'Business',
     parent_menu: null,
@@ -40,6 +40,16 @@ const menuItems = [
     allowed_roles: JSON.stringify(['Admin']),
     is_active: true,
     display_order: 5.3
+  },
+  {
+    menu_key: 'lead_list',
+    menu_title: 'Lead List',
+    menu_path: '/Dashboard/Sales/LeadList',
+    menu_icon: 'People',
+    parent_menu: 'sales',
+    allowed_roles: JSON.stringify(['Admin']),
+    is_active: true,
+    display_order: 5.4
   }
 ];
 
@@ -90,7 +100,7 @@ async function runMigration() {
     const verifySql = `
       SELECT menu_key, menu_title, menu_path, parent_menu 
       FROM menu_permissions 
-      WHERE menu_key IN ('sales', 'add_crm_date', 'crm_list', 'crm_summary')
+      WHERE menu_key IN ('sales', 'add_crm_date', 'crm_list', 'crm_summary', 'lead_list')
       ORDER BY display_order
     `;
     const results = await query(verifySql);
@@ -100,9 +110,9 @@ async function runMigration() {
       console.log(`  ${r.menu_key}: ${r.menu_title} (${r.menu_path}) - Parent: ${r.parent_menu || 'None'}`);
     });
 
-    if (results.length === 4) {
+    if (results.length >= 4) {
       console.log("\n✅ Sales menu permissions added successfully!");
-      console.log("   The Sales menu should now appear in the sidebar with 3 submenus.");
+      console.log("   The Sales menu should now appear in the sidebar with CRM and Lead List submenus.");
     } else {
       console.log(`\n⚠️  Warning: Expected 4 menu items, but found ${results.length}`);
     }

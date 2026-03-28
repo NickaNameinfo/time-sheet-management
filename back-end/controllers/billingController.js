@@ -1,9 +1,10 @@
-import { query } from "../config/database.js";
+import { getTenantQuery } from "../config/database.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
 // Get Clients
 export const getClients = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { isActive } = req.query;
   let sql = "SELECT * FROM clients WHERE 1=1";
   const params = [];
@@ -15,12 +16,13 @@ export const getClients = asyncHandler(async (req, res) => {
 
   sql += " ORDER BY client_name";
 
-  const results = await query(sql, params);
+  const results = await q(sql, params);
   return sendSuccess(res, results);
 });
 
 // Create Client
 export const createClient = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const {
     clientName,
     contactPerson,
@@ -44,7 +46,7 @@ export const createClient = asyncHandler(async (req, res) => {
       payment_terms, currency, tax_id
     ) VALUES (?)
   `;
-  await query(insertSql, [[
+  await q(insertSql, [[
     clientName,
     contactPerson || null,
     email || null,
@@ -62,6 +64,7 @@ export const createClient = asyncHandler(async (req, res) => {
 
 // Update Client
 export const updateClient = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { id } = req.params;
   const updateData = req.body;
 
@@ -92,13 +95,14 @@ export const updateClient = asyncHandler(async (req, res) => {
 
   values.push(id);
   const sql = `UPDATE clients SET ${fields.join(", ")} WHERE id = ?`;
-  await query(sql, values);
+  await q(sql, values);
 
   return sendSuccess(res, null, "Client updated successfully");
 });
 
 // Get Billing Rates
 export const getBillingRates = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { employeeId, designation, projectId, isActive } = req.query;
   let sql = "SELECT br.*, e.employeeName, p.projectName FROM billing_rates br";
   sql += " LEFT JOIN employee e ON br.employee_id = e.id";
@@ -124,12 +128,13 @@ export const getBillingRates = asyncHandler(async (req, res) => {
 
   sql += " ORDER BY br.effective_date DESC";
 
-  const results = await query(sql, params);
+  const results = await q(sql, params);
   return sendSuccess(res, results);
 });
 
 // Create Billing Rate
 export const createBillingRate = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const {
     employeeId,
     designation,
@@ -150,7 +155,7 @@ export const createBillingRate = asyncHandler(async (req, res) => {
       hourly_rate, ot_rate_multiplier, effective_date
     ) VALUES (?, ?, ?, ?, ?, ?, ?)
   `;
-  await query(insertSql, [
+  await q(insertSql, [
     employeeId || null,
     designation || null,
     disciplineCode || null,
@@ -165,6 +170,7 @@ export const createBillingRate = asyncHandler(async (req, res) => {
 
 // Update Billing Rate
 export const updateBillingRate = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { id } = req.params;
   const updateData = req.body;
 
@@ -198,18 +204,19 @@ export const updateBillingRate = asyncHandler(async (req, res) => {
 
   values.push(id);
   const sql = `UPDATE billing_rates SET ${fields.join(", ")} WHERE id = ?`;
-  await query(sql, values);
+  await q(sql, values);
 
   return sendSuccess(res, null, "Billing rate updated successfully");
 });
 
 // Delete Billing Rate
 export const deleteBillingRate = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { id } = req.params;
 
   // Check if billing rate exists
   const checkSql = "SELECT id FROM billing_rates WHERE id = ?";
-  const existing = await query(checkSql, [id]);
+  const existing = await q(checkSql, [id]);
 
   if (existing.length === 0) {
     return sendError(res, "Billing rate not found", 404);
@@ -217,13 +224,14 @@ export const deleteBillingRate = asyncHandler(async (req, res) => {
 
   // Delete the billing rate
   const deleteSql = "DELETE FROM billing_rates WHERE id = ?";
-  await query(deleteSql, [id]);
+  await q(deleteSql, [id]);
 
   return sendSuccess(res, null, "Billing rate deleted successfully");
 });
 
 // Generate Invoice
 export const generateInvoice = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { clientId, projectId, startDate, endDate, taxRate, currency } = req.body;
 
   if (!clientId || !startDate || !endDate) {
@@ -254,7 +262,7 @@ export const generateInvoice = asyncHandler(async (req, res) => {
     // Use referenceNo or projectName to match project
     // First get the project details
     const projectSql = "SELECT projectNo, referenceNo, projectName FROM project WHERE id = ?";
-    const projects = await query(projectSql, [projectId]);
+    const projects = await q(projectSql, [projectId]);
     if (projects.length > 0) {
       const project = projects[0];
       // Match by referenceNo or projectName
@@ -265,7 +273,7 @@ export const generateInvoice = asyncHandler(async (req, res) => {
 
   workSql += " ORDER BY wd.sentDate, wd.employeeName";
 
-  const workDetails = await query(workSql, params);
+  const workDetails = await q(workSql, params);
 
   // Group by employee and calculate amounts
   const invoiceItems = [];
@@ -320,7 +328,7 @@ export const generateInvoice = asyncHandler(async (req, res) => {
   let invoiceCurrency = currency;
   if (!invoiceCurrency) {
     const clientSql = "SELECT currency FROM clients WHERE id = ?";
-    const clientResult = await query(clientSql, [clientId]);
+    const clientResult = await q(clientSql, [clientId]);
     invoiceCurrency = clientResult[0]?.currency || "AED";
   }
 
@@ -331,7 +339,7 @@ export const generateInvoice = asyncHandler(async (req, res) => {
       subtotal, tax_rate, tax_amount, total_amount, status, currency
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?)
   `;
-  const invoiceResult = await query(invoiceSql, [
+  const invoiceResult = await q(invoiceSql, [
     invoiceNumber,
     clientId,
     projectId || null,
@@ -359,7 +367,7 @@ export const generateInvoice = asyncHandler(async (req, res) => {
       item.rate,
       item.amount,
     ]);
-    await query(itemsSql, [itemsValues]);
+    await q(itemsSql, [itemsValues]);
   }
 
   // Get created invoice with items
@@ -369,10 +377,10 @@ export const generateInvoice = asyncHandler(async (req, res) => {
     LEFT JOIN clients c ON i.client_id = c.id
     WHERE i.id = ?
   `;
-  const invoice = await query(invoiceSql2, [invoiceId]);
+  const invoice = await q(invoiceSql2, [invoiceId]);
 
   const itemsSql2 = "SELECT * FROM invoice_items WHERE invoice_id = ?";
-  const items = await query(itemsSql2, [invoiceId]);
+  const items = await q(itemsSql2, [invoiceId]);
 
   return sendSuccess(res, {
     ...invoice[0],
@@ -382,6 +390,7 @@ export const generateInvoice = asyncHandler(async (req, res) => {
 
 // Get Invoices
 export const getInvoices = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { clientId, projectId, status, startDate, endDate } = req.query;
   let sql = `
     SELECT i.*, c.client_name, p.projectName
@@ -415,12 +424,13 @@ export const getInvoices = asyncHandler(async (req, res) => {
 
   sql += " ORDER BY i.invoice_date DESC";
 
-  const results = await query(sql, params);
+  const results = await q(sql, params);
   return sendSuccess(res, results);
 });
 
 // Get Invoice Details
 export const getInvoiceDetails = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { id } = req.params;
 
   const invoiceSql = `
@@ -430,17 +440,17 @@ export const getInvoiceDetails = asyncHandler(async (req, res) => {
     LEFT JOIN project p ON i.project_id = p.id
     WHERE i.id = ?
   `;
-  const invoices = await query(invoiceSql, [id]);
+  const invoices = await q(invoiceSql, [id]);
 
   if (invoices.length === 0) {
     return sendError(res, "Invoice not found", 404);
   }
 
   const itemsSql = "SELECT * FROM invoice_items WHERE invoice_id = ?";
-  const items = await query(itemsSql, [id]);
+  const items = await q(itemsSql, [id]);
 
   const paymentsSql = "SELECT * FROM payments WHERE invoice_id = ?";
-  const payments = await query(paymentsSql, [id]);
+  const payments = await q(paymentsSql, [id]);
 
   return sendSuccess(res, {
     ...invoices[0],
@@ -453,6 +463,7 @@ export const getInvoiceDetails = asyncHandler(async (req, res) => {
 
 // Update Invoice
 export const updateInvoice = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { id } = req.params;
   const { 
     clientId, 
@@ -470,7 +481,7 @@ export const updateInvoice = asyncHandler(async (req, res) => {
 
   // Check if invoice exists
   const checkSql = "SELECT id FROM invoices WHERE id = ?";
-  const existing = await query(checkSql, [id]);
+  const existing = await q(checkSql, [id]);
   
   if (existing.length === 0) {
     return sendError(res, "Invoice not found", 404);
@@ -531,7 +542,7 @@ export const updateInvoice = asyncHandler(async (req, res) => {
 
   updateParams.push(id);
   const updateSql = `UPDATE invoices SET ${updateFields.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
-  await query(updateSql, updateParams);
+  await q(updateSql, updateParams);
 
   // Get updated invoice
   const invoiceSql = `
@@ -541,10 +552,10 @@ export const updateInvoice = asyncHandler(async (req, res) => {
     LEFT JOIN project p ON i.project_id = p.id
     WHERE i.id = ?
   `;
-  const invoice = await query(invoiceSql, [id]);
+  const invoice = await q(invoiceSql, [id]);
 
   const itemsSql = "SELECT * FROM invoice_items WHERE invoice_id = ?";
-  const items = await query(itemsSql, [id]);
+  const items = await q(itemsSql, [id]);
 
   return sendSuccess(res, {
     ...invoice[0],
@@ -554,6 +565,7 @@ export const updateInvoice = asyncHandler(async (req, res) => {
 
 // Record Payment
 export const recordPayment = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { invoiceId } = req.params;
   const { paymentDate, amount, paymentMethod, referenceNumber, notes } = req.body;
 
@@ -565,15 +577,15 @@ export const recordPayment = asyncHandler(async (req, res) => {
     INSERT INTO payments (invoice_id, payment_date, amount, payment_method, reference_number, notes)
     VALUES (?, ?, ?, ?, ?, ?)
   `;
-  await query(insertSql, [invoiceId, paymentDate, amount, paymentMethod, referenceNumber, notes]);
+  await q(insertSql, [invoiceId, paymentDate, amount, paymentMethod, referenceNumber, notes]);
 
   // Update invoice status if fully paid
   const invoiceSql = "SELECT total_amount FROM invoices WHERE id = ?";
-  const invoice = await query(invoiceSql, [invoiceId]);
+  const invoice = await q(invoiceSql, [invoiceId]);
   const totalAmount = parseFloat(invoice[0].total_amount);
 
   const paymentsSql = "SELECT SUM(amount) as total_paid FROM payments WHERE invoice_id = ?";
-  const payments = await query(paymentsSql, [invoiceId]);
+  const payments = await q(paymentsSql, [invoiceId]);
   const totalPaid = parseFloat(payments[0].total_paid || 0);
 
   let status = "sent";
@@ -583,7 +595,7 @@ export const recordPayment = asyncHandler(async (req, res) => {
     status = "partial";
   }
 
-  await query("UPDATE invoices SET status = ? WHERE id = ?", [status, invoiceId]);
+  await q("UPDATE invoices SET status = ? WHERE id = ?", [status, invoiceId]);
 
   return sendSuccess(res, null, "Payment recorded successfully");
 });

@@ -1,10 +1,11 @@
-import { query } from "../config/database.js";
+import { getTenantQuery } from "../config/database.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 import { calculateProductivityForEmployee } from "./productivityController.js";
 
 // Get Approval Workflows
 export const getApprovalWorkflows = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { entityType, isActive } = req.query;
   let sql = "SELECT * FROM approval_workflows WHERE 1=1";
   const params = [];
@@ -20,12 +21,13 @@ export const getApprovalWorkflows = asyncHandler(async (req, res) => {
 
   sql += " ORDER BY entity_type, name";
 
-  const results = await query(sql, params);
+  const results = await q(sql, params);
   return sendSuccess(res, results);
 });
 
 // Create Approval Workflow
 export const createApprovalWorkflow = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { name, entityType, approvalLevels } = req.body;
 
   if (!name || !entityType || !approvalLevels) {
@@ -36,13 +38,14 @@ export const createApprovalWorkflow = asyncHandler(async (req, res) => {
     INSERT INTO approval_workflows (name, entity_type, approval_levels)
     VALUES (?, ?, ?)
   `;
-  await query(insertSql, [name, entityType, JSON.stringify(approvalLevels)]);
+  await q(insertSql, [name, entityType, JSON.stringify(approvalLevels)]);
 
   return sendSuccess(res, null, "Approval workflow created successfully");
 });
 
 // Approve/Reject Entity
 export const approveEntity = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { entityType, entityId } = req.params;
   const { approverId, status, comments, approvalLevel } = req.body;
 
@@ -56,7 +59,7 @@ export const approveEntity = asyncHandler(async (req, res) => {
 
   // Get workflow (optional - if no workflow exists, proceed without multi-level approval)
   const workflowSql = "SELECT * FROM approval_workflows WHERE entity_type = ? AND is_active = TRUE LIMIT 1";
-  const workflows = await query(workflowSql, [entityType]);
+  const workflows = await q(workflowSql, [entityType]);
   const workflow = workflows[0];
 
   let currentLevel = approvalLevel || 1;
@@ -77,7 +80,7 @@ export const approveEntity = asyncHandler(async (req, res) => {
         LEFT JOIN employee e ON wd.userName = e.userName
         WHERE wd.id = ?
       `;
-      const workDetails = await query(workDetailsSql, [entityId]);
+      const workDetails = await q(workDetailsSql, [entityId]);
       if (workDetails.length > 0) {
         entityEmployeeId = workDetails[0].employeeId;
         entityEmployeeName = workDetails[0].empName || workDetails[0].employeeName;
@@ -96,7 +99,7 @@ export const approveEntity = asyncHandler(async (req, res) => {
         )
         WHERE l.id = ?
       `;
-      const leaves = await query(leaveSql, [entityId]);
+      const leaves = await q(leaveSql, [entityId]);
       if (leaves.length > 0) {
         entityEmployeeId = leaves[0].empId || leaves[0].employeeId;
         entityEmployeeName = leaves[0].empName || leaves[0].employeeName;
@@ -109,7 +112,7 @@ export const approveEntity = asyncHandler(async (req, res) => {
         LEFT JOIN employee e ON ot.employee_id = e.id
         WHERE ot.id = ?
       `;
-      const ots = await query(otSql, [entityId]);
+      const ots = await q(otSql, [entityId]);
       if (ots.length > 0) {
         entityEmployeeId = ots[0].employee_id;
         entityEmployeeName = ots[0].employeeName;
@@ -127,7 +130,7 @@ export const approveEntity = asyncHandler(async (req, res) => {
         )
         WHERE c.id = ?
       `;
-      const compoffs = await query(compoffSql, [entityId]);
+      const compoffs = await q(compoffSql, [entityId]);
       if (compoffs.length > 0) {
         entityEmployeeId = compoffs[0].empId || compoffs[0].employeeId;
         entityEmployeeName = compoffs[0].empName || compoffs[0].employeeName;
@@ -157,7 +160,7 @@ export const approveEntity = asyncHandler(async (req, res) => {
     // Try to add employee and project columns if they exist
     try {
       // Check if columns exist by attempting to describe the table
-      const tableDesc = await query(`DESCRIBE approval_history`);
+      const tableDesc = await q(`DESCRIBE approval_history`);
       const columnNames = tableDesc.map(col => col.Field);
       
       if (columnNames.includes('employee_id')) {
@@ -184,7 +187,7 @@ export const approveEntity = asyncHandler(async (req, res) => {
     valuesSql += `)`;
     historySql += valuesSql;
 
-    const historyResult = await query(historySql, historyParams);
+    const historyResult = await q(historySql, historyParams);
     console.log(
       `✓ Approval history created: EntityType: ${entityType}, EntityId: ${entityId}, ` +
       `ApproverId: ${approverId}, Status: ${status}, Employee: ${entityEmployeeName || 'N/A'}, ` +
@@ -204,7 +207,7 @@ export const approveEntity = asyncHandler(async (req, res) => {
     // Check if all levels approved
     try {
       const requiredLevels = approvalLevels.length;
-      const approvedLevelsResult = await query(
+      const approvedLevelsResult = await q(
         `SELECT COUNT(DISTINCT approval_level) as count 
          FROM approval_history 
          WHERE entity_type = ? AND entity_id = ? AND status = 'approved'`,
@@ -229,7 +232,7 @@ export const approveEntity = asyncHandler(async (req, res) => {
     // Fetch leave details before updating (needed for balance reduction)
     if (status === "approved") {
       const leaveSql = "SELECT employeeId, leaveType, leaveHours, leaveFrom FROM leavedetails WHERE id = ?";
-      const leaveResults = await query(leaveSql, [entityId]);
+      const leaveResults = await q(leaveSql, [entityId]);
       if (leaveResults.length > 0) {
         leaveDetails = leaveResults[0];
       }
@@ -268,13 +271,13 @@ export const approveEntity = asyncHandler(async (req, res) => {
   }
 
   if (updateSql) {
-    const updateResult = await query(updateSql, updateParams);
+    const updateResult = await q(updateSql, updateParams);
     
     // Verify timesheet/workdetails update and trigger productivity calculation
     if (entityType === "timesheet" || entityType === "workdetails") {
       try {
         const verifySql = "SELECT id, status, approverId, approvedDate, employeeNo, userName, sentDate FROM workdetails WHERE id = ?";
-        const verifyResult = await query(verifySql, [entityId]);
+        const verifyResult = await q(verifySql, [entityId]);
         if (verifyResult.length > 0) {
           const updated = verifyResult[0];
           console.log(
@@ -313,7 +316,7 @@ export const approveEntity = asyncHandler(async (req, res) => {
               let employeeId = updated.employeeNo;
               if (!employeeId && updated.userName) {
                 const empSql = "SELECT id, EMPID FROM employee WHERE userName = ? LIMIT 1";
-                const empResult = await query(empSql, [updated.userName]);
+                const empResult = await q(empSql, [updated.userName]);
                 if (empResult.length > 0) {
                   employeeId = empResult[0].id || empResult[0].EMPID;
                 }
@@ -400,7 +403,7 @@ export const approveEntity = asyncHandler(async (req, res) => {
         SELECT id, balance, used FROM leave_balances
         WHERE employee_id = ? AND leave_type = ? AND year = ?
       `;
-      const balanceCheck = await query(balanceCheckSql, [employeeId, normalizedLeaveType, year]);
+      const balanceCheck = await q(balanceCheckSql, [employeeId, normalizedLeaveType, year]);
       
       if (balanceCheck.length > 0) {
         const currentBalance = parseFloat(balanceCheck[0].balance) || 0;
@@ -417,7 +420,7 @@ export const approveEntity = asyncHandler(async (req, res) => {
               used = used + ?
             WHERE employee_id = ? AND leave_type = ? AND year = ?
           `;
-          const updateResult = await query(updateBalanceSql, [
+          const updateResult = await q(updateBalanceSql, [
             leaveHours,
             leaveHours,
             employeeId,
@@ -430,7 +433,7 @@ export const approveEntity = asyncHandler(async (req, res) => {
             SELECT balance, used FROM leave_balances
             WHERE employee_id = ? AND leave_type = ? AND year = ?
           `;
-          const verifyResult = await query(verifySql, [employeeId, normalizedLeaveType, year]);
+          const verifyResult = await q(verifySql, [employeeId, normalizedLeaveType, year]);
           
           if (verifyResult.length > 0) {
             console.log(
@@ -474,6 +477,7 @@ export const approveEntity = asyncHandler(async (req, res) => {
 
 // Get Approval History
 export const getApprovalHistory = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { entityType, entityId, status, approverId, startDate, endDate, employeeName, projectName } = req.query;
 
   let sql = `
@@ -523,7 +527,7 @@ export const getApprovalHistory = asyncHandler(async (req, res) => {
   sql += " ORDER BY ah.created_at DESC, ah.approval_level DESC";
 
   try {
-    const results = await query(sql, params);
+    const results = await q(sql, params);
     
     // Use stored employee_name and project_name if available, otherwise enrich (for backward compatibility with old records)
     const enrichedResults = await Promise.all(results.map(async (record) => {
@@ -536,13 +540,13 @@ export const getApprovalHistory = asyncHandler(async (req, res) => {
         try {
           if (record.entity_type === 'leave') {
             const leaveSql = `SELECT employeeName FROM leavedetails WHERE id = ?`;
-            const leaves = await query(leaveSql, [record.entity_id]);
+            const leaves = await q(leaveSql, [record.entity_id]);
             if (leaves.length > 0) {
               entityEmployeeName = entityEmployeeName || leaves[0].employeeName;
             }
           } else if (record.entity_type === 'overtime') {
             const otSql = `SELECT e.employeeName FROM ot_records ot LEFT JOIN employee e ON ot.employee_id = e.id WHERE ot.id = ?`;
-            const ots = await query(otSql, [record.entity_id]);
+            const ots = await q(otSql, [record.entity_id]);
             if (ots.length > 0) {
               entityEmployeeName = entityEmployeeName || ots[0].employeeName;
             }
@@ -551,14 +555,14 @@ export const getApprovalHistory = asyncHandler(async (req, res) => {
                            FROM workdetails wd 
                            LEFT JOIN employee e ON wd.userName = e.userName 
                            WHERE wd.id = ?`;
-            const timesheets = await query(tsSql, [record.entity_id]);
+            const timesheets = await q(tsSql, [record.entity_id]);
             if (timesheets.length > 0) {
               entityEmployeeName = entityEmployeeName || (timesheets[0].empName || timesheets[0].employeeName);
               entityProjectName = entityProjectName || timesheets[0].projectName;
             }
           } else if (record.entity_type === 'compoff') {
             const compoffSql = `SELECT employeeName FROM compoffdetails WHERE id = ?`;
-            const compoffs = await query(compoffSql, [record.entity_id]);
+            const compoffs = await q(compoffSql, [record.entity_id]);
             if (compoffs.length > 0) {
               entityEmployeeName = entityEmployeeName || compoffs[0].employeeName;
             }
@@ -593,19 +597,19 @@ export const getApprovalHistory = asyncHandler(async (req, res) => {
 
 // Get Pending Approvals
 export const getPendingApprovals = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { approverId, entityType } = req.query;
 
-  if (!approverId) {
-    return sendError(res, "approverId is required", 400);
+  // approverId is optional. In company web logins, dashboard user id may be absent from employee table.
+  // Pending lists are not role-scoped in this endpoint, so avoid hard-failing when approver is unknown.
+  if (approverId) {
+    try {
+      await q("SELECT id FROM employee WHERE id = ? LIMIT 1", [approverId]);
+    } catch (err) {
+      // Ignore approver lookup errors and continue returning pending items.
+      // This keeps Approval Center usable for company/admin login variants.
+    }
   }
-
-  // Get approver role
-  const approverSql = "SELECT role FROM employee WHERE id = ?";
-  const approvers = await query(approverSql, [approverId]);
-  if (approvers.length === 0) {
-    return sendError(res, "Approver not found", 404);
-  }
-  const approverRole = approvers[0].role;
 
   const pendingApprovals = [];
 
@@ -627,7 +631,7 @@ export const getPendingApprovals = asyncHandler(async (req, res) => {
       WHERE COALESCE(l.leaveStatus, '') NOT IN ('approved', 'rejected')
       ORDER BY l.leaveFrom DESC, l.id DESC
     `;
-    const leaves = await query(leaveSql);
+    const leaves = await q(leaveSql);
     leaves.forEach((leave) => {
       pendingApprovals.push({
         entityType: "leave",
@@ -648,7 +652,7 @@ export const getPendingApprovals = asyncHandler(async (req, res) => {
       WHERE ot.approval_status = 'pending'
       ORDER BY ot.attendance_date DESC
     `;
-    const otRecords = await query(otSql);
+    const otRecords = await q(otSql);
     otRecords.forEach((ot) => {
       pendingApprovals.push({
         entityType: "overtime",
@@ -672,7 +676,7 @@ export const getPendingApprovals = asyncHandler(async (req, res) => {
       WHERE COALESCE(wd.status, '') NOT IN ('approved', 'rejected')
       ORDER BY wd.sentDate DESC, wd.id DESC
     `;
-    const timesheets = await query(timesheetSql);
+    const timesheets = await q(timesheetSql);
     timesheets.forEach((ts) => {
       pendingApprovals.push({
         entityType: "timesheet",
@@ -692,6 +696,7 @@ export const getPendingApprovals = asyncHandler(async (req, res) => {
 
 // Bulk Approve/Reject
 export const bulkApprove = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { entityType, entityIds, approverId, comments, status } = req.body;
 
   if (!Array.isArray(entityIds) || entityIds.length === 0) {
@@ -719,7 +724,14 @@ export const bulkApprove = asyncHandler(async (req, res) => {
       
       // Call the approval logic directly by extracting the core logic
       // We'll use a helper function to avoid duplicating code
-      const approvalResult = await processApproval(entityType, entityId, approverId, status, comments || `${status} via bulk operation`);
+      const approvalResult = await processApproval(
+        q,
+        entityType,
+        entityId,
+        approverId,
+        status,
+        comments || `${status} via bulk operation`
+      );
       
       if (approvalResult.success) {
         results.push({ entityId, status, success: true });
@@ -745,7 +757,7 @@ export const bulkApprove = asyncHandler(async (req, res) => {
 });
 
 // Helper function to process approval/rejection (extracted from approveEntity logic)
-const processApproval = async (entityType, entityId, approverId, status, comments) => {
+const processApproval = async (q, entityType, entityId, approverId, status, comments) => {
   try {
     // Fetch entity details (employee and project) before creating approval history
     let entityEmployeeId = null;
@@ -759,7 +771,7 @@ const processApproval = async (entityType, entityId, approverId, status, comment
         LEFT JOIN employee e ON wd.userName = e.userName
         WHERE wd.id = ?
       `;
-      const workDetails = await query(workDetailsSql, [entityId]);
+      const workDetails = await q(workDetailsSql, [entityId]);
       if (workDetails.length > 0) {
         entityEmployeeId = workDetails[0].employeeId;
         entityEmployeeName = workDetails[0].empName || workDetails[0].employeeName;
@@ -777,7 +789,7 @@ const processApproval = async (entityType, entityId, approverId, status, comment
         )
         WHERE l.id = ?
       `;
-      const leaves = await query(leaveSql, [entityId]);
+      const leaves = await q(leaveSql, [entityId]);
       if (leaves.length > 0) {
         entityEmployeeId = leaves[0].empId || leaves[0].employeeId;
         entityEmployeeName = leaves[0].empName || leaves[0].employeeName;
@@ -789,7 +801,7 @@ const processApproval = async (entityType, entityId, approverId, status, comment
         LEFT JOIN employee e ON ot.employee_id = e.id
         WHERE ot.id = ?
       `;
-      const ots = await query(otSql, [entityId]);
+      const ots = await q(otSql, [entityId]);
       if (ots.length > 0) {
         entityEmployeeId = ots[0].employee_id;
         entityEmployeeName = ots[0].employeeName;
@@ -806,7 +818,7 @@ const processApproval = async (entityType, entityId, approverId, status, comment
         )
         WHERE c.id = ?
       `;
-      const compoffs = await query(compoffSql, [entityId]);
+      const compoffs = await q(compoffSql, [entityId]);
       if (compoffs.length > 0) {
         entityEmployeeId = compoffs[0].empId || compoffs[0].employeeId;
         entityEmployeeName = compoffs[0].empName || compoffs[0].employeeName;
@@ -827,7 +839,7 @@ const processApproval = async (entityType, entityId, approverId, status, comment
         comments || ""
       ];
 
-      const tableDesc = await query(`DESCRIBE approval_history`);
+      const tableDesc = await q(`DESCRIBE approval_history`);
       const columnNames = tableDesc.map(col => col.Field);
       
       if (columnNames.includes('employee_id')) {
@@ -850,7 +862,7 @@ const processApproval = async (entityType, entityId, approverId, status, comment
       valuesSql += `)`;
       historySql += valuesSql;
 
-      await query(historySql, historyParams);
+      await q(historySql, historyParams);
     } catch (error) {
       console.error("Error creating approval history:", error);
     }
@@ -889,7 +901,7 @@ const processApproval = async (entityType, entityId, approverId, status, comment
     }
 
     if (updateSql) {
-      await query(updateSql, updateParams);
+      await q(updateSql, updateParams);
       return { success: true };
     }
 

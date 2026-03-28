@@ -4,12 +4,13 @@ import {
   getHr,
   deleteHr,
 } from "../controllers/hrController.js";
+import { verifyUser } from "../middleware/auth.js";
 
 const router = express.Router();
 
-router.post("/hr/create", createHr);
-router.get("/getHr", getHr);
-router.delete("/hr/delete/:id", deleteHr);
+router.post("/hr/create", verifyUser, createHr);
+router.get("/getHr", verifyUser, getHr);
+router.delete("/hr/delete/:id", verifyUser, deleteHr);
 
 export default router;
 

@@ -1,9 +1,10 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { query } from "../config/database.js";
+import { query, companyQuery } from "../config/database.js";
 import config from "../config/index.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
+import { checkUserAccessAllowed } from "./userAccessController.js";
 
 export const adminLogin = asyncHandler(async (req, res) => {
   const { userName, password } = req.body;
@@ -19,6 +20,7 @@ export const adminLogin = asyncHandler(async (req, res) => {
   let isFromEmployeeTable = false;
 
   // If not found in users table, check employee table for Admin role
+  let isCompanyUser = false;
   if (results.length === 0) {
     sql = "SELECT * FROM employee WHERE LOWER(userName) = LOWER(?) AND (role = 'Admin' OR role LIKE '%Admin%')";
     results = await query(sql, [userName.trim()]);
@@ -30,23 +32,56 @@ export const adminLogin = asyncHandler(async (req, res) => {
     user = results[0];
   }
 
+  // If an employee row exists with HR role but NOT Admin, do not authenticate via
+  // company_users here: admin JWT always has role "admin", which breaks HR UI and
+  // prevents Login.jsx cascade (admin → hr → …) from reaching hrLogin when the same
+  // email/username exists in both employee (HR) and company_users.
+  let skipCompanyUsersForHrEmployee = false;
+  if (!user) {
+    try {
+      const hrOnlyRows = await query(
+        `SELECT id FROM employee WHERE LOWER(userName) = LOWER(?)
+         AND (role = 'HR' OR LOWER(role) LIKE '%hr%')
+         AND NOT (role = 'Admin' OR role LIKE '%Admin%')`,
+        [userName.trim()]
+      );
+      if (hrOnlyRows.length > 0) skipCompanyUsersForHrEmployee = true;
+    } catch (e) {
+      if (e?.code !== "ER_NO_SUCH_TABLE") throw e;
+    }
+  }
+
+  // If still not found, try company_users (admin login for company; uses email as userName)
+  if (!user && !skipCompanyUsersForHrEmployee) {
+    try {
+      const cuRows = await query(
+        "SELECT * FROM company_users WHERE LOWER(email) = LOWER(?) AND is_active = 1 LIMIT 1",
+        [userName.trim()]
+      );
+      if (cuRows.length > 0) {
+        user = cuRows[0];
+        isCompanyUser = true;
+      }
+    } catch (err) {
+      if (err.code !== "ER_NO_SUCH_TABLE") throw err;
+    }
+  }
+
   if (!user) {
     console.log(`Admin login failed: User not found - userName: ${userName}`);
     return sendError(res, "Wrong userName or Password", 401);
   }
 
-  // Verify password - check if password is hashed or plaintext
+  // Verify password - check if password is hashed or plaintext (company_users always hashed)
   let passwordValid = false;
   const passwordStr = String(password).trim();
   
   if (user.password && user.password.startsWith("$2b$")) {
-    // Password is hashed, use bcrypt compare
     passwordValid = await bcrypt.compare(passwordStr, user.password);
     if (!passwordValid) {
       console.log(`Admin login failed: Password mismatch for user: ${userName}`);
     }
   } else {
-    // Password is plaintext (legacy), compare directly
     passwordValid = passwordStr === String(user.password).trim();
     if (!passwordValid) {
       console.log(`Admin login failed: Plaintext password mismatch for user: ${userName}`);
@@ -57,10 +92,18 @@ export const adminLogin = asyncHandler(async (req, res) => {
     return sendError(res, "Wrong userName or Password", 401);
   }
 
-  // Include additional user data if from employee table
+  // Company users are created by super admin; skip allowlist check
+  if (!isCompanyUser) {
+    const access = await checkUserAccessAllowed(user);
+    if (!access.allowed) {
+      return sendError(res, "Access not granted. Request access from admin.", 403);
+    }
+  }
+
+  // Token payload: role "admin" so they get admin flow; add company_id and isCompanyUser for menu permissions
   const tokenPayload = {
     role: "admin",
-    userName: user.userName,
+    userName: isCompanyUser ? user.email : user.userName,
   };
 
   if (isFromEmployeeTable) {
@@ -71,6 +114,13 @@ export const adminLogin = asyncHandler(async (req, res) => {
     tokenPayload.dateOfJoining = user.date;
     tokenPayload.discipline = user.discipline;
     tokenPayload.employeeStatus = user.employeeStatus;
+  } else if (isCompanyUser) {
+    tokenPayload.company_id = user.company_id;
+    tokenPayload.isCompanyUser = true;
+    tokenPayload.company_user_id = user.id;
+    tokenPayload.company_role = user.role || "company_user";
+    // Matches Settings → Roles role_name in Menu Permissions (e.g. "Video Editor"); optional
+    tokenPayload.company_menu_role = user.menu_role_name || null;
   }
 
   const token = jwt.sign(tokenPayload, config.jwt.secret, {
@@ -144,6 +194,11 @@ export const employeeLogin = asyncHandler(async (req, res) => {
 
   if (!passwordValid) {
     return sendError(res, "Wrong Email or Password", 401);
+  }
+
+  const access = await checkUserAccessAllowed(user);
+  if (!access.allowed) {
+    return sendError(res, "Access not granted. Request access from admin.", 403);
   }
 
   const token = jwt.sign(
@@ -233,6 +288,11 @@ export const teamLeadLogin = asyncHandler(async (req, res) => {
 
   if (!passwordValid) {
     return sendError(res, "Wrong userName or Password", 401);
+  }
+
+  const access = await checkUserAccessAllowed(teamLead);
+  if (!access.allowed) {
+    return sendError(res, "Access not granted. Request access from admin.", 403);
   }
 
   // Include additional user data if from employee table
@@ -337,6 +397,11 @@ export const hrLogin = asyncHandler(async (req, res) => {
     return sendError(res, "Wrong userName or Password", 401);
   }
 
+  const access = await checkUserAccessAllowed(hr);
+  if (!access.allowed) {
+    return sendError(res, "Access not granted. Request access from admin.", 403);
+  }
+
   // Include additional user data if from employee table
   const tokenPayload = {
     role: "hr",
@@ -370,6 +435,50 @@ export const hrLogin = asyncHandler(async (req, res) => {
 });
 
 export const dashboard = asyncHandler(async (req, res) => {
+  let company_name = null;
+  let company_code = null;
+  let employee_table_role = null;
+  if (req.company_id) {
+    try {
+      const c = await query("SELECT company_name, company_code FROM companies WHERE id = ? LIMIT 1", [
+        Number(req.company_id),
+      ]);
+      if (c?.length) {
+        company_name = c[0].company_name;
+        company_code = c[0].company_code;
+      }
+    } catch (e) {
+      if (e?.code !== "ER_NO_SUCH_TABLE") throw e;
+    }
+  }
+  // For company logins, also expose matching employee.role so UI can show actual role label
+  // (e.g. Video Editor) instead of generic "Company user".
+  if (req.isCompanyUser && req.userName) {
+    const em = String(req.userName).trim();
+    const roleLookupSql = `
+      SELECT role
+      FROM employee
+      WHERE LOWER(TRIM(employeeEmail)) = LOWER(TRIM(?))
+         OR LOWER(TRIM(userName)) = LOWER(TRIM(?))
+      ORDER BY id DESC
+      LIMIT 1
+    `;
+    // Try tenant DB first (company login data), then fallback to primary DB.
+    try {
+      const erTenant = await companyQuery(roleLookupSql, [em, em]);
+      employee_table_role = erTenant?.[0]?.role || null;
+    } catch {
+      // ignore and fallback
+    }
+    if (!employee_table_role) {
+      try {
+        const erPrimary = await query(roleLookupSql, [em, em]);
+        employee_table_role = erPrimary?.[0]?.role || null;
+      } catch (e) {
+        if (e?.code !== "ER_NO_SUCH_TABLE") throw e;
+      }
+    }
+  }
   return sendSuccess(res, {
     role: req.role,
     id: req.id,
@@ -380,6 +489,14 @@ export const dashboard = asyncHandler(async (req, res) => {
     dateOfJoining: req.dateOfJoining,
     discipline: req.discipline,
     employeeStatus: req.employeeStatus,
+    isCompanyUser: !!req.isCompanyUser,
+    company_id: req.company_id ?? null,
+    company_user_id: req.company_user_id ?? null,
+    company_role: req.company_role ?? null,
+    company_menu_role: req.company_menu_role ?? null,
+    employee_table_role,
+    company_name,
+    company_code,
   });
 });
 

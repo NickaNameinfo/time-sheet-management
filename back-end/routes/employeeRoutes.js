@@ -7,6 +7,7 @@ import {
   deleteEmployee,
   getEmployeeCount,
 } from "../controllers/employeeController.js";
+import { verifyUser } from "../middleware/auth.js";
 import multer from "multer";
 import path from "path";
 import config from "../config/index.js";
@@ -33,12 +34,12 @@ const uploadFields = upload.fields([
   { name: "id_proof", maxCount: 1 },
 ]);
 
-router.post("/create", uploadFields, createEmployee);
-router.get("/getEmployee", getEmployees);
-router.get("/get/:id", getEmployeeById);
-router.put("/update/:id", uploadFields, updateEmployee);
-router.delete("/delete/:id", deleteEmployee);
-router.get("/employeeCount", getEmployeeCount);
+router.post("/create", verifyUser, uploadFields, createEmployee);
+router.get("/getEmployee", verifyUser, getEmployees);
+router.get("/get/:id", verifyUser, getEmployeeById);
+router.put("/update/:id", verifyUser, uploadFields, updateEmployee);
+router.delete("/delete/:id", verifyUser, deleteEmployee);
+router.get("/employeeCount", verifyUser, getEmployeeCount);
 
 export default router;
 

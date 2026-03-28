@@ -18,38 +18,41 @@ import {
   createProjectPlan,
   getProjectPlans,
   getProjectPlanById,
+  getPlanUtilization,
   updateProjectPlan,
   assignEmployeesToPlan,
   getProjectEmployees,
   getEmployeeAssignedProjects,
   deleteProjectPlan,
 } from "../controllers/projectPlanController.js";
+import { verifyUser } from "../middleware/auth.js";
 
 const router = express.Router();
 
-router.post("/project/create", createProject);
-router.get("/getProject", getProjects);
-router.get("/getProject/:id", getProjectById);
-router.put("/project/update/:projectId", updateProject);
-router.put("/project/update/completion/:projectId", updateProjectCompletion);
-router.delete("/project/delete/:id", deleteProject);
-router.post("/project/addWorkDetails", addWorkDetails);
-router.put("/project/updateWorkDetails/:id", updateWorkDetails);
-router.get("/getWorkDetails", getWorkDetails);
-router.get("/getBioDetails", getBioDetails);
-router.post("/filterTimeSheet", filterTimeSheet);
-router.post("/project/workDetails/clockIn", clockIn);
-router.post("/project/workDetails/clockOut", clockOut);
+router.post("/project/create", verifyUser, createProject);
+router.get("/getProject", verifyUser, getProjects);
+router.get("/getProject/:id", verifyUser, getProjectById);
+router.put("/project/update/:projectId", verifyUser, updateProject);
+router.put("/project/update/completion/:projectId", verifyUser, updateProjectCompletion);
+router.delete("/project/delete/:id", verifyUser, deleteProject);
+router.post("/project/addWorkDetails", verifyUser, addWorkDetails);
+router.put("/project/updateWorkDetails/:id", verifyUser, updateWorkDetails);
+router.get("/getWorkDetails", verifyUser, getWorkDetails);
+router.get("/getBioDetails", verifyUser, getBioDetails);
+router.post("/filterTimeSheet", verifyUser, filterTimeSheet);
+router.post("/project/workDetails/clockIn", verifyUser, clockIn);
+router.post("/project/workDetails/clockOut", verifyUser, clockOut);
 
 // Project Plan Routes
-router.post("/project-plan/create", createProjectPlan);
-router.get("/project-plan", getProjectPlans);
-router.get("/project-plan/:id", getProjectPlanById);
-router.put("/project-plan/:id", updateProjectPlan);
-router.put("/project-plan/:id/assign-employees", assignEmployeesToPlan);
-router.get("/project/:project_id/employees", getProjectEmployees);
-router.get("/project-plan/employee/assigned", getEmployeeAssignedProjects);
-router.delete("/project-plan/:id", deleteProjectPlan);
+router.post("/project-plan/create", verifyUser, createProjectPlan);
+router.get("/project-plan", verifyUser, getProjectPlans);
+router.get("/project-plan/:id/utilization", verifyUser, getPlanUtilization);
+router.get("/project-plan/:id", verifyUser, getProjectPlanById);
+router.put("/project-plan/:id", verifyUser, updateProjectPlan);
+router.put("/project-plan/:id/assign-employees", verifyUser, assignEmployeesToPlan);
+router.get("/project/:project_id/employees", verifyUser, getProjectEmployees);
+router.get("/project-plan/employee/assigned", verifyUser, getEmployeeAssignedProjects);
+router.delete("/project-plan/:id", verifyUser, deleteProjectPlan);
 
 export default router;
 

@@ -1,4 +1,4 @@
-import { query } from "../config/database.js";
+import { getTenantQuery } from "../config/database.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 import nodemailer from "nodemailer";
@@ -19,6 +19,7 @@ const createTransporter = () => {
 
 // Get Report Schedules
 export const getReportSchedules = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { isActive } = req.query;
   let sql = "SELECT * FROM report_schedules WHERE 1=1";
   const params = [];
@@ -30,12 +31,13 @@ export const getReportSchedules = asyncHandler(async (req, res) => {
 
   sql += " ORDER BY report_name";
 
-  const results = await query(sql, params);
+  const results = await q(sql, params);
   return sendSuccess(res, results);
 });
 
 // Create Report Schedule
 export const createReportSchedule = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { reportType, reportName, recipients, scheduleConfig } = req.body;
 
   if (!reportType || !reportName || !recipients || !scheduleConfig) {
@@ -49,7 +51,7 @@ export const createReportSchedule = asyncHandler(async (req, res) => {
     INSERT INTO report_schedules (report_type, report_name, recipients, schedule_config, next_send_at)
     VALUES (?, ?, ?, ?, ?)
   `;
-  await query(insertSql, [
+  await q(insertSql, [
     reportType,
     reportName,
     JSON.stringify(recipients),
@@ -104,10 +106,11 @@ const calculateNextSendTime = (scheduleConfig) => {
 
 // Generate and Send Report
 export const generateAndSendReport = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { scheduleId } = req.params;
 
   const scheduleSql = "SELECT * FROM report_schedules WHERE id = ?";
-  const schedules = await query(scheduleSql, [scheduleId]);
+  const schedules = await q(scheduleSql, [scheduleId]);
 
   if (schedules.length === 0) {
     return sendError(res, "Report schedule not found", 404);
@@ -138,7 +141,7 @@ export const generateAndSendReport = asyncHandler(async (req, res) => {
     WHERE DATE(sentDate) BETWEEN ? AND ?
     AND status = 'approved'
   `;
-  const workData = await query(workDetailsSql, [startDate, endDate]);
+  const workData = await q(workDetailsSql, [startDate, endDate]);
 
   reportData = {
     period: { startDate, endDate },
@@ -163,7 +166,7 @@ export const generateAndSendReport = asyncHandler(async (req, res) => {
 
     // Update last sent time and calculate next
     const nextSendAt = calculateNextSendTime(scheduleConfig);
-    await query(
+    await q(
       "UPDATE report_schedules SET last_sent_at = NOW(), next_send_at = ? WHERE id = ?",
       [nextSendAt, scheduleId]
     );
@@ -213,10 +216,23 @@ const generateReportEmail = (data, reportName) => {
 
 // Manual Report Generation
 export const generateReport = asyncHandler(async (req, res) => {
-  const { reportType, startDate, endDate, format } = req.query;
+  const q = getTenantQuery(req);
+  // Support GET (?query) and POST (JSON body) — front-end sends POST with body fields
+  const src = { ...req.query, ...req.body };
+  const reportType = src.reportType;
+  const startDate = src.startDate;
+  const endDate = src.endDate;
+  const format = src.format;
+  const wantsEmail =
+    format === "email" ||
+    (Array.isArray(req.body?.recipients) && req.body.recipients.length > 0);
 
   if (!reportType || !startDate || !endDate) {
-    return sendError(res, "reportType, startDate, and endDate are required", 400);
+    return sendError(
+      res,
+      "reportType, startDate, and endDate are required (in JSON body for POST or query string for GET)",
+      400
+    );
   }
 
   // Generate report based on type
@@ -225,7 +241,7 @@ export const generateReport = asyncHandler(async (req, res) => {
   switch (reportType) {
     case "daily":
     case "weekly":
-    case "monthly":
+    case "monthly": {
       const workSql = `
         SELECT 
           DATE(sentDate) as date,
@@ -237,19 +253,27 @@ export const generateReport = asyncHandler(async (req, res) => {
         GROUP BY DATE(sentDate)
         ORDER BY date
       `;
-      const workData = await query(workSql, [startDate, endDate]);
-      reportData = { type: reportType, period: { startDate, endDate }, data: workData };
+      const workData = await q(workSql, [startDate, endDate]);
+      const totalEntries = workData.reduce((s, row) => s + Number(row.entries || 0), 0);
+      const totalHours = workData.reduce((s, row) => s + parseFloat(row.hours || 0), 0);
+      reportData = {
+        type: reportType,
+        period: { startDate, endDate },
+        data: workData,
+        totalEntries,
+        totalHours,
+      };
       break;
+    }
 
     default:
       return sendError(res, "Invalid report type", 400);
   }
 
-  if (format === "email") {
-    // Send via email
-    const { recipients } = req.body;
-    if (!recipients || !Array.isArray(recipients)) {
-      return sendError(res, "recipients array is required", 400);
+  if (wantsEmail) {
+    const recipients = req.body?.recipients;
+    if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
+      return sendError(res, "recipients array is required when sending email", 400);
     }
 
     try {
@@ -276,6 +300,7 @@ export const generateReport = asyncHandler(async (req, res) => {
 
 // Update Report Schedule
 export const updateReportSchedule = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { id } = req.params;
   const updateData = req.body;
 
@@ -305,15 +330,16 @@ export const updateReportSchedule = asyncHandler(async (req, res) => {
 
   values.push(id);
   const sql = `UPDATE report_schedules SET ${fields.join(", ")} WHERE id = ?`;
-  await query(sql, values);
+  await q(sql, values);
 
   return sendSuccess(res, null, "Report schedule updated successfully");
 });
 
 // Delete Report Schedule
 export const deleteReportSchedule = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { id } = req.params;
-  await query("DELETE FROM report_schedules WHERE id = ?", [id]);
+  await q("DELETE FROM report_schedules WHERE id = ?", [id]);
   return sendSuccess(res, null, "Report schedule deleted successfully");
 });
 

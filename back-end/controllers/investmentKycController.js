@@ -1,6 +1,6 @@
 import path from "path";
 import fs from "fs";
-import { query } from "../config/database.js";
+import { query, companyQuery } from "../config/database.js";
 import config from "../config/index.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
@@ -187,8 +187,34 @@ export const uploadKycDocuments = asyncHandler(async (req, res) => {
 });
 
 // Admin: list all KYC records (for Update KYC status page) with full details and masked sensitive data.
-// Uses SELECT without admin_note so it works before migration; if admin_note column exists, try including it.
+// For company login: only KYC for challenge_users whose email matches the company's employees (company DB).
+// For super admin: all KYC records (super admin DB).
 export const listKycForAdmin = asyncHandler(async (req, res) => {
+  const isCompanyUser = req.isCompanyUser === true || (req.company_id != null && req.company_id !== "") || (req.company_user_id != null && req.company_user_id !== "");
+  let allowedEmails = null; // null = no filter (super admin); [] = empty list; [...] = filter by these emails
+  if (isCompanyUser) {
+    try {
+      const empRows = await companyQuery(
+        "SELECT employeeEmail FROM employee WHERE employeeEmail IS NOT NULL AND TRIM(COALESCE(employeeEmail, '')) != ''"
+      );
+      allowedEmails = (empRows || []).map((r) => (r.employeeEmail && String(r.employeeEmail).trim()) || null).filter(Boolean);
+      if (allowedEmails.length === 0) {
+        return sendSuccess(res, { list: [] });
+      }
+    } catch (err) {
+      if (err.code === "ER_NO_SUCH_TABLE" || err.code === "ER_BAD_DB_ERROR") {
+        return sendSuccess(res, { list: [] });
+      }
+      throw err;
+    }
+  }
+
+  const emailFilter =
+    allowedEmails != null && allowedEmails.length > 0
+      ? ` AND u.email IN (${allowedEmails.map(() => "?").join(",")})`
+      : "";
+  const baseParams = allowedEmails != null && allowedEmails.length > 0 ? allowedEmails : [];
+
   let rows;
   try {
     rows = await query(
@@ -198,7 +224,9 @@ export const listKycForAdmin = asyncHandler(async (req, res) => {
        u.name AS user_name, u.email
        FROM investment_kyc k
        JOIN challenge_users u ON u.id = k.user_id
-       ORDER BY k.submitted_at DESC`
+       WHERE 1=1 ${emailFilter}
+       ORDER BY k.submitted_at DESC`,
+      baseParams
     );
   } catch (err) {
     if (err.code === "ER_BAD_FIELD_ERROR" && err.message?.includes("admin_note")) {
@@ -209,7 +237,9 @@ export const listKycForAdmin = asyncHandler(async (req, res) => {
          u.name AS user_name, u.email
          FROM investment_kyc k
          JOIN challenge_users u ON u.id = k.user_id
-         ORDER BY k.submitted_at DESC`
+         WHERE 1=1 ${emailFilter}
+         ORDER BY k.submitted_at DESC`,
+        baseParams
       );
       rows = (Array.isArray(fallback) ? fallback : []).map((r) => ({ ...r, admin_note: null }));
     } else {
@@ -236,11 +266,36 @@ export const listKycForAdmin = asyncHandler(async (req, res) => {
   return sendSuccess(res, { list });
 });
 
+// Helper: for company login, ensure target user_id belongs to company (challenge_users.email in company employees).
+const ensureCompanyCanAccessUser = async (req, userId) => {
+  const isCompanyUser = req.isCompanyUser === true || (req.company_id != null && req.company_id !== "") || (req.company_user_id != null && req.company_user_id !== "");
+  if (!isCompanyUser) return;
+  let allowedEmails = new Set();
+  try {
+    const empRows = await companyQuery(
+      "SELECT employeeEmail FROM employee WHERE employeeEmail IS NOT NULL AND TRIM(COALESCE(employeeEmail, '')) != ''"
+    );
+    allowedEmails = new Set((empRows || []).map((r) => (r.employeeEmail && String(r.employeeEmail).trim()) || null).filter(Boolean));
+  } catch (e) {
+    if (e.code === "ER_NO_SUCH_TABLE" || e.code === "ER_BAD_DB_ERROR") {
+      allowedEmails = new Set();
+    } else throw e;
+  }
+  const userRows = await query("SELECT email FROM challenge_users WHERE id = ?", [userId]);
+  if (userRows.length === 0 || !allowedEmails.has((userRows[0].email && String(userRows[0].email).trim()) || "")) {
+    const err = new Error("You can only update or view KYC for users in your company.");
+    err.statusCode = 403;
+    throw err;
+  }
+};
+
 // Admin: update KYC status (PENDING_VERIFICATION | VERIFIED | REJECTED). REJECTED can include admin_note.
 // Also supports document_verification_status (PENDING | VERIFIED) to mark uploaded documents as verified.
 export const updateKycStatus = asyncHandler(async (req, res) => {
   const { user_id, status, admin_note, document_verification_status: docStatus } = req.body;
   if (!user_id) return sendError(res, "user_id required", 400);
+
+  await ensureCompanyCanAccessUser(req, user_id);
 
   let noteVal = null;
   const updates = [];
@@ -306,6 +361,8 @@ export const getKycDocument = asyncHandler(async (req, res) => {
   const column = docType === "aadhaar" ? "aadhaar_document_path" : "pan_document_path";
   const rows = await query(`SELECT ${column} AS path FROM investment_kyc WHERE user_id = ?`, [userId]);
   if (rows.length === 0) return sendError(res, "KYC record not found", 404);
+
+  await ensureCompanyCanAccessUser(req, userId);
   const filename = rows[0].path;
   if (!filename || typeof filename !== "string") return sendError(res, "Document not uploaded", 404);
   if (!filename.startsWith("kyc_") || filename.includes("..") || /[\/\\]/.test(filename)) {

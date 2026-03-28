@@ -27,17 +27,42 @@ import productivityRoutes from "./routes/productivityRoutes.js";
 import approvalRoutes from "./routes/approvalRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
 import crmRoutes from "./routes/crmRoutes.js";
+import salesLeadRoutes from "./routes/salesLeadRoutes.js";
 import challengeRoutes from "./routes/challengeRoutes.js";
 import challengeAdminRoutes from "./routes/challengeAdminRoutes.js";
 import investmentRoutes from "./routes/investmentRoutes.js";
 import investmentAdminRoutes from "./routes/investmentAdminRoutes.js";
+import userAccessRoutes from "./routes/userAccessRoutes.js";
+import superAdminRoutes from "./routes/superAdminRoutes.js";
+import companyRoutes from "./routes/companyRoutes.js";
 import { runChallengeEodJob } from "./jobs/challengeEodJob.js";
 import { runKycVerificationJob, runMaturityCheckJob } from "./jobs/investmentJobs.js";
+import { query } from "./config/database.js";
 
 // Load environment variables
 dotenv.config();
 
+const SALES_LEADS_TABLE_SQL = `
+CREATE TABLE IF NOT EXISTS sales_leads (
+  id INT NOT NULL AUTO_INCREMENT,
+  full_name VARCHAR(255) NOT NULL,
+  work_email VARCHAR(255) NOT NULL,
+  company_name VARCHAR(255) NOT NULL,
+  company_size VARCHAR(50) NULL,
+  phone_number VARCHAR(50) NULL,
+  created_by INT NULL,
+  createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_sales_leads_created_by (created_by),
+  KEY idx_sales_leads_created_at (createdAt)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+`;
+
 const app = express();
+
+// Avoid 304 responses (ETag) for JSON APIs; clients expect bodies.
+app.set("etag", false);
 
 // CORS configuration
 app.use(
@@ -85,6 +110,15 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
+// Prevent caching of API responses (fixes stale/empty 304 reload issues)
+app.use((req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  res.setHeader("Surrogate-Control", "no-store");
+  next();
+});
+
 // Logging middleware
 if (config.nodeEnv === "development") {
   app.use(morgan("dev"));
@@ -115,10 +149,14 @@ app.use("/", productivityRoutes);
 app.use("/", approvalRoutes);
 app.use("/", reportRoutes);
 app.use("/", crmRoutes);
+app.use("/", salesLeadRoutes);
 app.use("/", challengeRoutes);
 app.use("/", challengeAdminRoutes);
 app.use("/", investmentRoutes);
 app.use("/", investmentAdminRoutes);
+app.use("/", userAccessRoutes);
+app.use("/", companyRoutes);
+app.use("/", superAdminRoutes);
 
 // Challenge EOD job: mark pending days as missed (run every hour)
 setInterval(() => {
@@ -150,9 +188,16 @@ app.use((req, res) => {
 // Error handling middleware (must be last)
 app.use(errorHandler);
 
-// Start server
+// Ensure sales_leads table exists, then start server
 const PORT = config.port;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Environment: ${config.nodeEnv}`);
-});
+query(SALES_LEADS_TABLE_SQL)
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+      console.log(`Environment: ${config.nodeEnv}`);
+    });
+  })
+  .catch((err) => {
+    console.error("Failed to ensure sales_leads table:", err.message);
+    process.exit(1);
+  });

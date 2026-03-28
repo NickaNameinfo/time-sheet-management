@@ -1,9 +1,10 @@
-import { query } from "../config/database.js";
+import { getTenantQuery } from "../config/database.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
 // Get All Shifts
 export const getShifts = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { isActive } = req.query;
   let sql = "SELECT * FROM shifts WHERE 1=1";
   const params = [];
@@ -15,12 +16,13 @@ export const getShifts = asyncHandler(async (req, res) => {
 
   sql += " ORDER BY start_time";
 
-  const results = await query(sql, params);
+  const results = await q(sql, params);
   return sendSuccess(res, results);
 });
 
 // Create Shift
 export const createShift = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { name, startTime, endTime, breakDuration, breakStart, isNightShift } = req.body;
 
   if (!name || !startTime || !endTime) {
@@ -31,7 +33,7 @@ export const createShift = asyncHandler(async (req, res) => {
     INSERT INTO shifts (name, start_time, end_time, break_duration, break_start, is_night_shift)
     VALUES (?, ?, ?, ?, ?, ?)
   `;
-  await query(insertSql, [
+  await q(insertSql, [
     name,
     startTime,
     endTime,
@@ -45,6 +47,7 @@ export const createShift = asyncHandler(async (req, res) => {
 
 // Update Shift
 export const updateShift = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { id } = req.params;
   const { name, startTime, endTime, breakDuration, breakStart, isNightShift, isActive } =
     req.body;
@@ -61,7 +64,7 @@ export const updateShift = asyncHandler(async (req, res) => {
     WHERE id = ?
   `;
 
-  await query(updateSql, [
+  await q(updateSql, [
     name,
     startTime,
     endTime,
@@ -77,22 +80,24 @@ export const updateShift = asyncHandler(async (req, res) => {
 
 // Delete Shift
 export const deleteShift = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { id } = req.params;
 
   // Check if shift has active assignments
   const assignmentsSql = "SELECT COUNT(*) as count FROM shift_assignments WHERE shift_id = ? AND is_active = TRUE";
-  const assignments = await query(assignmentsSql, [id]);
+  const assignments = await q(assignmentsSql, [id]);
 
   if (assignments[0].count > 0) {
     return sendError(res, "Cannot delete shift with active assignments", 400);
   }
 
-  await query("DELETE FROM shifts WHERE id = ?", [id]);
+  await q("DELETE FROM shifts WHERE id = ?", [id]);
   return sendSuccess(res, null, "Shift deleted successfully");
 });
 
 // Assign Shift to Employee
 export const assignShift = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { employeeId, shiftId, assignmentDate, endDate } = req.body;
 
   if (!employeeId || !shiftId || !assignmentDate) {
@@ -106,20 +111,21 @@ export const assignShift = asyncHandler(async (req, res) => {
     AND assignment_date <= COALESCE(?, '9999-12-31')
     AND (end_date IS NULL OR end_date >= ?)
   `;
-  await query(deactivateSql, [employeeId, endDate || "9999-12-31", assignmentDate]);
+  await q(deactivateSql, [employeeId, endDate || "9999-12-31", assignmentDate]);
 
   // Create new assignment
   const insertSql = `
     INSERT INTO shift_assignments (employee_id, shift_id, assignment_date, end_date)
     VALUES (?, ?, ?, ?)
   `;
-  await query(insertSql, [employeeId, shiftId, assignmentDate, endDate || null]);
+  await q(insertSql, [employeeId, shiftId, assignmentDate, endDate || null]);
 
   return sendSuccess(res, null, "Shift assigned successfully");
 });
 
 // Get Shift Assignments
 export const getShiftAssignments = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { employeeId, shiftId, startDate, endDate, isActive } = req.query;
 
   let sql = `
@@ -154,12 +160,13 @@ export const getShiftAssignments = asyncHandler(async (req, res) => {
 
   sql += " ORDER BY sa.assignment_date DESC";
 
-  const results = await query(sql, params);
+  const results = await q(sql, params);
   return sendSuccess(res, results);
 });
 
 // Request Shift Swap
 export const requestShiftSwap = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { requesterId, swapWithId, originalShiftDate, swapShiftDate, comments } = req.body;
 
   if (!requesterId || !swapWithId || !originalShiftDate || !swapShiftDate) {
@@ -174,13 +181,14 @@ export const requestShiftSwap = asyncHandler(async (req, res) => {
     INSERT INTO shift_swaps (requester_id, swap_with_id, original_shift_date, swap_shift_date, comments)
     VALUES (?, ?, ?, ?, ?)
   `;
-  await query(insertSql, [requesterId, swapWithId, originalShiftDate, swapShiftDate, comments]);
+  await q(insertSql, [requesterId, swapWithId, originalShiftDate, swapShiftDate, comments]);
 
   return sendSuccess(res, null, "Shift swap requested successfully");
 });
 
 // Approve/Reject Shift Swap
 export const approveShiftSwap = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { id } = req.params;
   const { status, approvedBy, comments } = req.body;
 
@@ -195,22 +203,22 @@ export const approveShiftSwap = asyncHandler(async (req, res) => {
       comments = ?
     WHERE id = ?
   `;
-  await query(updateSql, [status, approvedBy, comments, id]);
+  await q(updateSql, [status, approvedBy, comments, id]);
 
   // If approved, swap the shifts
   if (status === "approved") {
     const swapSql = "SELECT * FROM shift_swaps WHERE id = ?";
-    const swap = await query(swapSql, [id]);
+    const swap = await q(swapSql, [id]);
 
     if (swap.length > 0) {
       const s = swap[0];
       // Swap the assignments
       // This is a simplified version - you may need more complex logic
-      await query(
+      await q(
         `UPDATE shift_assignments SET employee_id = ? WHERE employee_id = ? AND assignment_date = ?`,
         [s.swap_with_id, s.requester_id, s.original_shift_date]
       );
-      await query(
+      await q(
         `UPDATE shift_assignments SET employee_id = ? WHERE employee_id = ? AND assignment_date = ?`,
         [s.requester_id, s.swap_with_id, s.swap_shift_date]
       );
@@ -222,6 +230,7 @@ export const approveShiftSwap = asyncHandler(async (req, res) => {
 
 // Get Shift Swaps
 export const getShiftSwaps = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { employeeId, status } = req.query;
 
   let sql = `
@@ -246,7 +255,7 @@ export const getShiftSwaps = asyncHandler(async (req, res) => {
 
   sql += " ORDER BY ss.created_at DESC";
 
-  const results = await query(sql, params);
+  const results = await q(sql, params);
   return sendSuccess(res, results);
 });
 

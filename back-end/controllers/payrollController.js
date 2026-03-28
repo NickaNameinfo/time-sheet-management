@@ -1,4 +1,4 @@
-import { query } from "../config/database.js";
+import { getTenantQuery } from "../config/database.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 import ExcelJS from "exceljs";
@@ -6,6 +6,7 @@ import PDFDocument from "pdfkit";
 
 // Generate Payroll Summary
 export const generatePayrollSummary = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { employeeId, startDate, endDate, format } = req.query;
 
   if (!startDate || !endDate) {
@@ -19,7 +20,7 @@ export const generatePayrollSummary = asyncHandler(async (req, res) => {
     employeeSql += " AND (id = ? OR EMPID = ?)";
     employeeParams.push(employeeId, employeeId);
   }
-  const employees = await query(employeeSql, employeeParams);
+  const employees = await q(employeeSql, employeeParams);
 
   const payrollData = [];
 
@@ -36,7 +37,7 @@ export const generatePayrollSummary = asyncHandler(async (req, res) => {
       )
       AND status = 'approved'
     `;
-    const workHours = await query(workHoursSql, [
+    const workHours = await q(workHoursSql, [
       employee.userName, 
       startDate, endDate,
       startDate, endDate
@@ -51,7 +52,7 @@ export const generatePayrollSummary = asyncHandler(async (req, res) => {
       AND attendance_date BETWEEN ? AND ?
       AND approval_status = 'approved'
     `;
-    const otData = await query(otSql, [employee.id, startDate, endDate]);
+    const otData = await q(otSql, [employee.id, startDate, endDate]);
     const totalOT = parseFloat(otData[0]?.total_ot || 0);
     const totalOTAmount = parseFloat(otData[0]?.total_ot_amount || 0);
 
@@ -63,7 +64,7 @@ export const generatePayrollSummary = asyncHandler(async (req, res) => {
       ORDER BY employee_id DESC, effective_date DESC
       LIMIT 1
     `;
-    const rates = await query(rateSql, [employee.id, employee.designation, employee.discipline]);
+    const rates = await q(rateSql, [employee.id, employee.designation, employee.discipline]);
     const hourlyRate = rates.length > 0 ? parseFloat(rates[0].hourly_rate) : 0;
 
     // Calculate regular pay
@@ -212,6 +213,7 @@ const generatePDFPayroll = async (res, data, startDate, endDate) => {
 
 // Export to Tally Format
 export const exportToTally = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { startDate, endDate, employeeId } = req.query;
 
   if (!startDate || !endDate) {
@@ -253,7 +255,7 @@ export const exportToTally = asyncHandler(async (req, res) => {
 
   payrollSql += " GROUP BY e.id, e.EMPID, e.employeeName";
 
-  const data = await query(payrollSql, params);
+  const data = await q(payrollSql, params);
 
   // Generate Tally-compatible format (CSV)
   let csv = "Employee ID,Employee Name,Total Hours,OT Hours,OT Amount\n";
@@ -268,6 +270,7 @@ export const exportToTally = asyncHandler(async (req, res) => {
 
 // Export to QuickBooks Format
 export const exportToQuickBooks = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { startDate, endDate, employeeId } = req.query;
 
   if (!startDate || !endDate) {
@@ -310,7 +313,7 @@ export const exportToQuickBooks = asyncHandler(async (req, res) => {
 
   payrollSql += " GROUP BY e.id";
 
-  const payrollData = await query(payrollSql, params);
+  const payrollData = await q(payrollSql, params);
 
   payrollData.forEach((row) => {
     const totalPay = parseFloat(row.total_pay || 0) + parseFloat(row.ot_pay || 0);

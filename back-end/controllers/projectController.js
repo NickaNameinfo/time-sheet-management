@@ -1,8 +1,9 @@
-import { query, biometricQuery } from "../config/database.js";
+import { getTenantQuery, biometricQuery } from "../config/database.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
 export const createProject = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   // Convert employeeIds array to JSON string for storage
   const assignedEmployeesJson = req.body.employeeIds && Array.isArray(req.body.employeeIds) 
     ? JSON.stringify(req.body.employeeIds) 
@@ -18,7 +19,7 @@ export const createProject = asyncHandler(async (req, res) => {
       AND table_name = 'project' 
       AND column_name = 'assignedEmployees'
     `;
-    const columnCheck = await query(columnCheckSql);
+    const columnCheck = await q(columnCheckSql);
     includeAssignedEmployees = columnCheck.length > 0 && columnCheck[0].count > 0;
   } catch (error) {
     console.warn("Could not check for assignedEmployees column:", error.message);
@@ -34,7 +35,7 @@ export const createProject = asyncHandler(async (req, res) => {
       AND table_name = 'project' 
       AND column_name = 'status'
     `;
-    const columnCheck = await query(columnCheckSql);
+    const columnCheck = await q(columnCheckSql);
     includeStatus = columnCheck.length > 0 && columnCheck[0].count > 0;
   } catch (error) {
     console.warn("Could not check for status column:", error.message);
@@ -50,7 +51,7 @@ export const createProject = asyncHandler(async (req, res) => {
       AND table_name = 'project' 
       AND column_name = 'description'
     `;
-    const columnCheck = await query(columnCheckSql);
+    const columnCheck = await q(columnCheckSql);
     includeDescription = columnCheck.length > 0 && columnCheck[0].count > 0;
   } catch (error) {
     console.warn("Could not check for description column:", error.message);
@@ -66,7 +67,7 @@ export const createProject = asyncHandler(async (req, res) => {
         AND table_name = 'project' 
         AND column_name = ?
       `;
-      const columnCheck = await query(columnCheckSql, [columnName]);
+      const columnCheck = await q(columnCheckSql, [columnName]);
       return columnCheck.length > 0 && columnCheck[0].count > 0;
     } catch (error) {
       return false;
@@ -125,15 +126,16 @@ export const createProject = asyncHandler(async (req, res) => {
 
   const sql = `INSERT INTO project (\`${columns.join('`, `')}\`) VALUES (?)`;
 
-  const result = await query(sql, [values]);
+  const result = await q(sql, [values]);
   const projectId = result.insertId;
 
   return sendSuccess(res, { projectId }, "Project created successfully");
 });
 
 export const getProjects = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const sql = "SELECT * FROM project";
-  const results = await query(sql);
+  const results = await q(sql);
   
   // Parse assignedEmployees from JSON string to array for each project
   const projects = results.map((project) => {
@@ -154,9 +156,10 @@ export const getProjects = asyncHandler(async (req, res) => {
 });
 
 export const getProjectById = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { id } = req.params;
   const sql = "SELECT * FROM project WHERE id = ?";
-  const results = await query(sql, [id]);
+  const results = await q(sql, [id]);
 
   if (results.length === 0) {
     return sendError(res, "Project not found", 404);
@@ -181,6 +184,7 @@ export const getProjectById = asyncHandler(async (req, res) => {
 });
 
 export const updateProject = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { projectId } = req.params;
   
   // Convert employeeIds array to JSON string for storage
@@ -201,7 +205,7 @@ export const updateProject = asyncHandler(async (req, res) => {
       AND table_name = 'project' 
       AND column_name = 'assignedEmployees'
     `;
-    const columnCheck = await query(columnCheckSql);
+    const columnCheck = await q(columnCheckSql);
     includeAssignedEmployees = columnCheck.length > 0 && columnCheck[0].count > 0;
     console.log("Column check result:", columnCheck, "includeAssignedEmployees:", includeAssignedEmployees);
   } catch (error) {
@@ -214,7 +218,7 @@ export const updateProject = asyncHandler(async (req, res) => {
   if (!includeAssignedEmployees && employeeIds && Array.isArray(employeeIds) && employeeIds.length > 0) {
     try {
       console.log("Attempting to add assignedEmployees column...");
-      await query("ALTER TABLE project ADD COLUMN assignedEmployees TEXT NULL");
+      await q("ALTER TABLE project ADD COLUMN assignedEmployees TEXT NULL");
       includeAssignedEmployees = true;
       console.log("Successfully added assignedEmployees column");
     } catch (alterError) {
@@ -240,7 +244,7 @@ export const updateProject = asyncHandler(async (req, res) => {
       AND table_name = 'project' 
       AND column_name = 'status'
     `;
-    const columnCheck = await query(columnCheckSql);
+    const columnCheck = await q(columnCheckSql);
     includeStatus = columnCheck.length > 0 && columnCheck[0].count > 0;
   } catch (error) {
     console.warn("Could not check for status column:", error.message);
@@ -256,7 +260,7 @@ export const updateProject = asyncHandler(async (req, res) => {
       AND table_name = 'project' 
       AND column_name = 'description'
     `;
-    const columnCheck = await query(columnCheckSql);
+    const columnCheck = await q(columnCheckSql);
     includeDescription = columnCheck.length > 0 && columnCheck[0].count > 0;
   } catch (error) {
     console.warn("Could not check for description column:", error.message);
@@ -272,7 +276,7 @@ export const updateProject = asyncHandler(async (req, res) => {
         AND table_name = 'project' 
         AND column_name = ?
       `;
-      const columnCheck = await query(columnCheckSql, [columnName]);
+      const columnCheck = await q(columnCheckSql, [columnName]);
       return columnCheck.length > 0 && columnCheck[0].count > 0;
     } catch (error) {
       return false;
@@ -338,18 +342,19 @@ export const updateProject = asyncHandler(async (req, res) => {
 
   const sql = `UPDATE project SET ${updateFields.join(', ')} WHERE id = ?`;
 
-  await query(sql, values);
+  await q(sql, values);
   return sendSuccess(res, null, "Project updated successfully");
 });
 
 export const updateProjectCompletion = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { projectId } = req.params;
   const { completion } = req.body;
 
   const sql = "UPDATE project SET completion = ? WHERE id = ?";
   const values = [completion, projectId];
 
-  const result = await query(sql, values);
+  const result = await q(sql, values);
 
   if (result.affectedRows === 0) {
     return sendError(res, "Project not found or no update required", 404);
@@ -359,13 +364,15 @@ export const updateProjectCompletion = asyncHandler(async (req, res) => {
 });
 
 export const deleteProject = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { id } = req.params;
   const sql = "DELETE FROM project WHERE id = ?";
-  await query(sql, [id]);
+  await q(sql, [id]);
   return sendSuccess(res, null, "Project deleted successfully");
 });
 
 export const addWorkDetails = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   // Validate required fields
   if (!req.body.userName) {
     return sendError(res, "userName is required", 400);
@@ -376,7 +383,7 @@ export const addWorkDetails = asyncHandler(async (req, res) => {
   if (!employeeName && req.body.userName) {
     try {
       const employeeSql = "SELECT employeeName FROM employee WHERE userName = ? LIMIT 1";
-      const employee = await query(employeeSql, [req.body.userName]);
+      const employee = await q(employeeSql, [req.body.userName]);
       if (employee.length > 0) {
         employeeName = employee[0].employeeName;
       }
@@ -435,11 +442,12 @@ export const addWorkDetails = asyncHandler(async (req, res) => {
   });
   sql += ") VALUES (?)";
 
-  const result = await query(sql, [values]);
+  const result = await q(sql, [values]);
   return sendSuccess(res, result, "Work details added successfully");
 });
 
 export const updateWorkDetails = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { id } = req.params;
 
   // 1. Define all possible columns in your database that are allowed to be updated
@@ -482,11 +490,12 @@ export const updateWorkDetails = asyncHandler(async (req, res) => {
   console.log("Update Values:", values);
 
   // 5. Execute
-  await query(sql, values);
+  await q(sql, values);
   return sendSuccess(res, null, "Work details updated successfully");
 });
 
 export const getWorkDetails = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { employeeId, startDate, endDate, tlId } = req.query;
   
   let sql = "SELECT * FROM workdetails WHERE 1=1";
@@ -495,7 +504,7 @@ export const getWorkDetails = asyncHandler(async (req, res) => {
   if (employeeId) {
     // Get userName from employeeId first
     const employeeSql = "SELECT userName FROM employee WHERE EMPID = ? OR id = ? LIMIT 1";
-    const employee = await query(employeeSql, [employeeId, employeeId]);
+    const employee = await q(employeeSql, [employeeId, employeeId]);
     
     if (employee.length > 0) {
       sql += " AND userName = ?";
@@ -526,12 +535,13 @@ export const getWorkDetails = asyncHandler(async (req, res) => {
   
   sql += " ORDER BY sentDate DESC, id DESC";
   
-  const results = await query(sql, params);
+  const results = await q(sql, params);
   return sendSuccess(res, results);
 });
 
 // Clock In - Create a new work detail record
 export const clockIn = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { 
     employeeId, 
     employeeName, 
@@ -564,7 +574,7 @@ export const clockIn = asyncHandler(async (req, res) => {
     WHERE EMPID = ? OR id = ? 
     LIMIT 1
   `;
-  const employeeResult = await query(employeeSql, [employeeId, employeeId]);
+  const employeeResult = await q(employeeSql, [employeeId, employeeId]);
   
   if (employeeResult.length === 0) {
     return sendError(res, "Employee not found", 404);
@@ -609,7 +619,7 @@ export const clockIn = asyncHandler(async (req, res) => {
     LIMIT 1
   `;
   
-  const existing = await query(checkSql, [finalUserName, currentDateTime]); // Using currentDateTime ensures DB formats match
+  const existing = await q(checkSql, [finalUserName, currentDateTime]); // Using currentDateTime ensures DB formats match
   
   if (existing.length > 0) {
     return sendError(res, "You are already clocked in for today. Please clock out first.", 400);
@@ -626,7 +636,7 @@ export const clockIn = asyncHandler(async (req, res) => {
         WHERE projectName = ? OR referenceNo = ?
         LIMIT 1
       `;
-      const projResult = await query(projectSql, [projectName || '', referenceNo || '']);
+      const projResult = await q(projectSql, [projectName || '', referenceNo || '']);
       
       if (projResult.length > 0) {
         projDefaults = projResult[0];
@@ -647,7 +657,7 @@ export const clockIn = asyncHandler(async (req, res) => {
     } else {
       // It's a name, look up the ID
       const tlSql = "SELECT id FROM team_lead WHERE leadName = ? LIMIT 1";
-      const tlRes = await query(tlSql, [reqTlName]);
+      const tlRes = await q(tlSql, [reqTlName]);
       if (tlRes.length > 0) finalTlId = tlRes[0].id;
     }
   }
@@ -656,7 +666,7 @@ export const clockIn = asyncHandler(async (req, res) => {
   if (!finalTlId && projDefaults.tlName) {
     // Usually project table stores the TL Name, so we look up the ID
     const tlSql = "SELECT id FROM team_lead WHERE leadName = ? LIMIT 1";
-    const tlRes = await query(tlSql, [projDefaults.tlName]);
+    const tlRes = await q(tlSql, [projDefaults.tlName]);
     if (tlRes.length > 0) finalTlId = tlRes[0].id;
   }
 
@@ -670,7 +680,7 @@ export const clockIn = asyncHandler(async (req, res) => {
         WHERE e.EMPID = ? OR e.id = ?
         LIMIT 1
       `;
-      const tlRes = await query(teamLeadSql, [employeeId, employeeId]);
+      const tlRes = await q(teamLeadSql, [employeeId, employeeId]);
       if (tlRes.length > 0) finalTlId = tlRes[0].id;
     } catch (e) { console.error('Error fetching default team lead:', e); }
   }
@@ -746,18 +756,19 @@ export const clockIn = asyncHandler(async (req, res) => {
 
   console.log('Clock In - Inserting for:', finalUserName);
 
-  const result = await query(insertSql, insertParams);
+  const result = await q(insertSql, insertParams);
 
   // 10. Return Result
   // Fetch the created record to return to frontend
   const getCreatedSql = "SELECT * FROM workdetails WHERE id = ?";
-  const createdRecord = await query(getCreatedSql, [result.insertId]);
+  const createdRecord = await q(getCreatedSql, [result.insertId]);
 
   return sendSuccess(res, createdRecord[0] || { id: result.insertId }, "Clocked in successfully");
 });
 
 // Clock Out - Update existing work detail record
 export const clockOut = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { employeeId, workDetailId, clockOutTime, description } = req.body;
   
   if (!employeeId || !workDetailId) {
@@ -766,7 +777,7 @@ export const clockOut = asyncHandler(async (req, res) => {
   
   // Get employee userName first
   const employeeSql = "SELECT userName FROM employee WHERE EMPID = ? OR id = ? LIMIT 1";
-  const employee = await query(employeeSql, [employeeId, employeeId]);
+  const employee = await q(employeeSql, [employeeId, employeeId]);
   
   if (employee.length === 0) {
     return sendError(res, "Employee not found", 404);
@@ -785,7 +796,7 @@ export const clockOut = asyncHandler(async (req, res) => {
     AND userName = ?
     AND (status = 'active' OR status IS NULL OR status = '')
   `;
-  const workDetail = await query(checkSql, [workDetailId, userName]);
+  const workDetail = await q(checkSql, [workDetailId, userName]);
   
   if (workDetail.length === 0) {
     return sendError(res, "Work detail not found or already clocked out", 404);
@@ -971,7 +982,7 @@ export const clockOut = asyncHandler(async (req, res) => {
     WHERE id = ?
   `;
   
-  await query(sql, [
+  await q(sql, [
     totalHours.toFixed(2),
     String(weekNumber),
     totalHours.toFixed(2),
@@ -981,7 +992,7 @@ export const clockOut = asyncHandler(async (req, res) => {
   
   // Get updated record
   const getSql = "SELECT * FROM workdetails WHERE id = ?";
-  const updated = await query(getSql, [workDetailId]);
+  const updated = await q(getSql, [workDetailId]);
   
   const result = updated[0] || {};
   

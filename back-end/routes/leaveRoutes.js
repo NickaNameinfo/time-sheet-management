@@ -9,18 +9,19 @@ import {
   deleteLeave,
   deleteCompOff,
 } from "../controllers/leaveController.js";
+import { verifyUser } from "../middleware/auth.js";
 
 const router = express.Router();
 
-router.post("/applyLeave", applyLeave);
-router.post("/applycompOff", applyCompOff);
-router.get("/getLeaveDetails", getLeaveDetails);
-router.get("/getcompOffDetails", getCompOffDetails);
-router.put("/updateLeave/:id", updateLeave);
-router.put("/compOff/:id", updateCompOff);
-router.put("/updateCompOff/:compOffId", updateCompOff);
-router.delete("/deleteLeave/:id", deleteLeave);
-router.delete("/deletecompOff/:id", deleteCompOff);
+router.post("/applyLeave", verifyUser, applyLeave);
+router.post("/applycompOff", verifyUser, applyCompOff);
+router.get("/getLeaveDetails", verifyUser, getLeaveDetails);
+router.get("/getcompOffDetails", verifyUser, getCompOffDetails);
+router.put("/updateLeave/:id", verifyUser, updateLeave);
+router.put("/compOff/:id", verifyUser, updateCompOff);
+router.put("/updateCompOff/:compOffId", verifyUser, updateCompOff);
+router.delete("/deleteLeave/:id", verifyUser, deleteLeave);
+router.delete("/deletecompOff/:id", verifyUser, deleteCompOff);
 
 export default router;
 

@@ -31,7 +31,7 @@ INSERT INTO `menu_permissions` (`menu_key`, `menu_title`, `menu_path`, `menu_ico
 ('payroll_export', 'Payroll Export', '/Dashboard/Payroll', 'Payments', NULL, '["Admin", "HR"]', TRUE, 13),
 ('billing_invoicing', 'Billing & Invoicing', '/Dashboard/Billing', 'AccountBalance', NULL, '["Admin"]', TRUE, 14),
 ('budget_tracking', 'Budget Tracking', '/Dashboard/Budget', 'AccountTree', NULL, '["Admin"]', TRUE, 15),
-('productivity', 'Productivity', '/Dashboard/Productivity', 'TrendingUp', NULL, '["Admin", "TL"]', TRUE, 16),
+-- productivity moved under employee_productivity (see below)
 ('approval_center', 'Approval Center', '/Dashboard/Approvals', 'CheckCircle', NULL, '["Admin", "HR", "TL"]', TRUE, 17),
 ('automated_reports', 'Automated Reports', '/Dashboard/Reports/Automated', 'Email', NULL, '["Admin"]', TRUE, 18),
 
@@ -57,13 +57,16 @@ INSERT INTO `menu_permissions` (`menu_key`, `menu_title`, `menu_path`, `menu_ico
 ('settings_variation', 'Variation', '/Dashboard/Variations', NULL, 'settings', '["Admin"]', TRUE, 44),
 ('menu_permissions', 'Menu Permissions', '/Dashboard/Settings/MenuPermissions', NULL, 'settings', '["Admin"]', TRUE, 45),
 
--- Common Menu Items
-('employee_dashboard', 'Employee Dashboard', '/Dashboard/EmployeeHome', 'Dashboard', NULL, '["TL", "Admin", "Employee", "HR"]', TRUE, 50),
-('teamlead_dashboard', 'Team Lead Dashboard', '/Dashboard/TeamLeadHome', 'Dashboard', NULL, '["TL", "Admin"]', TRUE, 51),
-('project_work_details', 'Project Work Details', '/Dashboard/TeamLeadProjectWorks', 'Assignment', NULL, '["TL", "Admin"]', TRUE, 52),
-('time_management', 'Time Management', '/Dashboard/TimeManagement', 'AccessTime', NULL, '["TL", "Admin", "Employee", "HR"]', TRUE, 53),
-('apply_leave', 'Apply Leave', '/Dashboard/AddLeaves', 'EventAvailable', NULL, '["TL", "Admin", "Employee", "HR"]', TRUE, 54),
-('compoff', 'Comp-Off', '/Dashboard/CompOff', 'Assignment', NULL, '["TL", "Admin", "Employee", "HR"]', TRUE, 55)
+-- Employee Productivity parent (employee work-related items grouped here)
+('employee_productivity', 'Employee Productivity', '/Dashboard/EmployeeHome', 'TrendingUp', NULL, '["TL", "Admin", "Employee", "HR"]', TRUE, 50),
+-- Employee Productivity submenus
+('employee_dashboard', 'Employee Dashboard', '/Dashboard/EmployeeHome', 'Dashboard', 'employee_productivity', '["TL", "Admin", "Employee", "HR"]', TRUE, 50.1),
+('teamlead_dashboard', 'Team Lead Dashboard', '/Dashboard/TeamLeadHome', 'Dashboard', 'employee_productivity', '["TL", "Admin"]', TRUE, 50.2),
+('project_work_details', 'Project Work Details', '/Dashboard/TeamLeadProjectWorks', 'Assignment', 'employee_productivity', '["TL", "Admin"]', TRUE, 50.3),
+('time_management', 'Time Management', '/Dashboard/TimeManagement', 'AccessTime', 'employee_productivity', '["TL", "Admin", "Employee", "HR"]', TRUE, 50.4),
+('productivity', 'Productivity', '/Dashboard/Productivity', 'TrendingUp', 'employee_productivity', '["Admin", "TL"]', TRUE, 50.5),
+('apply_leave', 'Apply Leave', '/Dashboard/AddLeaves', 'EventAvailable', 'employee_productivity', '["TL", "Admin", "Employee", "HR"]', TRUE, 50.6),
+('compoff', 'Comp-Off', '/Dashboard/CompOff', 'Assignment', 'employee_productivity', '["TL", "Admin", "Employee", "HR"]', TRUE, 50.7)
 
 ON DUPLICATE KEY UPDATE 
   menu_title = VALUES(menu_title),

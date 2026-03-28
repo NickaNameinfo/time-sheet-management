@@ -1,8 +1,9 @@
-import { query } from "../config/database.js";
+import { getTenantQuery } from "../config/database.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
 export const sendNotification = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   // Check if empId and tlId columns exist in the notification table
   // If they exist, include them; otherwise, use only the basic columns
   let sql;
@@ -19,7 +20,7 @@ export const sendNotification = asyncHandler(async (req, res) => {
       req.body.empId || '',
       req.body.tlId || '',
     ];
-    await query(sql, values);
+    await q(sql, values);
   } catch (error) {
     // If empId/tlId columns don't exist, use basic columns only
     if (error.code === 'ER_BAD_FIELD_ERROR' && error.sqlMessage?.includes('empId')) {
@@ -30,7 +31,7 @@ export const sendNotification = asyncHandler(async (req, res) => {
         req.body.message || '',
         req.body.sendDate || new Date().toISOString(),
       ];
-      await query(sql, values);
+      await q(sql, values);
     } else {
       throw error; // Re-throw if it's a different error
     }
@@ -41,6 +42,7 @@ export const sendNotification = asyncHandler(async (req, res) => {
 
 // Get Notifications for an employee
 export const getNotifications = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { employeeId } = req.query;
   
   if (!employeeId) {
@@ -49,7 +51,7 @@ export const getNotifications = asyncHandler(async (req, res) => {
   
   // Get employee's userName from employeeId
   const employeeSql = "SELECT userName FROM employee WHERE EMPID = ? OR id = ? LIMIT 1";
-  const employee = await query(employeeSql, [employeeId, employeeId]);
+  const employee = await q(employeeSql, [employeeId, employeeId]);
   
   if (employee.length === 0) {
     return sendError(res, "Employee not found", 404);
@@ -70,7 +72,7 @@ export const getNotifications = asyncHandler(async (req, res) => {
       ORDER BY sendDate DESC, id DESC
       LIMIT 100
     `;
-    results = await query(sql, [employeeId, userName, employeeId]);
+    results = await q(sql, [employeeId, userName, employeeId]);
   } catch (error) {
     // If empId column doesn't exist, use only 'to' field
     if (error.code === 'ER_BAD_FIELD_ERROR' && error.sqlMessage?.includes('empId')) {
@@ -80,7 +82,7 @@ export const getNotifications = asyncHandler(async (req, res) => {
         ORDER BY sendDate DESC, id DESC
         LIMIT 100
       `;
-      results = await query(sql, [userName, employeeId]);
+      results = await q(sql, [userName, employeeId]);
     } else {
       throw error; // Re-throw if it's a different error
     }

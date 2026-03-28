@@ -1,4 +1,4 @@
-import { query } from "../config/database.js";
+import { getTenantQuery } from "../config/database.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
@@ -16,6 +16,7 @@ function addDays(date, n) {
 }
 
 export const createChallenge = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const userId = req.challengeUserId;
   const { title, description, total_days, start_date, reminder_time } = req.body;
 
@@ -35,7 +36,7 @@ export const createChallenge = asyncHandler(async (req, res) => {
 
   const reminderTime = reminder_time || null;
 
-  const insertChallenge = await query(
+  const insertChallenge = await q(
     "INSERT INTO challenges (user_id, title, description, total_days, start_date, reminder_time, status) VALUES (?, ?, ?, ?, ?, ?, 'active')",
     [
       userId,
@@ -58,16 +59,16 @@ export const createChallenge = asyncHandler(async (req, res) => {
 
   const placeholders = dayInserts.map(() => "(?, ?, ?, ?, 'pending')").join(", ");
   const values = dayInserts.flat();
-  await query(
+  await q(
     "INSERT INTO challenge_days (challenge_id, day_number, date, day_name, status) VALUES " + placeholders,
     values
   );
 
-  const challenge = await query(
+  const challenge = await q(
     "SELECT id, user_id, title, description, total_days, start_date, reminder_time, status, created_at FROM challenges WHERE id = ?",
     [challengeId]
   );
-  const days = await query(
+  const days = await q(
     "SELECT id, challenge_id, day_number, date, day_name, status, completed_at FROM challenge_days WHERE challenge_id = ? ORDER BY date",
     [challengeId]
   );
@@ -75,17 +76,18 @@ export const createChallenge = asyncHandler(async (req, res) => {
 });
 
 export const listChallenges = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const userId = req.challengeUserId;
   const status = req.query.status || "active";
 
-  const challenges = await query(
+  const challenges = await q(
     "SELECT id, user_id, title, description, total_days, start_date, reminder_time, status, created_at FROM challenges WHERE user_id = ? AND status = ? ORDER BY created_at DESC",
     [userId, status]
   );
 
   const withProgress = await Promise.all(
     challenges.map(async (c) => {
-      const counts = await query(
+      const counts = await q(
         "SELECT status, COUNT(*) as cnt FROM challenge_days WHERE challenge_id = ? GROUP BY status",
         [c.id]
       );
@@ -107,16 +109,17 @@ export const listChallenges = asyncHandler(async (req, res) => {
 });
 
 export const getChallenge = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const userId = req.challengeUserId;
   const { id } = req.params;
 
-  const challenges = await query(
+  const challenges = await q(
     "SELECT id, user_id, title, description, total_days, start_date, reminder_time, status, created_at FROM challenges WHERE id = ? AND user_id = ?",
     [id, userId]
   );
   if (challenges.length === 0) return sendError(res, "Challenge not found", 404);
 
-  const days = await query(
+  const days = await q(
     "SELECT id, challenge_id, day_number, date, day_name, status, completed_at FROM challenge_days WHERE challenge_id = ? ORDER BY date",
     [id]
   );
@@ -138,14 +141,15 @@ export const getChallenge = asyncHandler(async (req, res) => {
 });
 
 export const updateChallengeReminder = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const userId = req.challengeUserId;
   const { id } = req.params;
   const { reminder_time } = req.body;
 
-  const existing = await query("SELECT id FROM challenges WHERE id = ? AND user_id = ?", [id, userId]);
+  const existing = await q("SELECT id FROM challenges WHERE id = ? AND user_id = ?", [id, userId]);
   if (existing.length === 0) return sendError(res, "Challenge not found", 404);
 
-  await query("UPDATE challenges SET reminder_time = ? WHERE id = ? AND user_id = ?", [
+  await q("UPDATE challenges SET reminder_time = ? WHERE id = ? AND user_id = ?", [
     reminder_time || null,
     id,
     userId,
@@ -154,10 +158,11 @@ export const updateChallengeReminder = asyncHandler(async (req, res) => {
 });
 
 export const markDayComplete = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const userId = req.challengeUserId;
   const { dayId } = req.params;
 
-  const day = await query(
+  const day = await q(
     "SELECT cd.id, cd.challenge_id, cd.date, cd.status, c.user_id FROM challenge_days cd JOIN challenges c ON c.id = cd.challenge_id WHERE cd.id = ?",
     [dayId]
   );
@@ -165,40 +170,41 @@ export const markDayComplete = asyncHandler(async (req, res) => {
   if (day[0].user_id !== userId) return sendError(res, "Forbidden", 403);
   if (day[0].status === "completed") return sendSuccess(res, null, "Already completed");
 
-  await query(
+  await q(
     "UPDATE challenge_days SET status = 'completed', completed_at = CURRENT_TIMESTAMP WHERE id = ?",
     [dayId]
   );
 
   const challengeId = day[0].challenge_id;
-  const counts = await query(
+  const counts = await q(
     "SELECT COUNT(*) as total FROM challenge_days WHERE challenge_id = ?",
     [challengeId]
   );
-  const completedCount = await query(
+  const completedCount = await q(
     "SELECT COUNT(*) as cnt FROM challenge_days WHERE challenge_id = ? AND status = 'completed'",
     [challengeId]
   );
   const total = counts[0].total;
   const completed = completedCount[0].cnt;
   if (total && completed >= total) {
-    await query("UPDATE challenges SET status = 'completed' WHERE id = ?", [challengeId]);
+    await q("UPDATE challenges SET status = 'completed' WHERE id = ?", [challengeId]);
   }
 
   return sendSuccess(res, null, "Day marked complete");
 });
 
 export const getDashboard = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const userId = req.challengeUserId;
 
-  const activeChallengesRaw = await query(
+  const activeChallengesRaw = await q(
     "SELECT id, title, total_days, start_date, reminder_time FROM challenges WHERE user_id = ? AND status = 'active' ORDER BY start_date DESC",
     [userId]
   );
 
   const activeChallenges = await Promise.all(
     activeChallengesRaw.map(async (ch) => {
-      const counts = await query(
+      const counts = await q(
         "SELECT status, COUNT(*) as cnt FROM challenge_days WHERE challenge_id = ? GROUP BY status",
         [ch.id]
       );
@@ -211,7 +217,7 @@ export const getDashboard = asyncHandler(async (req, res) => {
   const today = new Date().toISOString().slice(0, 10);
   let todayTodos = [];
   for (const ch of activeChallenges) {
-    const rows = await query(
+    const rows = await q(
       "SELECT id, day_number, date, day_name, status FROM challenge_days WHERE challenge_id = ? AND date = ?",
       [ch.id, today]
     );
@@ -220,7 +226,7 @@ export const getDashboard = asyncHandler(async (req, res) => {
     }
   }
 
-  const overall = await query(
+  const overall = await q(
     `SELECT 
       COUNT(DISTINCT c.id) as active_challenges,
       (SELECT COUNT(*) FROM challenge_days cd JOIN challenges c2 ON c2.id = cd.challenge_id WHERE c2.user_id = ? AND cd.status = 'completed') as total_completed_days,
@@ -229,24 +235,24 @@ export const getDashboard = asyncHandler(async (req, res) => {
     [userId, userId, userId]
   );
 
-  const missedTasks = await query(
+  const missedTasks = await q(
     `SELECT cd.id, cd.challenge_id, cd.date, cd.day_name, c.title as challenge_title
      FROM challenge_days cd JOIN challenges c ON c.id = cd.challenge_id
      WHERE c.user_id = ? AND cd.status = 'missed' ORDER BY cd.date DESC LIMIT 20`,
     [userId]
   );
 
-  const user = await query(
+  const user = await q(
     "SELECT id, name, email FROM challenge_users WHERE id = ?",
     [userId]
   );
 
   let investment_summary = { total_invested: 0, total_earnings: 0, upcoming_maturity: [], withdrawable_balance: 0 };
   try {
-    const [invTotal] = await query("SELECT COALESCE(SUM(amount), 0) AS total FROM investments WHERE user_id = ?", [userId]);
-    const withdrawals = await query("SELECT COALESCE(SUM(w.interest_earned), 0) AS earned FROM withdrawals w INNER JOIN investments i ON w.investment_id = i.id WHERE i.user_id = ?", [userId]);
-    const upcoming = await query("SELECT id, amount, maturity_date FROM investments WHERE user_id = ? AND status = 'ACTIVE' ORDER BY maturity_date ASC LIMIT 3", [userId]);
-    const activeRows = await query("SELECT i.amount, i.interest_percentage, i.lockin_days, i.start_date FROM investments i WHERE i.user_id = ? AND i.status = 'ACTIVE'", [userId]);
+    const [invTotal] = await q("SELECT COALESCE(SUM(amount), 0) AS total FROM investments WHERE user_id = ?", [userId]);
+    const withdrawals = await q("SELECT COALESCE(SUM(w.interest_earned), 0) AS earned FROM withdrawals w INNER JOIN investments i ON w.investment_id = i.id WHERE i.user_id = ?", [userId]);
+    const upcoming = await q("SELECT id, amount, maturity_date FROM investments WHERE user_id = ? AND status = 'ACTIVE' ORDER BY maturity_date ASC LIMIT 3", [userId]);
+    const activeRows = await q("SELECT i.amount, i.interest_percentage, i.lockin_days, i.start_date FROM investments i WHERE i.user_id = ? AND i.status = 'ACTIVE'", [userId]);
     let withdrawable = 0;
     const now = new Date();
     for (const r of activeRows) {
@@ -268,7 +274,7 @@ export const getDashboard = asyncHandler(async (req, res) => {
 
   let kyc_status = null;
   try {
-    const kycRows = await query("SELECT status FROM investment_kyc WHERE user_id = ?", [userId]);
+    const kycRows = await q("SELECT status FROM investment_kyc WHERE user_id = ?", [userId]);
     if (kycRows.length > 0) kyc_status = kycRows[0].status;
   } catch (_) {
     // investment_kyc may not exist
@@ -286,10 +292,11 @@ export const getDashboard = asyncHandler(async (req, res) => {
 });
 
 export const getReports = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const userId = req.challengeUserId;
   const { filter } = req.query; // daily | weekly | monthly | custom
 
-  const challenges = await query(
+  const challenges = await q(
     "SELECT id, title, total_days, start_date, status FROM challenges WHERE user_id = ? ORDER BY start_date DESC",
     [userId]
   );
@@ -306,7 +313,7 @@ export const getReports = asyncHandler(async (req, res) => {
   let runningStreak = 0;
 
   for (const c of challenges) {
-    const days = await query(
+    const days = await q(
       "SELECT date, status FROM challenge_days WHERE challenge_id = ? ORDER BY date",
       [c.id]
     );
@@ -352,7 +359,8 @@ export const getReports = asyncHandler(async (req, res) => {
 
 // Admin: list challenge users (id, name, email) for dropdown
 export const listUsersAdmin = asyncHandler(async (req, res) => {
-  const rows = await query(
+  const q = getTenantQuery(req);
+  const rows = await q(
     "SELECT id, name, email FROM challenge_users ORDER BY name ASC"
   );
   return sendSuccess(res, { users: rows });
@@ -360,10 +368,11 @@ export const listUsersAdmin = asyncHandler(async (req, res) => {
 
 // Admin: get challenge reports for a specific user (user_id in query)
 export const getReportsAdmin = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const userId = req.query.user_id;
   if (!userId) return sendError(res, "user_id is required", 400);
 
-  const challenges = await query(
+  const challenges = await q(
     "SELECT id, title, total_days, start_date, status FROM challenges WHERE user_id = ? ORDER BY start_date DESC",
     [userId]
   );
@@ -379,7 +388,7 @@ export const getReportsAdmin = asyncHandler(async (req, res) => {
   let runningStreak = 0;
 
   for (const c of challenges) {
-    const days = await query(
+    const days = await q(
       "SELECT date, status FROM challenge_days WHERE challenge_id = ? ORDER BY date",
       [c.id]
     );
@@ -423,13 +432,14 @@ export const getReportsAdmin = asyncHandler(async (req, res) => {
 });
 
 export const getSettings = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const userId = req.challengeUserId;
-  const rows = await query(
+  const rows = await q(
     "SELECT reminder_enabled, eod_reminder_enabled, missed_alert_enabled, timezone FROM challenge_user_settings WHERE user_id = ?",
     [userId]
   );
   if (rows.length === 0) {
-    await query("INSERT INTO challenge_user_settings (user_id) VALUES (?)", [userId]);
+    await q("INSERT INTO challenge_user_settings (user_id) VALUES (?)", [userId]);
     return sendSuccess(res, {
       reminder_enabled: true,
       eod_reminder_enabled: true,
@@ -441,6 +451,7 @@ export const getSettings = asyncHandler(async (req, res) => {
 });
 
 export const updateSettings = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const userId = req.challengeUserId;
   const {
     reminder_enabled = true,
@@ -454,7 +465,7 @@ export const updateSettings = asyncHandler(async (req, res) => {
   const m = missed_alert_enabled ? 1 : 0;
   const t = timezone || "UTC";
 
-  await query(
+  await q(
     `INSERT INTO challenge_user_settings (user_id, reminder_enabled, eod_reminder_enabled, missed_alert_enabled, timezone)
      VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE
      reminder_enabled = VALUES(reminder_enabled),
@@ -467,7 +478,8 @@ export const updateSettings = asyncHandler(async (req, res) => {
 });
 
 export const deleteAccount = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const userId = req.challengeUserId;
-  await query("DELETE FROM challenge_users WHERE id = ?", [userId]);
+  await q("DELETE FROM challenge_users WHERE id = ?", [userId]);
   return sendSuccess(res, null, "Account deleted");
 });

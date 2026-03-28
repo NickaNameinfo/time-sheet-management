@@ -1,4 +1,4 @@
-import { query } from "../config/database.js";
+import { getTenantQuery } from "../config/database.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
@@ -35,6 +35,7 @@ const calculateEndDate = (startDate, timePeriod) => {
 
 // Create a new project plan
 export const createProjectPlan = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const {
     plan_name,
     project_id,
@@ -52,7 +53,7 @@ export const createProjectPlan = asyncHandler(async (req, res) => {
 
   // Get project details to check allotted hours and target date
   const projectSql = "SELECT allotatedHours, targetDate FROM project WHERE id = ?";
-  const projects = await query(projectSql, [project_id]);
+  const projects = await q(projectSql, [project_id]);
   
   if (projects.length === 0) {
     return sendError(res, "Project not found", 404);
@@ -68,7 +69,7 @@ export const createProjectPlan = asyncHandler(async (req, res) => {
     FROM project_plans 
     WHERE project_id = ? AND status != 'cancelled'
   `;
-  const existingPlans = await query(existingPlansSql, [project_id]);
+  const existingPlans = await q(existingPlansSql, [project_id]);
   const existingPlanHours = parseFloat(existingPlans[0]?.total_plan_hours || 0);
   const remainingHours = projectAllottedHours - existingPlanHours;
   
@@ -110,7 +111,7 @@ export const createProjectPlan = asyncHandler(async (req, res) => {
     req.user?.id || null,
   ];
 
-  const planResult = await query(planSql, planValues);
+  const planResult = await q(planSql, planValues);
   const planId = planResult.insertId;
 
   // Assign employees if provided
@@ -123,25 +124,32 @@ export const createProjectPlan = asyncHandler(async (req, res) => {
 
     for (const employeeId of employee_ids) {
       const hours = employee_hours[employeeId] || 0;
-      await query(employeeSql, [planId, employeeId, hours, start_date]);
+      await q(employeeSql, [planId, employeeId, hours, start_date]);
     }
   }
 
   return sendSuccess(res, { planId }, "Project plan created successfully");
 });
 
-// Get all project plans
+// Get all project plans (with utilized hours and progress from workdetails)
 export const getProjectPlans = asyncHandler(async (req, res) => {
-  const { project_id, status, time_period } = req.query;
+  const q = getTenantQuery(req);
+  const { project_id, status, time_period, employee_id, plan_id } = req.query;
   
   let sql = `
     SELECT 
       pp.*,
       p.projectName,
       p.projectNo,
+      p.referenceNo,
       e.employeeName as created_by_name,
       COUNT(DISTINCT ppe.employee_id) as assigned_employees_count,
-      COALESCE(SUM(ppe.allotted_hours), 0) as total_assigned_hours
+      COALESCE(SUM(ppe.allotted_hours), 0) as total_assigned_hours,
+      (SELECT COALESCE(SUM(CAST(w.totalHours AS DECIMAL(10,2))), 0)
+       FROM workdetails w
+       WHERE (w.projectNo = p.projectNo OR w.referenceNo = p.referenceNo OR w.projectName = p.projectName)
+         AND DATE(w.sentDate) >= pp.start_date AND DATE(w.sentDate) <= pp.end_date
+      ) as utilized_hours
     FROM project_plans pp
     LEFT JOIN project p ON pp.project_id = p.id
     LEFT JOIN employee e ON pp.created_by = e.id
@@ -166,19 +174,38 @@ export const getProjectPlans = asyncHandler(async (req, res) => {
     values.push(time_period);
   }
   
+  if (employee_id) {
+    conditions.push("pp.id IN (SELECT project_plan_id FROM project_plan_employees WHERE employee_id = ? AND status != 'removed')");
+    values.push(employee_id);
+  }
+  
+  if (plan_id) {
+    conditions.push("pp.id = ?");
+    values.push(plan_id);
+  }
+  
   if (conditions.length > 0) {
     sql += " WHERE " + conditions.join(" AND ");
   }
   
-  sql += " GROUP BY pp.id ORDER BY pp.created_at DESC";
+  sql += " GROUP BY pp.id ORDER BY FIELD(pp.status, 'active', 'draft', 'completed', 'cancelled'), pp.created_at DESC";
   
-  const plans = await query(sql, values);
+  const plans = await q(sql, values);
   
-  return sendSuccess(res, plans);
+  // Add progress_percent (utilized / total_allotted_hours * 100)
+  const plansWithProgress = plans.map((plan) => {
+    const total = parseFloat(plan.total_allotted_hours) || 0;
+    const utilized = parseFloat(plan.utilized_hours) || 0;
+    const progress_percent = total > 0 ? Math.min(100, Math.round((utilized / total) * 100)) : 0;
+    return { ...plan, progress_percent };
+  });
+  
+  return sendSuccess(res, plansWithProgress);
 });
 
 // Get project plan by ID with employees
 export const getProjectPlanById = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { id } = req.params;
   
   // Get plan details
@@ -194,7 +221,7 @@ export const getProjectPlanById = asyncHandler(async (req, res) => {
     WHERE pp.id = ?
   `;
   
-  const plans = await query(planSql, [id]);
+  const plans = await q(planSql, [id]);
   
   if (plans.length === 0) {
     return sendError(res, "Project plan not found", 404);
@@ -216,14 +243,61 @@ export const getProjectPlanById = asyncHandler(async (req, res) => {
     ORDER BY ppe.assigned_date DESC
   `;
   
-  const employees = await query(employeesSql, [id]);
+  const employees = await q(employeesSql, [id]);
   plan.employees = employees;
   
   return sendSuccess(res, plan);
 });
 
+// Get plan utilization (utilized hours + log details from workdetails)
+export const getPlanUtilization = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
+  const { id } = req.params;
+  
+  const planSql = `
+    SELECT pp.id, pp.start_date, pp.end_date, pp.total_allotted_hours,
+           p.projectNo, p.referenceNo, p.projectName
+    FROM project_plans pp
+    LEFT JOIN project p ON pp.project_id = p.id
+    WHERE pp.id = ?
+  `;
+  const plans = await q(planSql, [id]);
+  if (plans.length === 0) return sendError(res, "Project plan not found", 404);
+  
+  const plan = plans[0];
+  const totalAllotted = parseFloat(plan.total_allotted_hours) || 0;
+  
+  // Match workdetails by project (projectNo, referenceNo, projectName) and date range
+  const logSql = `
+    SELECT w.id, w.employeeName, w.userName, w.sentDate, w.clockInTime, w.clockOutTime,
+           CAST(w.totalHours AS DECIMAL(10,2)) as totalHours, w.status, w.projectName, w.projectNo
+    FROM workdetails w
+    WHERE (w.projectNo = ? OR w.referenceNo = ? OR w.projectName = ?)
+      AND DATE(w.sentDate) >= ? AND DATE(w.sentDate) <= ?
+    ORDER BY w.sentDate DESC, w.id DESC
+  `;
+  const logRows = await q(logSql, [
+    plan.projectNo || '',
+    plan.referenceNo || '',
+    plan.projectName || '',
+    plan.start_date,
+    plan.end_date,
+  ]);
+  
+  const utilizedHours = logRows.reduce((sum, row) => sum + (parseFloat(row.totalHours) || 0), 0);
+  const progressPercent = totalAllotted > 0 ? Math.min(100, Math.round((utilizedHours / totalAllotted) * 100)) : 0;
+  
+  return sendSuccess(res, {
+    utilized_hours: Math.round(utilizedHours * 100) / 100,
+    total_allotted_hours: totalAllotted,
+    progress_percent: progressPercent,
+    log_details: logRows,
+  });
+});
+
 // Update project plan
 export const updateProjectPlan = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { id } = req.params;
   const {
     plan_name,
@@ -236,7 +310,7 @@ export const updateProjectPlan = asyncHandler(async (req, res) => {
   
   // Check if plan exists
   const checkSql = "SELECT * FROM project_plans WHERE id = ?";
-  const existing = await query(checkSql, [id]);
+  const existing = await q(checkSql, [id]);
   
   if (existing.length === 0) {
     return sendError(res, "Project plan not found", 404);
@@ -261,7 +335,7 @@ export const updateProjectPlan = asyncHandler(async (req, res) => {
       
       // Get project target date to limit end date
       const projectSql = "SELECT targetDate FROM project WHERE id = ?";
-      const projects = await query(projectSql, [existing[0].project_id]);
+      const projects = await q(projectSql, [existing[0].project_id]);
       if (projects.length > 0 && projects[0].targetDate) {
         const projectTargetDate = new Date(projects[0].targetDate);
         const calculatedEndDate = new Date(end_date);
@@ -285,7 +359,7 @@ export const updateProjectPlan = asyncHandler(async (req, res) => {
     
     // Get project target date to limit end date
     const projectSql = "SELECT targetDate FROM project WHERE id = ?";
-    const projects = await query(projectSql, [existing[0].project_id]);
+    const projects = await q(projectSql, [existing[0].project_id]);
     if (projects.length > 0 && projects[0].targetDate) {
       const projectTargetDate = new Date(projects[0].targetDate);
       const calculatedEndDate = new Date(end_date);
@@ -301,7 +375,7 @@ export const updateProjectPlan = asyncHandler(async (req, res) => {
   // Validate total_allotted_hours doesn't exceed project remaining hours
   if (total_allotted_hours !== undefined) {
     const projectSql = "SELECT allotatedHours FROM project WHERE id = ?";
-    const projects = await query(projectSql, [existing[0].project_id]);
+    const projects = await q(projectSql, [existing[0].project_id]);
     
     if (projects.length > 0) {
       const projectAllottedHours = parseFloat(projects[0].allotatedHours) || 0;
@@ -312,7 +386,7 @@ export const updateProjectPlan = asyncHandler(async (req, res) => {
         FROM project_plans 
         WHERE project_id = ? AND id != ? AND status != 'cancelled'
       `;
-      const existingPlans = await query(existingPlansSql, [existing[0].project_id, id]);
+      const existingPlans = await q(existingPlansSql, [existing[0].project_id, id]);
       const existingPlanHours = parseFloat(existingPlans[0]?.total_plan_hours || 0);
       const remainingHours = projectAllottedHours - existingPlanHours;
       
@@ -348,19 +422,20 @@ export const updateProjectPlan = asyncHandler(async (req, res) => {
   values.push(id);
   
   const sql = `UPDATE project_plans SET ${updateFields.join(", ")} WHERE id = ?`;
-  await query(sql, values);
+  await q(sql, values);
   
   return sendSuccess(res, null, "Project plan updated successfully");
 });
 
 // Assign employees to project plan
 export const assignEmployeesToPlan = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { id } = req.params;
   const { employee_ids = [], employee_hours = {}, remove_employee_ids = [] } = req.body;
   
   // Check if plan exists
   const checkSql = "SELECT * FROM project_plans WHERE id = ?";
-  const existing = await query(checkSql, [id]);
+  const existing = await q(checkSql, [id]);
   
   if (existing.length === 0) {
     return sendError(res, "Project plan not found", 404);
@@ -375,7 +450,7 @@ export const assignEmployeesToPlan = asyncHandler(async (req, res) => {
       SET status = 'removed' 
       WHERE project_plan_id = ? AND employee_id IN (?)
     `;
-    await query(removeSql, [id, remove_employee_ids]);
+    await q(removeSql, [id, remove_employee_ids]);
   }
   
   // Add new employees
@@ -392,7 +467,7 @@ export const assignEmployeesToPlan = asyncHandler(async (req, res) => {
 
     for (const employeeId of employee_ids) {
       const hours = employee_hours[employeeId] || 0;
-      await query(employeeSql, [id, employeeId, hours, plan.start_date]);
+      await q(employeeSql, [id, employeeId, hours, plan.start_date]);
     }
   }
   
@@ -401,11 +476,12 @@ export const assignEmployeesToPlan = asyncHandler(async (req, res) => {
 
 // Get employees from a project (for assignment)
 export const getProjectEmployees = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { project_id } = req.params;
   
   // First, get the project to check assignedEmployees
   const projectSql = "SELECT assignedEmployees FROM project WHERE id = ?";
-  const projects = await query(projectSql, [project_id]);
+  const projects = await q(projectSql, [project_id]);
   
   let employeeIds = [];
   
@@ -424,7 +500,7 @@ export const getProjectEmployees = asyncHandler(async (req, res) => {
   let projectEmployees = [];
   try {
     const projectEmpSql = "SELECT employee_id FROM project_employees WHERE project_id = ?";
-    projectEmployees = await query(projectEmpSql, [project_id]);
+    projectEmployees = await q(projectEmpSql, [project_id]);
     projectEmployees.forEach(pe => {
       if (!employeeIds.includes(pe.employee_id)) {
         employeeIds.push(pe.employee_id);
@@ -453,7 +529,7 @@ export const getProjectEmployees = asyncHandler(async (req, res) => {
     WHERE id IN (${placeholders})
   `;
   
-  const employees = await query(sql, employeeIds);
+  const employees = await q(sql, employeeIds);
   
   return sendSuccess(res, employees);
 });
@@ -462,6 +538,7 @@ export const getProjectEmployees = asyncHandler(async (req, res) => {
 // Matches project_plans + project_plan_employees: returns all assignments for the employee.
 // employee_id can be employee.id (DB pk) or employee.EMPID.
 export const getEmployeeAssignedProjects = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { employee_id } = req.query;
   
   if (!employee_id) {
@@ -475,7 +552,7 @@ export const getEmployeeAssignedProjects = asyncHandler(async (req, res) => {
 
   // Resolve to employee.id (project_plan_employees.employee_id references employee.id)
   let employeeDbId = paramId;
-  const lookup = await query(
+  const lookup = await q(
     "SELECT id FROM employee WHERE id = ? OR EMPID = ? LIMIT 1",
     [paramId, paramId]
   );
@@ -517,17 +594,18 @@ export const getEmployeeAssignedProjects = asyncHandler(async (req, res) => {
     ORDER BY pp.start_date DESC, p.projectName ASC
   `;
   
-  const assignedProjects = await query(sql, [employeeDbId]);
+  const assignedProjects = await q(sql, [employeeDbId]);
   
   return sendSuccess(res, assignedProjects);
 });
 
 // Delete project plan
 export const deleteProjectPlan = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { id } = req.params;
   
   const sql = "DELETE FROM project_plans WHERE id = ?";
-  await query(sql, [id]);
+  await q(sql, [id]);
   
   return sendSuccess(res, null, "Project plan deleted successfully");
 });

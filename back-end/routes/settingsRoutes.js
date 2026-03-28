@@ -32,62 +32,64 @@ import {
   deleteRole,
   getAppSettings,
   updateAppSettings,
+  getAdminTrailVersionCheck,
 } from "../controllers/settingsController.js";
 import { verifyUser } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// Settings/Updates
-router.get("/settings", getSettings);
-router.post("/create/updates", createUpdate);
-router.delete("/updates/delete/:id", deleteUpdate);
+// Settings/Updates (tenant data – use company DB for company login)
+router.get("/settings", verifyUser, getSettings);
+router.post("/create/updates", verifyUser, createUpdate);
+router.delete("/updates/delete/:id", verifyUser, deleteUpdate);
 
 // Discipline
-router.get("/discipline", getDisciplines);
-router.post("/create/discipline", createDiscipline);
-router.delete("/discipline/delete/:id", deleteDiscipline);
+router.get("/discipline", verifyUser, getDisciplines);
+router.post("/create/discipline", verifyUser, createDiscipline);
+router.delete("/discipline/delete/:id", verifyUser, deleteDiscipline);
 
 // Designation
-router.get("/designation", getDesignations);
-router.post("/create/designation", createDesignation);
-router.delete("/designation/delete/:id", deleteDesignation);
+router.get("/designation", verifyUser, getDesignations);
+router.post("/create/designation", verifyUser, createDesignation);
+router.delete("/designation/delete/:id", verifyUser, deleteDesignation);
 
 // Area of Work
-router.get("/areaofwork", getAreaOfWork);
-router.post("/create/areaofwork", createAreaOfWork);
-router.put("/areaofwork/update/:id", updateAreaOfWork);
-router.delete("/areaofwork/delete/:id", deleteAreaOfWork);
+router.get("/areaofwork", verifyUser, getAreaOfWork);
+router.post("/create/areaofwork", verifyUser, createAreaOfWork);
+router.put("/areaofwork/update/:id", verifyUser, updateAreaOfWork);
+router.delete("/areaofwork/delete/:id", verifyUser, deleteAreaOfWork);
 
 // Variation
-router.get("/variation", getVariations);
-router.post("/create/variation", createVariation);
-router.delete("/variation/delete/:id", deleteVariation);
+router.get("/variation", verifyUser, getVariations);
+router.post("/create/variation", verifyUser, createVariation);
+router.delete("/variation/delete/:id", verifyUser, deleteVariation);
 
 // Admin Count
-router.get("/adminCount", getAdminCount);
+router.get("/adminCount", verifyUser, getAdminCount);
 
 // Menu Permissions
-router.get("/menu-permissions", getMenuPermissions);
-router.get("/menu-permissions/role", getMenuPermissionsByRole);
+router.get("/menu-permissions", verifyUser, getMenuPermissions);
+router.get("/menu-permissions/role", verifyUser, getMenuPermissionsByRole);
 router.get("/menu-permissions/my-permissions", verifyUser, getMenuPermissionsByEmployee); // Get menus for logged-in employee
 router.put("/menu-permissions/:id", verifyUser, updateMenuPermission);
 router.put("/menu-permissions/admin/bulk", verifyUser, bulkUpdateMenuPermissions);
 
 // Employee Menu Permissions
-router.get("/menu-permissions/employee", getEmployeeMenuPermissions);
-router.post("/menu-permissions/employee", updateEmployeeMenuPermission);
-router.put("/menu-permissions/employee/bulk", bulkUpdateEmployeeMenuPermissions);
-router.delete("/menu-permissions/employee", deleteEmployeeMenuPermission);
+router.get("/menu-permissions/employee", verifyUser, getEmployeeMenuPermissions);
+router.post("/menu-permissions/employee", verifyUser, updateEmployeeMenuPermission);
+router.put("/menu-permissions/employee/bulk", verifyUser, bulkUpdateEmployeeMenuPermissions);
+router.delete("/menu-permissions/employee", verifyUser, deleteEmployeeMenuPermission);
 
 // Roles Management
-router.get("/roles", getRoles);
-router.post("/create/role", createRole);
-router.put("/role/update/:id", updateRole);
-router.delete("/role/delete/:id", deleteRole);
+router.get("/roles", verifyUser, getRoles);
+router.post("/create/role", verifyUser, createRole);
+router.put("/role/update/:id", verifyUser, updateRole);
+router.delete("/role/delete/:id", verifyUser, deleteRole);
 
 // App Settings
-router.get("/settings/app-settings", getAppSettings);
+router.get("/settings/app-settings", verifyUser, getAppSettings);
 router.put("/settings/app-settings", verifyUser, updateAppSettings);
+router.get("/settings/app-settings/admin-trail-version-check", verifyUser, getAdminTrailVersionCheck);
 
 export default router;
 

@@ -11,7 +11,7 @@ import { verifyUser } from "../middleware/auth.js";
 
 const router = express.Router();
 
-router.get("/overtime/rules", getOTRules);
+router.get("/overtime/rules", verifyUser, getOTRules);
 router.post("/overtime/rules", verifyUser, createOTRule);
 router.post("/overtime/calculate", verifyUser, calculateOvertime);
 router.get("/overtime/records", verifyUser, getOTRecords);

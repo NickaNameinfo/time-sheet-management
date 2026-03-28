@@ -1,4 +1,4 @@
-import { query } from "../config/database.js";
+import { getTenantQuery } from "../config/database.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
@@ -12,7 +12,7 @@ export const calculateProductivityForEmployee = async (employeeId, date) => {
     WHERE id = ? OR EMPID = ?
     LIMIT 1
   `;
-  const employeeResult = await query(employeeSql, [employeeId, employeeId]);
+  const employeeResult = await q(employeeSql, [employeeId, employeeId]);
   
   if (employeeResult.length === 0) {
     throw new Error(`Employee not found: ${employeeId}`);
@@ -45,7 +45,7 @@ export const calculateProductivityForEmployee = async (employeeId, date) => {
     AND totalHours != ''
     AND CAST(totalHours AS DECIMAL(10,2)) > 0
   `;
-  const workData = await query(workSql, [
+  const workData = await q(workSql, [
     employee.EMPID || employee.id,
     String(employee.EMPID || employee.id), // Try as string too
     employee.userName,
@@ -83,7 +83,7 @@ export const calculateProductivityForEmployee = async (employeeId, date) => {
 
   // Check if metric exists
   const checkSql = "SELECT id FROM productivity_metrics WHERE employee_id = ? AND metric_date = ?";
-  const existing = await query(checkSql, [actualEmployeeId, date]);
+  const existing = await q(checkSql, [actualEmployeeId, date]);
 
   if (existing.length > 0) {
     // Update
@@ -98,7 +98,7 @@ export const calculateProductivityForEmployee = async (employeeId, date) => {
         task_completion_rate = ?
       WHERE employee_id = ? AND metric_date = ?
     `;
-    await query(updateSql, [
+    await q(updateSql, [
       totalHours,
       productiveHours,
       idleTimeMinutes,
@@ -118,7 +118,7 @@ export const calculateProductivityForEmployee = async (employeeId, date) => {
         productivity_score, task_completion_rate
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
-    await query(insertSql, [
+    await q(insertSql, [
       actualEmployeeId,
       date,
       totalHours,
@@ -162,6 +162,7 @@ export const calculateProductivity = asyncHandler(async (req, res) => {
 
 // Get Productivity Metrics
 export const getProductivityMetrics = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { employeeId, startDate, endDate, teamId } = req.query;
 
   let sql = `
@@ -188,7 +189,7 @@ export const getProductivityMetrics = asyncHandler(async (req, res) => {
   if (teamId) {
     // Get team members by matching tlName in workdetails with team lead
     const teamLeadSql = "SELECT leadName, EMPID FROM team_lead WHERE id = ? LIMIT 1";
-    const teamLeadResult = await query(teamLeadSql, [teamId]);
+    const teamLeadResult = await q(teamLeadSql, [teamId]);
     
     if (teamLeadResult.length > 0) {
       const teamLead = teamLeadResult[0];
@@ -214,12 +215,13 @@ export const getProductivityMetrics = asyncHandler(async (req, res) => {
 
   sql += " ORDER BY pm.metric_date DESC, pm.productivity_score DESC";
 
-  const results = await query(sql, params);
+  const results = await q(sql, params);
   return sendSuccess(res, results);
 });
 
 // Get Team Productivity
 export const getTeamProductivity = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { teamLeadId, startDate, endDate } = req.query;
 
   if (!teamLeadId) {
@@ -228,7 +230,7 @@ export const getTeamProductivity = asyncHandler(async (req, res) => {
 
   // Get team lead info first
   const teamLeadSql = "SELECT id, leadName, EMPID FROM team_lead WHERE id = ? LIMIT 1";
-  const teamLeadResult = await query(teamLeadSql, [teamLeadId]);
+  const teamLeadResult = await q(teamLeadSql, [teamLeadId]);
   
   if (teamLeadResult.length === 0) {
     return sendError(res, "Team lead not found", 404);
@@ -259,7 +261,7 @@ export const getTeamProductivity = asyncHandler(async (req, res) => {
     OR e.EMPID = ?
     OR (e.role LIKE '%TL%' AND e.EMPID = ?)
   `;
-  const teamMembers = await query(teamSql, [
+  const teamMembers = await q(teamSql, [
     teamLeadName,
     teamLeadId.toString(),
     teamLeadEmpId || teamLeadId,
@@ -280,7 +282,7 @@ export const getTeamProductivity = asyncHandler(async (req, res) => {
       WHERE employee_id = ?
       AND metric_date BETWEEN ? AND ?
     `;
-    const metrics = await query(metricsSql, [member.id, startDate || "1900-01-01", endDate || "9999-12-31"]);
+    const metrics = await q(metricsSql, [member.id, startDate || "1900-01-01", endDate || "9999-12-31"]);
 
     if (metrics[0] && metrics[0].days_worked > 0) {
       teamMetrics.push({
@@ -321,6 +323,7 @@ export const getTeamProductivity = asyncHandler(async (req, res) => {
 
 // Get Productivity Trends
 export const getProductivityTrends = asyncHandler(async (req, res) => {
+  const q = getTenantQuery(req);
   const { employeeId, period } = req.query; // period: 'daily', 'weekly', 'monthly'
 
   if (!employeeId) {
@@ -352,7 +355,7 @@ export const getProductivityTrends = asyncHandler(async (req, res) => {
     LIMIT 12
   `;
 
-  const results = await query(sql, [employeeId]);
+  const results = await q(sql, [employeeId]);
   return sendSuccess(res, results);
 });
 
