@@ -479,12 +479,77 @@ export const dashboard = asyncHandler(async (req, res) => {
       }
     }
   }
+
+  let employeeImage = null;
+  let dashboardEmployeeName =
+    req.employeeName != null && String(req.employeeName).trim() !== ""
+      ? String(req.employeeName).trim()
+      : null;
+
+  let employeeRecordId =
+    req.id != null && req.id !== "" ? Number(req.id) : null;
+  if (employeeRecordId != null && Number.isNaN(employeeRecordId)) employeeRecordId = null;
+
+  if (req.id) {
+    try {
+      const qfn = req.isCompanyUser ? companyQuery : query;
+      const rows = await qfn(
+        "SELECT employeeName, employeeImage FROM employee WHERE id = ? LIMIT 1",
+        [req.id]
+      );
+      const r = rows?.[0];
+      if (r) {
+        const img = r.employeeImage != null ? String(r.employeeImage).trim() : "";
+        if (img && img !== "default-image-filename.jpg") employeeImage = img;
+        if (!dashboardEmployeeName && r.employeeName) {
+          const n = String(r.employeeName).trim();
+          if (n) dashboardEmployeeName = n;
+        }
+      }
+    } catch (e) {
+      if (e?.code !== "ER_NO_SUCH_TABLE") throw e;
+    }
+  }
+
+  // Company portal JWT has no employee id; always resolve name + photo from tenant employee row by login email.
+  if (req.isCompanyUser && req.userName) {
+    const em = String(req.userName).trim();
+    const imgSql = `SELECT id, employeeName, employeeImage FROM employee
+      WHERE LOWER(TRIM(employeeEmail)) = LOWER(TRIM(?)) OR LOWER(TRIM(userName)) = LOWER(TRIM(?))
+      ORDER BY id DESC LIMIT 1`;
+    let row = null;
+    try {
+      const t = await companyQuery(imgSql, [em, em]);
+      if (t?.length) row = t[0];
+    } catch {
+      // ignore
+    }
+    if (!row) {
+      try {
+        const p = await query(imgSql, [em, em]);
+        if (p?.length) row = p[0];
+      } catch (e) {
+        if (e?.code !== "ER_NO_SUCH_TABLE") throw e;
+      }
+    }
+    if (row) {
+      const rid = row.id != null ? Number(row.id) : null;
+      if (rid != null && !Number.isNaN(rid)) employeeRecordId = rid;
+      const img = row.employeeImage != null ? String(row.employeeImage).trim() : "";
+      if (img && img !== "default-image-filename.jpg") employeeImage = img;
+      const n = row.employeeName != null ? String(row.employeeName).trim() : "";
+      if (n) dashboardEmployeeName = n;
+    }
+  }
+
   return sendSuccess(res, {
     role: req.role,
     id: req.id,
+    employeeRecordId: employeeRecordId ?? null,
     employeeId: req.employeeId,
     userName: req.userName,
-    employeeName: req.employeeName,
+    employeeName: dashboardEmployeeName,
+    employeeImage,
     designation: req.designation,
     dateOfJoining: req.dateOfJoining,
     discipline: req.discipline,

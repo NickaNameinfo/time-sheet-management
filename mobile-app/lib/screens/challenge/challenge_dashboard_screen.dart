@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:timesheet_mobile/providers/challenge_auth_provider.dart';
@@ -8,6 +9,7 @@ import 'package:timesheet_mobile/screens/challenge/challenge_reports_screen.dart
 import 'package:timesheet_mobile/screens/challenge/challenge_profile_screen.dart';
 import 'package:timesheet_mobile/screens/challenge/challenge_settings_screen.dart';
 import 'package:timesheet_mobile/services/investment_api_service.dart';
+import 'package:timesheet_mobile/services/notification_service.dart';
 import 'package:timesheet_mobile/screens/investment/investment_dashboard_screen.dart';
 import 'package:timesheet_mobile/screens/investment/investment_theme.dart';
 import 'package:timesheet_mobile/screens/investment/referral_screen.dart';
@@ -40,6 +42,7 @@ class _ChallengeDashboardScreenState extends State<ChallengeDashboardScreen> {
   Map<String, dynamic>? _referralStats;
   bool _loading = true;
   String? _error;
+  bool _challengesReminderPopupShown = false;
 
   @override
   void initState() {
@@ -82,7 +85,26 @@ class _ChallengeDashboardScreenState extends State<ChallengeDashboardScreen> {
         _referralStats = referralStats;
         _loading = false;
       });
+      // Request permission so challenge reminders fire when app is closed (Android exact alarm)
+      await NotificationService.requestReminderPermissions();
+      // Schedule task reminder alarms at each challenge's reminder time (works when app is closed)
+      final activeList = data['active_challenges'] as List? ?? [];
+      await NotificationService.scheduleChallengeTaskReminders(activeList);
+      // Show challenges reminder popup once after login when dashboard loads
+      if (mounted && !_challengesReminderPopupShown) {
+        _challengesReminderPopupShown = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showChallengesReminderPopup();
+        });
+      }
     } catch (e) {
+      // 401 is handled by ChallengeApiService: session cleared and redirect to login with popup
+      final isSessionExpired = e is SessionExpiredException ||
+          (e is DioException && e.error is SessionExpiredException);
+      if (isSessionExpired) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
       if (mounted) setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
         _loading = false;
@@ -95,6 +117,32 @@ class _ChallengeDashboardScreenState extends State<ChallengeDashboardScreen> {
     if (v is int) return v.toDouble();
     if (v is double) return v;
     return double.tryParse(v.toString()) ?? 0;
+  }
+
+  void _showChallengesReminderPopup() {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.track_changes_rounded, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 8),
+            const Text('Challenges reminder'),
+          ],
+        ),
+        content: const Text(
+          'Don\'t forget to complete your daily challenges today! Stay on track with your goals.',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -249,8 +297,8 @@ class _ChallengeDashboardScreenState extends State<ChallengeDashboardScreen> {
     final totalEarnings = (inv != null ? double.tryParse(inv['total_earnings']?.toString() ?? '') : null) ?? 0.0;
     final upcoming = inv?['upcoming_maturity'] as List? ?? [];
     final format = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
-    const investedBlue = Color(0xFF2563EB);
-    const earningsGreen = Color(0xFF16A34A);
+    const investedBlue = InvestmentTheme.kPrimary;
+    const earningsGreen = InvestmentTheme.kSuccess;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -417,8 +465,15 @@ class _ChallengeDashboardScreenState extends State<ChallengeDashboardScreen> {
     final active = (overall['active_challenges'] ?? 0) as int;
     final completed = (overall['total_completed_days'] ?? 0) as int;
     final missed = (overall['total_missed_days'] ?? 0) as int;
-    final totalDays = completed + missed;
-    final progressPercent = totalDays > 0 ? (completed / totalDays * 100).round() : 0.0;
+    // Progress = completed days out of total expected days across all active challenges (includes pending)
+    final list = _data?['active_challenges'] as List? ?? [];
+    int totalExpectedDays = 0;
+    for (final c in list) {
+      totalExpectedDays += (c['total_days'] ?? 0) as int;
+    }
+    final progressPercent = totalExpectedDays > 0
+        ? (completed / totalExpectedDays * 100).round()
+        : (completed + missed > 0 ? (completed / (completed + missed) * 100).round() : 0);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -449,7 +504,7 @@ class _ChallengeDashboardScreenState extends State<ChallengeDashboardScreen> {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _summaryChip('Missed', missed.toString(), Icons.schedule_rounded, Colors.orange),
+                child: _summaryChip('Missed', missed.toString(), Icons.schedule_rounded, InvestmentTheme.kAccent),
               ),
             ],
           ),

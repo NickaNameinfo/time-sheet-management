@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' show Platform;
 import 'package:flutter/services.dart';
 // import 'package:firebase_core/firebase_core.dart'; // Uncomment when Firebase is configured
 // import 'package:hive_flutter/hive_flutter.dart'; // Only needed for mobile platforms
@@ -16,8 +17,12 @@ import 'package:timesheet_mobile/services/notification_service.dart';
 import 'package:timesheet_mobile/services/offline_service.dart';
 import 'package:timesheet_mobile/services/background_timer_service.dart';
 import 'package:timesheet_mobile/screens/splash_screen.dart';
-import 'package:timesheet_mobile/utils/app_config.dart';
+import 'package:timesheet_mobile/theme/app_brand_colors.dart';
+import 'package:timesheet_mobile/screens/challenge/challenge_login_screen.dart';
+import 'package:timesheet_mobile/services/challenge_api_service.dart';
 import 'package:logger/logger.dart';
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -81,8 +86,47 @@ void main() async {
     logger.e('Initialization error: $e');
     // Continue anyway - app should still work
   }
-  
+
+  // When Challenge API returns 401, clear session and redirect to Challenge login with popup
+  ChallengeApiService.onSessionExpired = () {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final context = navigatorKey.currentContext;
+      if (context == null) return;
+      await context.read<ChallengeAuthProvider>().logout();
+      if (!context.mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Session expired'),
+          content: const Text(
+            'You have been logged out. Please log in again to continue.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                if (!context.mounted) return;
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const ChallengeLoginScreen()),
+                  (route) => false,
+                );
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    });
+  };
+
   runApp(const MyApp());
+  // Ask for notification + alarm permission after first frame so the system dialog actually shows (Android 13+)
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    if (kIsWeb || !Platform.isAndroid) return;
+    await Future.delayed(const Duration(milliseconds: 800));
+    await NotificationService.requestReminderPermissions();
+  });
 }
 
 class MyApp extends StatelessWidget {
@@ -102,23 +146,35 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ChallengeAuthProvider()),
       ],
       child: MaterialApp(
-        title: 'Time Sheet Management',
+        navigatorKey: navigatorKey,
+        title: 'My Self Management',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF6366F1), // Modern indigo
-            brightness: Brightness.light,
-            primary: const Color(0xFF6366F1),
-            secondary: const Color(0xFF8B5CF6),
+          colorScheme: ColorScheme.light(
+            primary: AppBrandColors.blue,
+            onPrimary: Colors.white,
+            primaryContainer: Color(0xFFDCE8FF),
+            onPrimaryContainer: Color(0xFF0D2D66),
+            secondary: AppBrandColors.green,
+            onSecondary: Colors.white,
+            secondaryContainer: Color(0xFFD4F0D6),
+            onSecondaryContainer: Color(0xFF1B4332),
+            tertiary: AppBrandColors.amber,
+            onTertiary: Color(0xFF3D3000),
+            tertiaryContainer: Color(0xFFFFF3CD),
+            onTertiaryContainer: Color(0xFF5C4A00),
             surface: Colors.white,
-            background: const Color(0xFFF8FAFC),
+            onSurface: Color(0xFF1E293B),
+            surfaceContainerHighest: Color(0xFFF8FAFC),
+            error: Color(0xFFB3261E),
+            onError: Colors.white,
           ),
           scaffoldBackgroundColor: const Color(0xFFF8FAFC),
           appBarTheme: AppBarTheme(
             elevation: 0,
             centerTitle: true,
-            backgroundColor: const Color(0xFF6366F1),
+            backgroundColor: AppBrandColors.blue,
             foregroundColor: Colors.white,
             titleTextStyle: const TextStyle(
               fontSize: 20,
@@ -148,7 +204,7 @@ class MyApp extends StatelessWidget {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
+              borderSide: const BorderSide(color: AppBrandColors.blue, width: 2),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -163,7 +219,7 @@ class MyApp extends StatelessWidget {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              backgroundColor: const Color(0xFF6366F1),
+              backgroundColor: AppBrandColors.blue,
               foregroundColor: Colors.white,
               textStyle: const TextStyle(
                 fontSize: 16,
@@ -183,7 +239,7 @@ class MyApp extends StatelessWidget {
           ),
           bottomNavigationBarTheme: BottomNavigationBarThemeData(
             backgroundColor: Colors.white,
-            selectedItemColor: const Color(0xFF6366F1),
+            selectedItemColor: AppBrandColors.blue,
             unselectedItemColor: Colors.grey.shade600,
             selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
             type: BottomNavigationBarType.fixed,

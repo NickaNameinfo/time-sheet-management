@@ -96,8 +96,9 @@ class OfflineProvider with ChangeNotifier {
       final leaveItems = await OfflineService.getPendingLeaves();
       for (var item in leaveItems) {
         try {
+          final rawEid = item['data']['employeeId']?.toString().trim() ?? '';
           await _apiService.applyLeave(
-            employeeId: item['data']['employeeId'],
+            employeeId: rawEid.isNotEmpty ? rawEid : null,
             employeeName: item['data']['employeeName'],
             leaveType: item['data']['leaveType'],
             leaveFrom: item['data']['leaveFrom'],

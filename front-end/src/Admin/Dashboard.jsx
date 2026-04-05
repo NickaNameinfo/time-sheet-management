@@ -3,7 +3,8 @@ import { Box } from "@mui/material";
 import { Outlet } from "react-router-dom";
 import CommonSidebar from "../components/CommonSidebar";
 
-const drawerWidth = 300;
+/** Matches CommonSidebar narrow rail (desktop) */
+const drawerWidth = 104;
 
 function Dashboard() {
   return (
@@ -19,7 +20,7 @@ function Dashboard() {
           flexGrow: 1,
           p: { xs: 1, md: 3 },
           width: { md: `calc(100% - ${drawerWidth}px)` },
-          mt: { xs: 7, md: 0 },
+          mt: { xs: "56px", md: "64px" },
           bgcolor: "grey.50",
           minHeight: "100vh",
         }}

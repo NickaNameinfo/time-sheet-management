@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:timesheet_mobile/providers/auth_provider.dart';
 import 'package:timesheet_mobile/services/api_service.dart';
+import 'package:timesheet_mobile/utils/app_config.dart';
 import 'package:intl/intl.dart';
 
 class EmployeeTimeManagementScreen extends StatefulWidget {
@@ -72,7 +73,7 @@ class _EmployeeTimeManagementScreenState extends State<EmployeeTimeManagementScr
       final user = authProvider.user;
       if (user == null) return;
 
-      final employeeId = user['id']?.toString() ?? user['employeeId']?.toString();
+      final employeeId = AppConfig.employeeDbIdForApi(user);
 
       // Load all data in parallel
       final results = await Future.wait([
@@ -344,7 +345,7 @@ class _EmployeeTimeManagementScreenState extends State<EmployeeTimeManagementScr
       final submitData = {
         ...row,
         'employeeName': user['employeeName'] ?? user['name'],
-        'employeeNo': user['id'] ?? user['employeeId'],
+        'employeeNo': AppConfig.employeeDbIdForApi(user) ?? user['employeeId'],
         'userName': user['userName'],
         'sentDate': DateTime.now().toIso8601String(),
         'weekNumber': currentWeek.toString(),
@@ -466,7 +467,7 @@ class _EmployeeTimeManagementScreenState extends State<EmployeeTimeManagementScr
                           return Column(
                             children: [
                               _buildInfoRow('Name', user?['employeeName'] ?? user?['name'] ?? 'N/A'),
-                              _buildInfoRow('Employee ID', user?['id']?.toString() ?? 'N/A'),
+                              _buildInfoRow('Employee ID', AppConfig.employeeDbIdForApi(user) ?? 'N/A'),
                               _buildInfoRow('Designation', user?['designation'] ?? 'N/A'),
                               _buildInfoRow('Discipline', user?['discipline'] ?? 'N/A'),
                               const SizedBox(height: 8),

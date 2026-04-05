@@ -6,9 +6,12 @@ import 'package:timesheet_mobile/providers/auth_provider.dart';
 import 'package:timesheet_mobile/providers/attendance_provider.dart';
 import 'package:timesheet_mobile/services/api_service.dart';
 import 'package:timesheet_mobile/services/background_timer_service.dart';
+import 'package:timesheet_mobile/services/notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timesheet_mobile/utils/app_config.dart';
 import 'package:intl/intl.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:timesheet_mobile/theme/app_brand_colors.dart';
 import 'dart:ui'; // Added for FontFeature
 
 class EmployeeHomeScreen extends StatefulWidget {
@@ -21,7 +24,7 @@ class EmployeeHomeScreen extends StatefulWidget {
 class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
   final ApiService _apiService = ApiService();
   bool _isLoading = true;
-  Map<String, dynamic>? _leaveBalances;
+  List<_LeaveBalanceCardData> _leaveBalanceCards = [];
   List<dynamic> _timesheetData = [];
   int _selectedWeek = 0; // 0 means use current week
   
@@ -37,6 +40,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
   // Clock in/out dialogs
   bool _showClockInDialog = false;
   bool _showClockOutDialog = false;
+  bool _showOpenReminderPopup = false; // show reminder popup once when app opens
   String _selectedProject = '';
   String _referenceNo = '';
   String _selectedAreaOfWork = '';
@@ -66,9 +70,73 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
       if (_isClockedIn) {
         BackgroundTimerService.startBackgroundTimer();
       }
+      // Show reminder popup once when app opens (after a short delay so UI is ready)
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Future.delayed(const Duration(milliseconds: 600), () {
+          if (mounted && !_showOpenReminderPopup) _showReminderPopupIfNeeded();
+        });
+      });
     });
     _loadProjectsAndAreaOfWork();
     _loadAssignedProjectPlans();
+    // Schedule clock-in and shift reminders every time home is shown (so they work after app reopen)
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scheduleReminders());
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      await auth.refreshUserFromApi();
+      if (mounted) setState(() {});
+    });
+  }
+
+  /// Show a one-time popup reminder when app opens: clock-in reminder or "all set".
+  void _showReminderPopupIfNeeded() {
+    if (!mounted || _showOpenReminderPopup) return;
+    _showOpenReminderPopup = true;
+    final isClockedIn = _isClockedIn;
+    final title = isClockedIn ? 'Reminder' : 'Reminder';
+    final message = isClockedIn
+        ? 'You\'re clocked in. Don\'t forget to clock out when you finish work.'
+        : 'Don\'t forget to clock in today!';
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.notifications_active_rounded, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 8),
+            Text(title),
+          ],
+        ),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Later'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              if (!isClockedIn && mounted) setState(() => _showClockInDialog = true);
+            },
+            child: Text(isClockedIn ? 'OK' : 'Clock in now'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _scheduleReminders() async {
+    try {
+      // Request permission so scheduled reminders can fire when app is closed
+      await NotificationService.requestReminderPermissions();
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final user = authProvider.user;
+      final employeeId = AppConfig.employeeDbIdForApi(user);
+      await NotificationService.scheduleAllReminders(employeeId: employeeId);
+    } catch (e) {
+      debugPrint('Schedule reminders: $e');
+    }
   }
 
   Future<void> _loadProjectsAndAreaOfWork() async {
@@ -76,7 +144,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
       // Get current user ID to fetch assigned projects from project plans
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final user = authProvider.user;
-      final employeeId = user?['id']?.toString() ?? user?['employeeId']?.toString();
+      final employeeId = AppConfig.employeeDbIdForApi(user);
       
       final areaOfWork = await _apiService.getAreaOfWork();
       
@@ -120,7 +188,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final user = authProvider.user;
-      final employeeId = user?['id']?.toString() ?? user?['employeeId']?.toString();
+      final employeeId = AppConfig.employeeDbIdForApi(user);
       
       if (employeeId != null && employeeId.isNotEmpty) {
         try {
@@ -169,7 +237,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
       final user = authProvider.user;
       if (user == null) return;
 
-      final employeeId = user['id']?.toString() ?? user['employeeId']?.toString();
+      final employeeId = AppConfig.employeeDbIdForApi(user);
       if (employeeId == null) return;
       
       // First check SharedPreferences for saved clock-in state (Most accurate for current session)
@@ -348,7 +416,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
       final user = authProvider.user;
       if (user == null) return;
 
-      final employeeId = user['id']?.toString() ?? user['employeeId']?.toString() ?? '';
+      final employeeId = AppConfig.employeeDbIdForApi(user) ?? '';
       if (employeeId.isEmpty) return;
 
       String refNo = _referenceNo.trim();
@@ -399,9 +467,13 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
         projectName = _selectedProject;
       }
 
-      final empName = user['employeeName']?.toString().trim() ?? 
-                     user['name']?.toString().trim() ?? '';
-      
+      var empName = AppConfig.displayNameForUser(user);
+      if (empName == 'Employee') {
+        empName = user['employeeName']?.toString().trim() ??
+            user['name']?.toString().trim() ??
+            user['userName']?.toString().trim() ??
+            '';
+      }
       if (empName.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -505,7 +577,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
       final user = authProvider.user;
       if (user == null) return;
 
-      final employeeId = user['id']?.toString() ?? user['employeeId']?.toString() ?? '';
+      final employeeId = AppConfig.employeeDbIdForApi(user) ?? '';
       if (employeeId.isEmpty) return;
 
       String? workDetailId = _workDetailId;
@@ -616,7 +688,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
       final user = authProvider.user;
       if (user == null || _todayCheckIn == null) return;
 
-      final employeeId = user['id']?.toString() ?? user['employeeId']?.toString() ?? '';
+      final employeeId = AppConfig.employeeDbIdForApi(user) ?? '';
       if (employeeId.isEmpty) return;
 
       final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -651,7 +723,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
       final user = authProvider.user;
       if (user == null) return;
 
-      final employeeId = user['id']?.toString() ?? user['employeeId']?.toString();
+      final employeeId = AppConfig.employeeDbIdForApi(user);
       final currentYear = DateTime.now().year;
 
       // Load leave balance
@@ -663,50 +735,67 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
       // Load comp-off details
       final compOffDetails = await _apiService.getCompOffDetails(employeeId: employeeId);
       
-      // Calculate balances
-      double total = 0, casual = 0, sick = 0, earned = 0, compOff = 0;
-      
-      if (leaveBalance.isNotEmpty) {
-        for (var item in leaveBalance) {
-          final leaveType = (item['leave_type'] ?? item['leaveType'] ?? '').toString().toLowerCase();
-          final balance = (item['balance'] ?? 0).toDouble();
-          
-          if (leaveType == 'casual') {
-            casual = balance;
-          } else if (leaveType == 'sick') {
-            sick = balance;
-          } else if (leaveType == 'annual') {
-            earned = balance;
-          }
-          total += balance;
-        }
+      double toD(dynamic v) {
+        if (v == null) return 0;
+        if (v is num) return v.toDouble();
+        return double.tryParse(v.toString()) ?? 0;
       }
 
-      // Calculate comp-off
+      String normType(String raw) {
+        final t = raw.toLowerCase().trim();
+        if (t == 'annual' || t == 'earned') return 'annual';
+        if (t == 'casual') return 'casual';
+        if (t == 'sick') return 'sick';
+        if (t == 'emergency') return 'emergency';
+        return t;
+      }
+
+      final byType = <String, Map<String, dynamic>>{};
+      for (final item in leaveBalance) {
+        final key = normType((item['leave_type'] ?? item['leaveType'] ?? '').toString());
+        if (key.isNotEmpty) byType[key] = item;
+      }
+
+      double approvedCompOff = 0;
       if (compOffDetails.isNotEmpty) {
-        final approvedCompOff = compOffDetails
+        approvedCompOff = compOffDetails
             .where((item) => (item['leaveStatus'] ?? '').toString().toLowerCase() == 'approved')
             .fold<double>(0, (sum, item) => sum + ((item['eligibility'] ?? 0).toDouble() / 9));
-        
-        final leaveDetails = await _apiService.getLeaveDetails(employeeId: employeeId);
-        final usedCompOff = leaveDetails
-            .where((item) => 
-                (item['leaveType'] ?? '').toString() == 'Comp-off' &&
-                (item['leaveStatus'] ?? '').toString().toLowerCase() == 'approved')
-            .fold<double>(0, (sum, item) => sum + ((item['leaveHours'] ?? 0).toDouble()));
-        
-        compOff = (approvedCompOff - usedCompOff).clamp(0, double.infinity);
-        total += compOff;
       }
 
+      final leaveDetails = await _apiService.getLeaveDetails(employeeId: employeeId);
+      final usedCompOff = leaveDetails
+          .where((item) =>
+              (item['leaveType'] ?? '').toString() == 'Comp-off' &&
+              (item['leaveStatus'] ?? '').toString().toLowerCase() == 'approved')
+          .fold<double>(0, (sum, item) => sum + toD(item['leaveHours']));
+
+      final compOffBalance = (approvedCompOff - usedCompOff).clamp(0.0, double.infinity);
+
+      _LeaveBalanceCardData cardFor(String typeKey, String label) {
+        final item = byType[typeKey];
+        final bal = toD(item?['balance']);
+        final acc = toD(item?['accrued']);
+        final used = toD(item?['used']);
+        final accruedEff = acc > 0 ? acc : (bal + used);
+        return _LeaveBalanceCardData(label: label, balance: bal, accrued: accruedEff, used: used);
+      }
+
+      final cards = <_LeaveBalanceCardData>[
+        cardFor('annual', 'ANNUAL'),
+        cardFor('casual', 'CASUAL'),
+        cardFor('emergency', 'EMERGENCY'),
+        cardFor('sick', 'SICK'),
+        _LeaveBalanceCardData(
+          label: 'COMP-OFF',
+          balance: compOffBalance,
+          accrued: approvedCompOff,
+          used: usedCompOff,
+        ),
+      ];
+
       setState(() {
-        _leaveBalances = {
-          'total': total,
-          'casual': casual,
-          'sick': sick,
-          'earned': earned,
-          'compOff': compOff,
-        };
+        _leaveBalanceCards = cards;
       });
 
       await _loadTimesheet();
@@ -730,7 +819,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
       final user = authProvider.user;
       if (user == null) return;
 
-      final employeeId = user['id']?.toString() ?? user['employeeId']?.toString();
+      final employeeId = AppConfig.employeeDbIdForApi(user);
       
       final now = DateTime.now();
       final startOfYear = DateTime(now.year, 1, 1);
@@ -774,6 +863,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
       children: [
           RefreshIndicator(
           onRefresh: () async {
+            await context.read<AuthProvider>().refreshUserFromApi();
             await _loadData();
             await _checkTodayAttendance();
             await _loadAssignedProjectPlans();
@@ -788,18 +878,11 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(28),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    const Color(0xFF667EEA), // Light purple
-                    const Color(0xFF764BA2), // Dark purple
-                  ],
-                ),
+                gradient: AppBrandColors.heroGradient,
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF667EEA).withOpacity(0.3),
+                    color: AppBrandColors.blue.withOpacity(0.35),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -808,7 +891,11 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
               child: Consumer<AuthProvider>(
                 builder: (context, authProvider, _) {
                   final user = authProvider.user;
+                  final displayName = AppConfig.displayNameForUser(user);
+                  final todayStr = DateFormat.yMMMEd().format(DateTime.now());
+                  final photoUrl = AppConfig.employeePhotoUrlFromFilename(user?['employeeImage']);
                   return Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Expanded(
                         child: Column(
@@ -823,9 +910,18 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                                 letterSpacing: 0.5,
                               ),
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 6),
                             Text(
-                              user?['employeeName'] ?? 'Employee',
+                              todayStr,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.white.withOpacity(0.85),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              displayName,
                               style: const TextStyle(
                                 fontSize: 28,
                                 fontWeight: FontWeight.bold,
@@ -848,17 +944,40 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                           ],
                         ),
                       ),
+                      const SizedBox(width: 12),
                       Container(
-                        padding: const EdgeInsets.all(16),
+                        width: 88,
+                        height: 88,
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        child: const Icon(
-                          Icons.person_rounded,
-                          size: 48,
-                          color: Colors.white,
-                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: photoUrl != null
+                            ? CachedNetworkImage(
+                                imageUrl: photoUrl,
+                                fit: BoxFit.cover,
+                                placeholder: (_, __) => const Center(
+                                  child: SizedBox(
+                                    width: 28,
+                                    height: 28,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                                errorWidget: (_, __, ___) => const Icon(
+                                  Icons.person_rounded,
+                                  size: 48,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.person_rounded,
+                                size: 48,
+                                color: Colors.white,
+                              ),
                       ),
                     ],
                   );
@@ -1039,7 +1158,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                                     final authProvider = Provider.of<AuthProvider>(context, listen: false);
                                     final user = authProvider.user;
                                     if (user != null) {
-                                      final employeeId = user['id']?.toString() ?? user['employeeId']?.toString() ?? '';
+                                      final employeeId = AppConfig.employeeDbIdForApi(user) ?? '';
                                       if (employeeId.isNotEmpty) {
                                         final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
                                         final workDetails = await _apiService.getWorkDetails(employeeId: employeeId);
@@ -1117,27 +1236,27 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
             ),
             const SizedBox(height: 24),
             
-            // Leave Balance Cards
-            if (_leaveBalances != null) ...[
+            // Leave Balance — horizontal gradient cards (annual, casual, emergency, sick, comp-off)
+            if (_leaveBalanceCards.isNotEmpty) ...[
               const Text(
                 'Leave Balance',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
               ),
-              const SizedBox(height: 16),
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 1.5,
-                children: [
-                  _buildLeaveCard('Total Leave', _leaveBalances!['total'], Colors.purple),
-                  _buildLeaveCard('Casual Leave', _leaveBalances!['casual'], Colors.pink),
-                  _buildLeaveCard('Sick Leave', _leaveBalances!['sick'], Colors.blue),
-                  _buildLeaveCard('Earned Leave', _leaveBalances!['earned'], Colors.green),
-                  _buildLeaveCard('Comp-off', _leaveBalances!['compOff'], Colors.orange),
-                ],
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 172,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  clipBehavior: Clip.none,
+                  itemCount: _leaveBalanceCards.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (context, index) {
+                    return SizedBox(
+                      width: 152,
+                      child: _buildGradientLeaveCard(_leaveBalanceCards[index]),
+                    );
+                  },
+                ),
               ),
               const SizedBox(height: 24),
             ],
@@ -1225,40 +1344,113 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
     );
   }
 
-  Widget _buildLeaveCard(String title, double value, Color color) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          gradient: LinearGradient(
-            colors: [color.withOpacity(0.8), color],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+  Widget _buildGradientLeaveCard(_LeaveBalanceCardData data) {
+    final maxRef = data.accrued > 0 ? data.accrued : (data.balance + data.used);
+    final progress = maxRef > 0 ? (data.balance / maxRef).clamp(0.0, 1.0) : (data.balance > 0 ? 1.0 : 0.0);
+
+    return Material(
+      elevation: 4,
+      shadowColor: AppBrandColors.blue.withValues(alpha: 0.28),
+      borderRadius: BorderRadius.circular(16),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          clipBehavior: Clip.hardEdge,
           children: [
-            Text(
-              value.toStringAsFixed(1),
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [AppBrandColors.blue, AppBrandColors.green],
+                ),
+              ),
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.22),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.event_available_rounded,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          data.label == 'COMP-OFF' ? 'COMP-OFF' : '${data.label} Leave',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: 0.6,
+                            height: 1.2,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  Text(
+                    data.balance.toStringAsFixed(2),
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      height: 1.05,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 5,
+                      backgroundColor: Colors.white.withValues(alpha: 0.22),
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white.withValues(alpha: 0.55)),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Accrued: ${data.accrued.toStringAsFixed(2)} | Used: ${data.used.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white.withValues(alpha: 0.9),
+                      letterSpacing: 0.2,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.white70,
-                fontWeight: FontWeight.w500,
+            Positioned(
+              right: -18,
+              top: -18,
+              child: IgnorePointer(
+                child: Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withValues(alpha: 0.1),
+                  ),
+                ),
               ),
-              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -1596,7 +1788,9 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                          '0';
     final timePeriod = plan['time_period']?.toString() ?? 
                       plan['timePeriod']?.toString() ?? 'N/A';
-    final status = plan['status']?.toString() ?? 'draft';
+    final status = plan['plan_status']?.toString() ??
+        plan['status']?.toString() ??
+        'draft';
     final startDate = plan['start_date']?.toString() ?? 
                      plan['startDate']?.toString();
     final endDate = plan['end_date']?.toString() ?? 
@@ -1781,7 +1975,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final user = authProvider.user;
-      final employeeId = user?['id']?.toString() ?? user?['employeeId']?.toString();
+      final employeeId = AppConfig.employeeDbIdForApi(user);
       
       if (employeeId == null || employeeId.isEmpty) {
         Navigator.pop(context); // Close loading
@@ -2224,4 +2418,17 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
       ],
     );
   }
+}
+
+class _LeaveBalanceCardData {
+  const _LeaveBalanceCardData({
+    required this.label,
+    required this.balance,
+    required this.accrued,
+    required this.used,
+  });
+  final String label;
+  final double balance;
+  final double accrued;
+  final double used;
 }

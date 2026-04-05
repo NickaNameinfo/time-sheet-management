@@ -58,6 +58,43 @@ class ApiService {
     ));
   }
   
+  /// Admin / company portal login (`company_users` uses email as userName; JWT includes company_id).
+  Future<Map<String, dynamic>> adminLogin(String userName, String password) async {
+    try {
+      final response = await _dio.post(
+        AppConfig.adminLoginEndpoint,
+        data: {
+          'userName': userName,
+          'password': password,
+        },
+      );
+
+      if (response.data['Status'] == 'Success') {
+        final result = response.data['Result'];
+        if (result is Map) {
+          final m = Map<String, dynamic>.from(result);
+          if (m['token'] != null) {
+            m['tokensss'] = m['token'];
+          }
+          return m;
+        }
+        return {};
+      } else {
+        throw Exception(response.data['Message'] ?? response.data['Error'] ?? 'Login failed');
+      }
+    } on DioException catch (e) {
+      String errorMessage = 'Connection error';
+      if (e.response != null) {
+        errorMessage = e.response?.data['Message'] ??
+            e.response?.data['Error'] ??
+            'Server error: ${e.response?.statusCode}';
+      } else {
+        errorMessage = e.message ?? 'Network error';
+      }
+      throw Exception(errorMessage);
+    }
+  }
+
   // Employee Login
   Future<Map<String, dynamic>> employeeLogin(String userName, String password) async {
     try {
@@ -280,27 +317,35 @@ class ApiService {
   
   // Apply Leave
   Future<Map<String, dynamic>> applyLeave({
-    required String employeeId,
+    String? employeeId,
     required String employeeName,
     required String leaveType,
     required String leaveFrom,
     required String leaveTo,
     String? reason,
+    String? leaveHours,
   }) async {
     try {
       // Ensure baseUrl is correct before request
       _dio.options.baseUrl = AppConfig.baseUrl;
-      
+
+      final body = <String, dynamic>{
+        'employeeName': employeeName,
+        'leaveType': leaveType,
+        'leaveFrom': leaveFrom,
+        'leaveTo': leaveTo,
+        'reason': reason ?? '',
+      };
+      if (employeeId != null && employeeId.trim().isNotEmpty) {
+        body['employeeId'] = employeeId.trim();
+      }
+      if (leaveHours != null && leaveHours.trim().isNotEmpty) {
+        body['leaveHours'] = leaveHours.trim();
+      }
+
       final response = await _dio.post(
         AppConfig.leaveEndpoint,
-        data: {
-          'employeeId': employeeId,
-          'employeeName': employeeName,
-          'leaveType': leaveType,
-          'leaveFrom': leaveFrom,
-          'leaveTo': leaveTo,
-          'reason': reason ?? '',
-        },
+        data: body,
       );
       
       if (response.data['Status'] == 'Success') {

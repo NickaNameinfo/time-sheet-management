@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../services/api";
 import { useNavigate } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
 import {
@@ -15,18 +15,15 @@ import {
   MenuItem,
   Select,
   FormHelperText,
-  IconButton,
   Stack,
 } from "@mui/material";
 import {
-  ArrowBack,
   Person,
   AccountCircle,
   Lock,
   Save,
 } from "@mui/icons-material";
-import commonData from "../../common.json";
-
+import PageHeaderBreadcrumbs from "../components/PageHeaderBreadcrumbs";
 function AddHr() {
   const {
     handleSubmit,
@@ -38,8 +35,8 @@ function AddHr() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    axios
-      .get(`${commonData?.APIKEY}/getEmployee`)
+    api
+      .get("/getEmployee")
       .then((res) => {
         if (res.data.Status === "Success") {
           setEmployees(res.data.Result || []);
@@ -51,7 +48,7 @@ function AddHr() {
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      const res = await axios.post(`${commonData?.APIKEY}/hr/create`, data);
+      const res = await api.post("/hr/create", data);
       if (res.data.Error) {
         alert(res.data.Error);
       } else {
@@ -67,20 +64,14 @@ function AddHr() {
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ display: "flex", alignItems: "center", mb: 3, gap: 2 }}>
-        <IconButton onClick={() => navigate("/Dashboard/hr")} color="primary">
-          <ArrowBack />
-        </IconButton>
-        <Box>
-          <Typography variant="h4" fontWeight="bold">
-            Add HR Manager
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Create a new HR manager account
-          </Typography>
-        </Box>
-      </Box>
+      <PageHeaderBreadcrumbs
+        items={[
+          { label: "Dashboard", to: "/Dashboard" },
+          { label: "HR", to: "/Dashboard/hr" },
+        ]}
+        title="Add HR Manager"
+        subtitle="Create a new HR manager account"
+      />
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <Grid container spacing={3}>
@@ -188,9 +179,9 @@ function AddHr() {
             size="large"
             disabled={loading}
             sx={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
               "&:hover": {
-                background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
               },
             }}
           >

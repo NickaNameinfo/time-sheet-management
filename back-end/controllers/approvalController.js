@@ -324,7 +324,7 @@ export const approveEntity = asyncHandler(async (req, res) => {
               
               if (employeeId) {
                 console.log(`🔄 Recalculating productivity for employee ${employeeId} on date ${workDate}`);
-                await calculateProductivityForEmployee(employeeId, workDate);
+                await calculateProductivityForEmployee(req, employeeId, workDate);
                 console.log(`✓ Productivity metrics updated for employee ${employeeId} on ${workDate}`);
               } else {
                 console.warn(`⚠ Could not determine employee ID for workdetail ${entityId}`);

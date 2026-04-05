@@ -162,6 +162,7 @@ export const apiService = {
   createProjectPlan: (data) => api.post("/project-plan/create", data),
   getProjectPlans: (params) => api.get("/project-plan", { params }),
   getProjectPlan: (id) => api.get(`/project-plan/${id}`),
+  getPlanUtilization: (id) => api.get(`/project-plan/${id}/utilization`),
   updateProjectPlan: (id, data) => api.put(`/project-plan/${id}`, data),
   assignEmployeesToPlan: (id, data) => api.put(`/project-plan/${id}/assign-employees`, data),
   getProjectEmployees: (projectId) => api.get(`/project/${projectId}/employees`),
@@ -184,6 +185,14 @@ export const apiService = {
   getCrm: (id) => api.get(`/crm/${id}`),
   updateCrm: (id, data) => api.put(`/crm/update/${id}`, data),
   deleteCrm: (id) => api.delete(`/crm/delete/${id}`),
+
+  // Sales Leads (demo / lead list)
+  getLeadList: (params) => api.get("/sales-leads/list", { params }),
+  getLead: (id) => api.get(`/sales-leads/${id}`),
+  createLead: (data) => api.post("/sales-leads", data),
+  updateLead: (id, data) => api.put(`/sales-leads/update/${id}`, data),
+  deleteLead: (id) => api.delete(`/sales-leads/delete/${id}`),
+  getCompanySizeOptions: () => api.get("/sales-leads/company-size-options"),
 
   // Team Lead
   createTeamLead: (data) => api.post("/lead/create", data),
@@ -331,6 +340,62 @@ export const apiService = {
   // App Settings
   getAppSettings: () => api.get("/settings/app-settings"),
   updateAppSettings: (data) => api.put("/settings/app-settings", data),
+  getAdminTrailVersionCheck: () => api.get("/settings/app-settings/admin-trail-version-check"),
+
+  // Super Admin (email-based super admin only)
+  listCompanies: (params) => api.get("/super-admin/companies", { params: params || {} }),
+  createCompany: (data) => api.post("/super-admin/companies", data),
+  updateCompany: (id, data) => api.put(`/super-admin/companies/${id}`, data),
+  deleteCompany: (id) => api.delete(`/super-admin/companies/${id}`),
+  listLeadCompanies: (params) => api.get("/super-admin/lead-companies", { params: params || {} }),
+
+  listCompanyUsers: (params) => api.get("/super-admin/company-users", { params: params || {} }),
+  createCompanyUser: (data) => api.post("/super-admin/company-users", data),
+  updateCompanyUser: (id, data) => api.put(`/super-admin/company-users/${id}`, data),
+  deleteCompanyUser: (id) => api.delete(`/super-admin/company-users/${id}`),
+
+  // Company-safe: list only the logged-in company's admin/user login emails
+  getMyCompanyLoginEmails: () => api.get("/company/profile-login-emails"),
+
+  createCompanyLoginRequest: (data) => api.post("/company/login-requests", data),
+  listMyCompanyLoginRequests: () => api.get("/company/login-requests"),
+
+  listCompanyLoginRequestsAdmin: (params) =>
+    api.get("/super-admin/company-login-requests", { params: params || {} }),
+  approveCompanyLoginRequest: (id) => api.post(`/super-admin/company-login-requests/${id}/approve`),
+  rejectCompanyLoginRequest: (id, data) => api.post(`/super-admin/company-login-requests/${id}/reject`, data),
+
+  listCompanySubscriptions: (params) => api.get("/super-admin/subscriptions", { params: params || {} }),
+  createCompanySubscription: (data) => api.post("/super-admin/subscriptions", data),
+  updateCompanySubscription: (id, data) => api.put(`/super-admin/subscriptions/${id}`, data),
+  deleteCompanySubscription: (id) => api.delete(`/super-admin/subscriptions/${id}`),
+
+  listCompanyBilling: (params) => api.get("/super-admin/billing", { params: params || {} }),
+  createCompanyBilling: (data) => api.post("/super-admin/billing", data),
+  updateCompanyBilling: (id, data) => api.put(`/super-admin/billing/${id}`, data),
+  deleteCompanyBilling: (id) => api.delete(`/super-admin/billing/${id}`),
+
+  getCompanyMenuPermissions: (companyId) =>
+    api.get("/super-admin/company-menu-permissions", { params: { company_id: companyId } }),
+  setCompanyMenuPermissions: (companyId, permissions) =>
+    api.post("/super-admin/company-menu-permissions", { company_id: companyId, permissions }),
+
+  getCompanyMenuTrialSettings: (companyId) =>
+    api.get("/super-admin/company-menu-trial-settings", { params: { company_id: companyId } }),
+  setCompanyMenuTrialSettings: (companyId, settings) =>
+    api.post("/super-admin/company-menu-trial-settings", { company_id: companyId, settings }),
+
+  getTrailVersionConfig: () => api.get("/super-admin/trail-version-config"),
+  saveTrailVersionConfig: (data) => api.post("/super-admin/trail-version-config", data),
+  getTrailVersionDetails: () => api.get("/super-admin/trail-version-details"),
+
+  // User Access (Admin: allowlist by email + approve access requests)
+  getUserAccessSettings: () => api.get("/user-access/settings"),
+  updateUserAccessSettings: (data) => api.put("/user-access/settings", data),
+  getUserAccessRequests: (params) => api.get("/user-access/requests", { params: params || {} }),
+  approveUserAccessRequest: (id) => api.post(`/user-access/requests/${id}/approve`),
+  rejectUserAccessRequest: (id, data) => api.post(`/user-access/requests/${id}/reject`, data || {}),
+  requestUserAccess: (email) => api.post("/user-access/request", { email }),
 
   // Investment Admin (KYC list & update status)
   getInvestmentKycListAdmin: () => api.get("/admin/investment/kyc"),

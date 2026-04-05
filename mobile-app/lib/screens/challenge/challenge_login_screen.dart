@@ -20,6 +20,20 @@ class _ChallengeLoginScreenState extends State<ChallengeLoginScreen> {
   bool _obscurePassword = true;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await context.read<ChallengeAuthProvider>().sessionReady;
+      if (!mounted) return;
+      if (context.read<ChallengeAuthProvider>().isAuthenticated) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const ChallengeDashboardScreen()),
+        );
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
@@ -158,7 +172,7 @@ class _ChallengeLoginScreenState extends State<ChallengeLoginScreen> {
                                 onChanged: (_) => auth.clearError(),
                                 decoration: InputDecoration(
                                   labelText: 'Email',
-                                  hintText: 'you@example.com',
+                                  hintText: 'business@nicknameinfotech.com',
                                   filled: true,
                                   fillColor: Colors.grey.shade50,
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),

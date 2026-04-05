@@ -1,9 +1,10 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:timesheet_mobile/providers/auth_provider.dart';
-import 'package:timesheet_mobile/services/api_service.dart';
 import 'package:timesheet_mobile/screens/login_screen.dart';
 import 'package:timesheet_mobile/screens/investment/update_kyc_status_screen.dart';
+import 'package:timesheet_mobile/utils/app_config.dart';
 
 class EmployeeProfileScreen extends StatelessWidget {
   const EmployeeProfileScreen({super.key});
@@ -21,22 +22,45 @@ class EmployeeProfileScreen extends StatelessWidget {
             return const Center(child: Text('No user data available'));
           }
 
+          final displayName = AppConfig.displayNameForUser(user);
+          final photoUrl = AppConfig.employeePhotoUrlFromFilename(user['employeeImage']);
+          final initial = displayName.isNotEmpty && displayName != 'Employee'
+              ? displayName[0].toUpperCase()
+              : 'E';
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                // Profile Picture
                 CircleAvatar(
                   radius: 60,
                   backgroundColor: Theme.of(context).colorScheme.primary,
-                  child: Text(
-                    (user['employeeName']?.toString().substring(0, 1).toUpperCase() ?? 'E'),
-                    style: const TextStyle(fontSize: 48, color: Colors.white),
-                  ),
+                  child: photoUrl != null
+                      ? ClipOval(
+                          child: CachedNetworkImage(
+                            imageUrl: photoUrl,
+                            width: 120,
+                            height: 120,
+                            fit: BoxFit.cover,
+                            placeholder: (_, __) => const SizedBox(
+                              width: 32,
+                              height: 32,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            ),
+                            errorWidget: (_, __, ___) => Text(
+                              initial,
+                              style: const TextStyle(fontSize: 48, color: Colors.white),
+                            ),
+                          ),
+                        )
+                      : Text(
+                          initial,
+                          style: const TextStyle(fontSize: 48, color: Colors.white),
+                        ),
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  user['employeeName']?.toString() ?? 'Employee',
+                  displayName,
                   style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 Text(
@@ -51,7 +75,9 @@ class EmployeeProfileScreen extends StatelessWidget {
                       _buildProfileItem(
                         context,
                         'Full Name',
-                        user['employeeName']?.toString() ?? 'N/A',
+                        user['employeeName']?.toString().trim().isNotEmpty == true
+                            ? user['employeeName']!.toString()
+                            : displayName,
                         Icons.person,
                       ),
                       const Divider(),

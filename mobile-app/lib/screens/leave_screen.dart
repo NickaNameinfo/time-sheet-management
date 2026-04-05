@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:timesheet_mobile/providers/auth_provider.dart';
 import 'package:timesheet_mobile/providers/leave_provider.dart';
+import 'package:timesheet_mobile/utils/app_config.dart';
 import 'package:intl/intl.dart';
 
 class LeaveScreen extends StatefulWidget {
@@ -51,9 +52,18 @@ class _LeaveScreenState extends State<LeaveScreen> {
       return;
     }
 
+    final user = authProvider.user!;
+    final isCompany = user['isCompanyUser'] == true;
+    final rawId = AppConfig.employeeDbIdForApi(user) ?? '';
+    final employeeId = rawId.isNotEmpty ? rawId : null;
+    if (!isCompany && employeeId == null) {
+      _showError('Employee ID not found');
+      return;
+    }
+
     final success = await leaveProvider.applyLeave(
-      employeeId: authProvider.user!['EMPID']?.toString() ?? '',
-      employeeName: authProvider.user!['employeeName'] ?? '',
+      employeeId: employeeId,
+      employeeName: user['employeeName']?.toString() ?? user['userName']?.toString() ?? '',
       leaveType: _selectedLeaveType!.toLowerCase(),
       leaveFrom: DateFormat('yyyy-MM-dd').format(_leaveFrom!),
       leaveTo: DateFormat('yyyy-MM-dd').format(_leaveTo!),

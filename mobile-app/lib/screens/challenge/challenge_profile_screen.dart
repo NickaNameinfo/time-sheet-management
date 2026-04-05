@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -48,11 +49,13 @@ class _ChallengeProfileScreenState extends State<ChallengeProfileScreen> {
         });
       }
     } catch (e) {
+      final isSessionExpired = e is SessionExpiredException ||
+          (e is DioException && e.error is SessionExpiredException);
       if (mounted) {
         setState(() {
           _kycStatus = null;
           _loading = false;
-          _error = e.toString().replaceFirst('Exception: ', '');
+          if (!isSessionExpired) _error = e.toString().replaceFirst('Exception: ', '');
         });
       }
     }

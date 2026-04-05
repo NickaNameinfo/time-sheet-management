@@ -52,7 +52,12 @@ import dayjs from "dayjs";
 import { useAuth } from "../context/AuthContext";
 
 const LeaveBalance = () => {
-  const { user, isHR } = useAuth();
+  const { user, isHR, isCompanyAdmin, isAdmin } = useAuth();
+  /** HR, company admin, or company portal users need the tenant employee list (JWT often has no employee id for company logins). */
+  const usesEmployeeDirectory =
+    isHR() || isCompanyAdmin() || !!user?.isCompanyUser;
+  /** Initialize / Accrue / Update — same as “HR correct UI” (not for plain employees or company_user viewers). */
+  const canManageLeaveBalances = isHR() || isAdmin() || isCompanyAdmin();
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [year, setYear] = useState(new Date().getFullYear());
@@ -71,35 +76,33 @@ const LeaveBalance = () => {
     used: "",
   });
 
-  // Fetch employees list (for HR role)
+  // Fetch employees list for HR / company portal (JWT often has no employee id for company_users)
   const { data: employeesData, loading: employeesLoading } = useApi(
     () => apiService.getEmployees(),
     [],
-    isHR() // Only fetch if HR
+    usesEmployeeDirectory
   );
 
   // Set default employee ID
   useEffect(() => {
     const employees = Array.isArray(employeesData) ? employeesData : employeesData?.Result || [];
-    if (isHR() && employees.length > 0 && !selectedEmployeeId) {
-      // HR can select any employee, default to first one
+    if (usesEmployeeDirectory && employees.length > 0 && !selectedEmployeeId) {
       setSelectedEmployeeId(employees[0].id);
       setSelectedEmployee(employees[0]);
-    } else if (!isHR() && user?.id) {
-      // Regular users see their own data
+    } else if (!usesEmployeeDirectory && user?.id) {
       setSelectedEmployeeId(user.id);
       setSelectedEmployee(user);
     }
-  }, [isHR(), employeesData, user, selectedEmployeeId]);
+  }, [usesEmployeeDirectory, employeesData, user, selectedEmployeeId]);
 
   // Update selected employee when selection changes
   useEffect(() => {
     const employees = Array.isArray(employeesData) ? employeesData : employeesData?.Result || [];
-    if (isHR() && employees.length > 0 && selectedEmployeeId) {
-      const employee = employees.find(emp => emp.id === selectedEmployeeId);
+    if (usesEmployeeDirectory && employees.length > 0 && selectedEmployeeId) {
+      const employee = employees.find((emp) => emp.id === selectedEmployeeId);
       setSelectedEmployee(employee || null);
     }
-  }, [selectedEmployeeId, employeesData, isHR]);
+  }, [selectedEmployeeId, employeesData, usesEmployeeDirectory]);
 
   const { data: leaveBalance, loading, refetch } = useApi(
     () => apiService.getLeaveBalance({ employeeId: selectedEmployeeId, year }),
@@ -195,11 +198,26 @@ const LeaveBalance = () => {
     }
   };
 
-  if (loading || employeesLoading) {
+  const employees = Array.isArray(employeesData) ? employeesData : employeesData?.Result || [];
+  const waitingForEmployeeList = usesEmployeeDirectory && employeesLoading;
+
+  if (loading || waitingForEmployeeList) {
     return <Loading message="Loading leave balance..." />;
   }
 
   if (!selectedEmployeeId) {
+    if (usesEmployeeDirectory && employees.length === 0) {
+      return (
+        <Box sx={{ p: 3, textAlign: "center" }}>
+          <Typography variant="h6" color="text.secondary" gutterBottom>
+            No employees found
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Add employees in your company, or check that your account can access the employee list.
+          </Typography>
+        </Box>
+      );
+    }
     return (
       <Box sx={{ p: 3, textAlign: "center" }}>
         <Typography variant="h6" color="text.secondary">
@@ -235,7 +253,7 @@ const LeaveBalance = () => {
               gutterBottom
               sx={{ 
                 fontSize: { xs: "1.75rem", md: "2rem" },
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 backgroundClip: "text",
@@ -244,7 +262,9 @@ const LeaveBalance = () => {
               Leave Balance
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              View and manage employee leave balances
+              {canManageLeaveBalances
+                ? "View and manage employee leave balances"
+                : "View leave balances for the selected employee"}
             </Typography>
           </Box>
           <Stack 
@@ -255,7 +275,7 @@ const LeaveBalance = () => {
               alignItems: "center",
             }}
           >
-            {isHR() && (
+            {usesEmployeeDirectory && (
               <FormControl 
                 sx={{ 
                   minWidth: 250,
@@ -271,7 +291,7 @@ const LeaveBalance = () => {
                   onChange={(e) => setSelectedEmployeeId(e.target.value)}
                   label="Select Employee"
                 >
-                  {(Array.isArray(employeesData) ? employeesData : employeesData?.Result || []).map((employee) => (
+                  {employees.map((employee) => (
                     <MenuItem key={employee.id} value={employee.id}>
                       {employee.employeeName || employee.userName} ({employee.EMPID || employee.id || "N/A"})
                     </MenuItem>
@@ -295,68 +315,72 @@ const LeaveBalance = () => {
                 startAdornment: <CalendarToday sx={{ mr: 1, color: "text.secondary" }} />,
               }}
             />
-            <Button
-              variant="outlined"
-              startIcon={<Add />}
-              onClick={() => setOpenDialog(true)}
-              sx={{
-                borderRadius: 2,
-                textTransform: "uppercase",
-                fontWeight: 600,
-                px: 2,
-                borderColor: "primary.main",
-                color: "primary.main",
-                "&:hover": {
-                  borderColor: "primary.dark",
-                  bgcolor: "primary.light",
-                  color: "primary.dark",
-                },
-              }}
-            >
-              Initialize
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<TrendingUp />}
-              onClick={() => setAccrualDialog(true)}
-              sx={{
-                borderRadius: 2,
-                textTransform: "uppercase",
-                fontWeight: 600,
-                px: 2,
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                boxShadow: "0 4px 15px rgba(102, 126, 234, 0.4)",
-                "&:hover": {
-                  background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
-                  boxShadow: "0 6px 20px rgba(102, 126, 234, 0.6)",
-                  transform: "translateY(-2px)",
-                },
-                transition: "all 0.3s ease",
-              }}
-            >
-              Accrue Leave
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<EventAvailable />}
-              onClick={handleOpenUpdateDialog}
-              sx={{
-                borderRadius: 2,
-                textTransform: "uppercase",
-                fontWeight: 600,
-                px: 2,
-                bgcolor: "success.main",
-                boxShadow: "0 4px 15px rgba(76, 175, 80, 0.4)",
-                "&:hover": {
-                  bgcolor: "success.dark",
-                  boxShadow: "0 6px 20px rgba(76, 175, 80, 0.6)",
-                  transform: "translateY(-2px)",
-                },
-                transition: "all 0.3s ease",
-              }}
-            >
-              Update Balance
-            </Button>
+            {canManageLeaveBalances && (
+              <>
+                <Button
+                  variant="outlined"
+                  startIcon={<Add />}
+                  onClick={() => setOpenDialog(true)}
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: "uppercase",
+                    fontWeight: 600,
+                    px: 2,
+                    borderColor: "primary.main",
+                    color: "primary.main",
+                    "&:hover": {
+                      borderColor: "primary.dark",
+                      bgcolor: "primary.light",
+                      color: "primary.dark",
+                    },
+                  }}
+                >
+                  Initialize
+                </Button>
+                <Button
+                  variant="contained"
+                  startIcon={<TrendingUp />}
+                  onClick={() => setAccrualDialog(true)}
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: "uppercase",
+                    fontWeight: 600,
+                    px: 2,
+                    background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
+                    boxShadow: "0 4px 15px rgba(76, 134, 249, 0.4)",
+                    "&:hover": {
+                      background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
+                      boxShadow: "0 6px 20px rgba(76, 134, 249, 0.6)",
+                      transform: "translateY(-2px)",
+                    },
+                    transition: "all 0.3s ease",
+                  }}
+                >
+                  Accrue Leave
+                </Button>
+                <Button
+                  variant="contained"
+                  startIcon={<EventAvailable />}
+                  onClick={handleOpenUpdateDialog}
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: "uppercase",
+                    fontWeight: 600,
+                    px: 2,
+                    bgcolor: "success.main",
+                    boxShadow: "0 4px 15px rgba(76, 175, 80, 0.4)",
+                    "&:hover": {
+                      bgcolor: "success.dark",
+                      boxShadow: "0 6px 20px rgba(76, 175, 80, 0.6)",
+                      transform: "translateY(-2px)",
+                    },
+                    transition: "all 0.3s ease",
+                  }}
+                >
+                  Update Balance
+                </Button>
+              </>
+            )}
             <Button
               variant="outlined"
               startIcon={<Refresh />}
@@ -442,7 +466,7 @@ const LeaveBalance = () => {
                   </Box>
                 </Box>
               </Grid>
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid item xs={12} sm={6} md={6}>
                 <Box 
                   sx={{ 
                     display: "flex", 
@@ -453,6 +477,7 @@ const LeaveBalance = () => {
                     bgcolor: "grey.50",
                     border: "1px solid",
                     borderColor: "divider",
+                    width: "100%",
                   }}
                 >
                   <Email sx={{ color: "primary.main", mt: 0.5 }} />
@@ -534,15 +559,15 @@ const LeaveBalance = () => {
               <Card
                 sx={{
                   borderRadius: 3,
-                  boxShadow: "0 8px 24px rgba(102, 126, 234, 0.3)",
-                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  boxShadow: "0 8px 24px rgba(76, 134, 249, 0.3)",
+                  background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
                   color: "white",
                   position: "relative",
                   overflow: "hidden",
                   transition: "all 0.3s ease",
                   "&:hover": {
                     transform: "translateY(-8px)",
-                    boxShadow: "0 12px 32px rgba(102, 126, 234, 0.4)",
+                    boxShadow: "0 12px 32px rgba(76, 134, 249, 0.4)",
                   },
                   "&::before": {
                     content: '""',
@@ -786,9 +811,9 @@ const LeaveBalance = () => {
             disabled={initializing}
             startIcon={<CheckCircle />}
             sx={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
               "&:hover": {
-                background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
               },
             }}
           >
@@ -846,9 +871,9 @@ const LeaveBalance = () => {
             disabled={accruing}
             startIcon={<TrendingUp />}
             sx={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
               "&:hover": {
-                background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
               },
             }}
           >

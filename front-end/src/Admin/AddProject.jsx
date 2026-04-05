@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../services/api";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
 import {
@@ -15,14 +15,12 @@ import {
   MenuItem,
   Select,
   FormHelperText,
-  IconButton,
   Stack,
   Chip,
   OutlinedInput,
   Autocomplete,
 } from "@mui/material";
 import {
-  ArrowBack,
   Person,
   Business,
   Save,
@@ -37,7 +35,8 @@ import {
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
-import commonData from "../../common.json";
+import PageHeaderBreadcrumbs from "../components/PageHeaderBreadcrumbs";
+
 function AddProject() {
   const {
     handleSubmit,
@@ -52,6 +51,7 @@ function AddProject() {
   const [existingProjects, setExistingProjects] = useState([]);
   const [existingProjectNos, setExistingProjectNos] = useState([]);
   const [existingDisciplineCodes, setExistingDisciplineCodes] = useState([]);
+  const [disciplineRules, setDisciplineRules] = useState([]); // From Settings > Discipline Rules (name + code)
 
   let formDatas = watch();
   const navigate = useNavigate();
@@ -59,8 +59,8 @@ function AddProject() {
 
   useEffect(() => {
     // Fetch team leads for TL selection
-    axios
-      .get(`${commonData?.APIKEY}/getEmployee`)
+    api
+      .get("/getEmployee")
       .then((res) => {
         if (res.data.Status === "Success") {
           let filterted = res?.data?.Result.filter(
@@ -77,20 +77,27 @@ function AddProject() {
       .catch((err) => console.log(err));
 
     // Fetch existing projects to get project numbers and discipline codes
-    axios
-      .get(`${commonData?.APIKEY}/getProject`)
+    api
+      .get("/getProject")
       .then((res) => {
         if (res.data.Status === "Success") {
           const projects = res.data.Result || [];
           setExistingProjects(projects);
-          
-          // Extract unique project numbers
-          const projectNos = [...new Set(projects.map(p => p.projectNo).filter(Boolean))];
+          const projectNos = [...new Set(projects.map((p) => p.projectNo).filter(Boolean))];
           setExistingProjectNos(projectNos.sort());
-          
-          // Extract unique discipline codes
-          const disciplineCodes = [...new Set(projects.map(p => p.desciplineCode).filter(Boolean))];
+          const disciplineCodes = [...new Set(projects.map((p) => p.desciplineCode).filter(Boolean))];
           setExistingDisciplineCodes(disciplineCodes.sort());
+        }
+      })
+      .catch((err) => console.log(err));
+
+    // Fetch discipline rules (name + code) for project creation dropdown
+    api
+      .get("/discipline")
+      .then((res) => {
+        if (res.data.Status === "Success") {
+          const list = (res.data.Result || []).filter((d) => d.discipline_code != null && d.discipline_code !== "");
+          setDisciplineRules(list);
         }
       })
       .catch((err) => console.log(err));
@@ -111,8 +118,8 @@ function AddProject() {
       tlName: foundEmployee?.employeeName,
       employeeIds: selectedEmployees, // Include selected employee IDs
     };
-    axios
-      .post(`${commonData?.APIKEY}/project/create`, tempData)
+    api
+      .post("/project/create", tempData)
       .then((res) => {
         if (res.data.Error) {
           alert(res.data.Error);
@@ -124,7 +131,7 @@ function AddProject() {
   };
 
   const getEmployeeDetails = async (id) => {
-    await axios.get(`${commonData?.APIKEY}/getProject/${id}`).then((res) => {
+    await api.get(`/getProject/${id}`).then((res) => {
       let tempData = {
         tlID: res?.data?.Result?.tlID,
         projectNo: res?.data?.Result?.projectNo,
@@ -157,8 +164,8 @@ function AddProject() {
       tlName: foundEmployee?.employeeName,
       employeeIds: selectedEmployees, // Include selected employee IDs
     };
-    axios
-      .put(`${commonData?.APIKEY}/project/update/${id}`, tempData)
+    api
+      .put(`/project/update/${id}`, tempData)
       .then((res) => {
         if (res.data.Error) {
           alert(res.data.Error);
@@ -172,20 +179,14 @@ function AddProject() {
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ display: "flex", alignItems: "center", mb: 3, gap: 2 }}>
-        <IconButton onClick={() => navigate("/Dashboard/Projects")} color="primary">
-          <ArrowBack />
-        </IconButton>
-        <Box>
-          <Typography variant="h4" fontWeight="bold">
-            {id ? "Edit Project" : "Add New Project"}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {id ? "Update project information" : "Create a new project"}
-          </Typography>
-        </Box>
-      </Box>
+      <PageHeaderBreadcrumbs
+        items={[
+          { label: "Dashboard", to: "/Dashboard" },
+          { label: "Projects", to: "/Dashboard/projects" },
+        ]}
+        title={id ? "Edit Project" : "Add New Project"}
+        subtitle={id ? "Update project information" : "Create a new project"}
+      />
 
       <form onSubmit={handleSubmit(id ? updateProject : onSubmit)}>
         <Grid container spacing={3}>
@@ -306,29 +307,32 @@ function AddProject() {
                       name="desciplineCode"
                       control={control}
                       defaultValue=""
-                      rules={{ required: "Discipline Code is required" }}
-                      render={({ field: { onChange, value, ...field } }) => (
-                        <Autocomplete
-                          {...field}
-                          freeSolo
-                          options={existingDisciplineCodes}
-                          value={value || ""}
-                          onChange={(event, newValue) => {
-                            onChange(newValue || "");
-                          }}
-                          onInputChange={(event, newInputValue) => {
-                            onChange(newInputValue || "");
-                          }}
-                          renderInput={(params) => (
-                            <TextField
-                              {...params}
-                              fullWidth
-                              label="Discipline Code"
-                              error={Boolean(errors.desciplineCode)}
-                              helperText={errors.desciplineCode?.message || `Existing: ${existingDisciplineCodes.length} discipline codes`}
-                            />
-                          )}
-                        />
+                      rules={{ required: "Discipline is required" }}
+                      render={({ field }) => (
+                        <FormControl fullWidth error={Boolean(errors.desciplineCode)}>
+                          <InputLabel>Discipline</InputLabel>
+                          <Select
+                            {...field}
+                            label="Discipline"
+                            value={field.value || ""}
+                            onChange={(e) => field.onChange(e.target.value)}
+                          >
+                            {disciplineRules.map((d) => (
+                              <MenuItem key={d.id} value={d.discipline_code}>
+                                {d.discipline} – {d.discipline_code}
+                              </MenuItem>
+                            ))}
+                            {field.value && !disciplineRules.some((d) => d.discipline_code === field.value) && (
+                              <MenuItem value={field.value}>({field.value})</MenuItem>
+                            )}
+                            {disciplineRules.length === 0 && !field.value && (
+                              <MenuItem value="" disabled>Add discipline rules in Settings → Discipline Rules</MenuItem>
+                            )}
+                          </Select>
+                          <FormHelperText>
+                            {errors.desciplineCode?.message || "From Settings → Discipline Rules"}
+                          </FormHelperText>
+                        </FormControl>
                       )}
                     />
                   </Grid>
@@ -564,9 +568,9 @@ function AddProject() {
             startIcon={<Save />}
             size="large"
             sx={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
               "&:hover": {
-                background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
               },
             }}
           >

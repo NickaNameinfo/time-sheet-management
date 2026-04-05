@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../services/api";
 import { useNavigate } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
 import {
@@ -27,7 +27,7 @@ import {
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
-import commonData from "../../common.json"
+
 function AddProjectDetails(props) {
   const {
     handleSubmit,
@@ -44,7 +44,7 @@ function AddProjectDetails(props) {
   console.log(projectList, "projectList", formDatas);
 
   useEffect(() => {
-    axios.post(`${commonData?.APIKEY}/dashboard`, { tokensss: token }).then((res) => {
+    api.post("/dashboard", { tokensss: token }).then((res) => {
       setValue("employeeName", res?.data?.employeeName);
     });
     getProjectList();
@@ -68,8 +68,8 @@ function AddProjectDetails(props) {
   }, [formDatas.projectName]);
 
   const getProjectList = () => {
-    axios
-      .get(`${commonData?.APIKEY}/getProject`)
+    api
+      .get("/getProject")
       .then((res) => {
         if (res.data.Status === "Success") {
           setProjectList(res.data.Result);
@@ -83,8 +83,8 @@ function AddProjectDetails(props) {
   const onSubmit = (data) => {
     console.log(data, "tests213");
     // Perform any other actions you want with the form data
-    axios
-      .post(`${commonData?.APIKEY}/project/addWorkDetails`, data)
+    api
+      .post("/project/addWorkDetails", data)
       .then((res) => {
         if (res.data.Error) {
           alert(res.data.Error);
@@ -390,9 +390,9 @@ function AddProjectDetails(props) {
                   variant="contained"
                   startIcon={<Save />}
                   sx={{
-                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
                     "&:hover": {
-                      background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                      background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
                     },
                   }}
                 >

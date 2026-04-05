@@ -94,11 +94,11 @@ export const companyQuery = (sql, params) => {
 
 /** Returns query function: company DB when req.isCompanyUser, req.company_id, or req.company_user_id is set (company login), otherwise super admin DB. Use for tenant data (employee, project, leave, etc.). */
 export const getTenantQuery = (req) => {
+  if (!req) return query;
+  const hasCompanyId = req.company_id != null && String(req.company_id).trim() !== "";
+  const hasCompanyUserId = req.company_user_id != null && String(req.company_user_id).trim() !== "";
   const useCompanyDb =
-    req &&
-    (req.isCompanyUser === true ||
-      (req.company_id != null && req.company_id !== "") ||
-      (req.company_user_id != null && req.company_user_id !== ""));
+    req.isCompanyUser === true || hasCompanyId || hasCompanyUserId;
   return useCompanyDb ? companyQuery : query;
 };
 

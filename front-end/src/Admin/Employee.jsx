@@ -29,6 +29,9 @@ import {
   Work,
   CalendarToday,
   Refresh,
+  CheckCircle,
+  Cancel,
+  Business,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { AgGridReact } from "ag-grid-react";
@@ -39,6 +42,7 @@ import { useApi } from "../hooks/useApi";
 import { useMutation } from "../hooks/useMutation";
 import Loading from "../components/Loading";
 import ErrorMessage from "../components/ErrorMessage";
+import { getDisplayEmployeeId } from "../utils/employeeId";
 
 function Employee({ from }) {
   const navigate = useNavigate();
@@ -113,6 +117,7 @@ function Employee({ from }) {
         field: "EMPID",
         headerName: "Employee ID",
         minWidth: 120,
+        valueGetter: (params) => getDisplayEmployeeId(params.data),
         cellRenderer: (params) => (
           <Chip label={params.value} size="small" color="primary" variant="outlined" />
         ),
@@ -127,6 +132,61 @@ function Employee({ from }) {
             <Typography variant="body2">{params.value}</Typography>
           </Box>
         ),
+      },
+      {
+        field: "company_login_status",
+        headerName: "Company login",
+        headerTooltip:
+          "Matches Super Admin → Company profile logins. Approved = email is on that list; Not registered = not on list.",
+        minWidth: 210,
+        cellRenderer: (params) => {
+          const s = params.data?.company_login_status;
+          if (s == null) {
+            return (
+              <Typography variant="body2" color="text.secondary">
+                —
+              </Typography>
+            );
+          }
+          if (s === "approved_super_admin") {
+            return (
+              <Tooltip title="On company login list (first account / Super Admin setup)">
+                <Chip
+                  icon={<CheckCircle sx={{ fontSize: 16 }} />}
+                  label="Approved"
+                  size="small"
+                  color="success"
+                  variant="outlined"
+                />
+              </Tooltip>
+            );
+          }
+          if (s === "approved_company") {
+            return (
+              <Tooltip title="On company login list (added from company admin)">
+                <Chip
+                  icon={<Business sx={{ fontSize: 16 }} />}
+                  label="Approved"
+                  size="small"
+                  color="info"
+                  variant="outlined"
+                />
+              </Tooltip>
+            );
+          }
+          if (s === "inactive") {
+            return (
+              <Tooltip title="Email is on the list but company login is disabled">
+                <Chip icon={<Cancel sx={{ fontSize: 16 }} />} label="Login disabled" size="small" color="warning" variant="outlined" />
+              </Tooltip>
+            );
+          }
+          return (
+            <Tooltip title="Employee email is not in Super Admin company profile logins for this company">
+              <Chip label="Not registered" size="small" variant="outlined" />
+            </Tooltip>
+          );
+        },
       },
       {
         field: "userName",
@@ -164,11 +224,6 @@ function Employee({ from }) {
             <Typography variant="body2">{params.value || "N/A"}</Typography>
           </Box>
         ),
-      },
-      {
-        field: "discipline",
-        headerName: "Discipline",
-        minWidth: 120,
       },
       {
         field: "date",
@@ -317,9 +372,9 @@ function Employee({ from }) {
                 }
               }}
               sx={{
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
                 "&:hover": {
-                  background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                  background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
                 },
               }}
             >
@@ -430,7 +485,8 @@ function Employee({ from }) {
         <DialogContent>
           <DialogContentText>
             Are you sure you want to delete employee{" "}
-            <strong>{employeeToDelete?.employeeName}</strong> (ID: {employeeToDelete?.EMPID})?
+            <strong>{employeeToDelete?.employeeName}</strong> (ID:{" "}
+            {employeeToDelete ? getDisplayEmployeeId(employeeToDelete) : ""})?
             <br />
             <br />
             This action cannot be undone.

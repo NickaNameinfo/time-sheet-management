@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Box, Typography, Chip, Skeleton, Alert, LinearProgress } from "@mui/material";
 import { investmentApiService } from "../../services/investmentApi";
 import InvestmentPageLayout, { sectionCardSx, cardWithAccentSx } from "./InvestmentPageLayout";
+import { appColors } from "../../theme/colors";
 
 export default function MySelfReports() {
   const [data, setData] = useState(null);
@@ -76,7 +77,7 @@ export default function MySelfReports() {
               key={ch.id}
               role="listitem"
               sx={{
-                ...cardWithAccentSx(ch.success ? "#22C55E" : "#6366F1"),
+                ...cardWithAccentSx(ch.success ? appColors.success : appColors.primary),
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",

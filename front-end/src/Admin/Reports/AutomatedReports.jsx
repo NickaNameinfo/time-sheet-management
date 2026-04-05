@@ -88,8 +88,18 @@ const AutomatedReports = () => {
     apiService.sendReport(data)
   );
 
+  const buildSchedulePayload = () => ({
+    ...scheduleData,
+    // Backend uses report_type for the summary date range; keep schedule frequency in sync
+    scheduleConfig: {
+      ...scheduleData.scheduleConfig,
+      frequency: scheduleData.reportType,
+    },
+    reportType: scheduleData.reportType,
+  });
+
   const handleCreateSchedule = async () => {
-    const result = await createSchedule(scheduleData);
+    const result = await createSchedule(buildSchedulePayload());
     if (result.success) {
       setScheduleDialog(false);
       resetScheduleForm();
@@ -99,7 +109,7 @@ const AutomatedReports = () => {
   };
 
   const handleUpdateSchedule = async () => {
-    const result = await updateSchedule(scheduleData);
+    const result = await updateSchedule(buildSchedulePayload());
     if (result.success) {
       setScheduleDialog(false);
       setEditingSchedule(null);
@@ -154,14 +164,18 @@ const AutomatedReports = () => {
 
   const openEditDialog = (schedule) => {
     setEditingSchedule(schedule);
+    const rt = schedule.report_type || "weekly";
+    const sc = schedule.schedule_config || {};
     setScheduleData({
-      reportType: schedule.report_type || "weekly",
+      reportType: rt,
       reportName: schedule.report_name || "",
       recipients: schedule.recipients || [{ email: "", role: "admin" }],
-      scheduleConfig: schedule.schedule_config || {
+      scheduleConfig: {
         frequency: "weekly",
         time: "09:00",
         day: "monday",
+        ...sc,
+        frequency: rt,
       },
       isActive: schedule.is_active !== false,
     });
@@ -218,8 +232,10 @@ const AutomatedReports = () => {
             <Typography variant="h4" fontWeight="bold" gutterBottom>
               Automated Reports
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Schedule and manage automated report delivery
+            <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 720 }}>
+              Each schedule emails one <strong>timesheet summary</strong>: total approved work entries and total hours
+              from the database for the chosen period (daily / weekly / monthly). &quot;Report name&quot; is only the
+              title in the email—not a separate report type (e.g. it is not the Employee or Project PDF reports).
             </Typography>
           </Box>
           <Stack direction="row" spacing={2}>
@@ -239,9 +255,9 @@ const AutomatedReports = () => {
                 setScheduleDialog(true);
               }}
               sx={{
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
                 "&:hover": {
-                  background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                  background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
                 },
               }}
             >
@@ -266,8 +282,8 @@ const AutomatedReports = () => {
                 <TableHead>
                   <TableRow>
                     <TableCell>Report Name</TableCell>
-                    <TableCell>Type</TableCell>
-                    <TableCell>Frequency</TableCell>
+                    <TableCell>Period</TableCell>
+                    <TableCell>Runs</TableCell>
                     <TableCell>Recipients</TableCell>
                     <TableCell>Status</TableCell>
                     <TableCell>Actions</TableCell>
@@ -357,44 +373,42 @@ const AutomatedReports = () => {
         </DialogTitle>
         <DialogContent>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+            <Alert severity="info" sx={{ borderRadius: 2 }}>
+              <Typography variant="body2" component="span">
+                <strong>What gets emailed:</strong> a short HTML summary with the period dates,{" "}
+                <strong>total approved timesheet entries</strong>, and <strong>total hours</strong> (from approved{" "}
+                <code>workdetails</code> rows).{" "}
+                <strong>Report name</strong> is only the email title—there is no picker for Employee / Project /
+                Weekly PDF reports here.
+              </Typography>
+            </Alert>
             <TextField
-              label="Report Name"
+              label="Report name"
               value={scheduleData.reportName}
               onChange={(e) =>
                 setScheduleData({ ...scheduleData, reportName: e.target.value })
               }
               fullWidth
               required
+              helperText="Shown in the email subject and header (your label)."
             />
             <FormControl fullWidth>
-              <InputLabel>Report Type</InputLabel>
+              <InputLabel>Summary period</InputLabel>
               <Select
                 value={scheduleData.reportType}
-                label="Report Type"
-                onChange={(e) =>
-                  setScheduleData({ ...scheduleData, reportType: e.target.value })
-                }
-              >
-                <MenuItem value="daily">Daily</MenuItem>
-                <MenuItem value="weekly">Weekly</MenuItem>
-                <MenuItem value="monthly">Monthly</MenuItem>
-              </Select>
-            </FormControl>
-            <FormControl fullWidth>
-              <InputLabel>Frequency</InputLabel>
-              <Select
-                value={scheduleData.scheduleConfig.frequency}
-                label="Frequency"
-                onChange={(e) =>
+                label="Summary period"
+                onChange={(e) => {
+                  const v = e.target.value;
                   setScheduleData({
                     ...scheduleData,
-                    scheduleConfig: { ...scheduleData.scheduleConfig, frequency: e.target.value },
-                  })
-                }
+                    reportType: v,
+                    scheduleConfig: { ...scheduleData.scheduleConfig, frequency: v },
+                  });
+                }}
               >
-                <MenuItem value="daily">Daily</MenuItem>
-                <MenuItem value="weekly">Weekly</MenuItem>
-                <MenuItem value="monthly">Monthly</MenuItem>
+                <MenuItem value="daily">Daily (previous day range)</MenuItem>
+                <MenuItem value="weekly">Weekly (last 7 days)</MenuItem>
+                <MenuItem value="monthly">Monthly (last ~1 month)</MenuItem>
               </Select>
             </FormControl>
             <TextField
@@ -498,9 +512,9 @@ const AutomatedReports = () => {
             disabled={creatingSchedule || updatingSchedule}
             startIcon={<CheckCircle />}
             sx={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
               "&:hover": {
-                background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
               },
             }}
           >
@@ -536,11 +550,15 @@ const AutomatedReports = () => {
         </DialogTitle>
         <DialogContent>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+            <Alert severity="info" sx={{ borderRadius: 2 }}>
+              Sends the same <strong>approved timesheet totals</strong> email as a scheduled run (entries + hours for
+              the date range below).
+            </Alert>
             <FormControl fullWidth>
-              <InputLabel>Report Type</InputLabel>
+              <InputLabel>Summary period</InputLabel>
               <Select
                 value={sendReportData.reportType}
-                label="Report Type"
+                label="Summary period"
                 onChange={(e) =>
                   setSendReportData({ ...sendReportData, reportType: e.target.value })
                 }
@@ -596,9 +614,9 @@ const AutomatedReports = () => {
             disabled={sendingReport}
             startIcon={<Send />}
             sx={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
               "&:hover": {
-                background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
               },
             }}
           >

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:timesheet_mobile/providers/auth_provider.dart';
 import 'package:timesheet_mobile/services/api_service.dart';
+import 'package:timesheet_mobile/utils/app_config.dart';
 import 'package:intl/intl.dart';
 
 class EmployeeCompOffScreen extends StatefulWidget {
@@ -97,7 +98,7 @@ class _EmployeeCompOffScreenState extends State<EmployeeCompOffScreen> {
       if (user == null) return;
 
       await _apiService.applyCompOff({
-        'employeeId': user['id'] ?? user['employeeId'],
+        'employeeId': AppConfig.employeeDbIdForApi(user) ?? user['id'] ?? user['employeeId'],
         'employeeName': user['employeeName'] ?? user['name'] ?? '',
         'leaveType': 'CompOff',
         'leaveFrom': _workDateController.text,

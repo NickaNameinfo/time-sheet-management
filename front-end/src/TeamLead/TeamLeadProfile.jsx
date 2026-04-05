@@ -11,6 +11,7 @@ import {
   Button,
   TextField,
   Paper,
+  Chip,
 } from "@mui/material";
 import {
   Person,
@@ -20,12 +21,15 @@ import {
   Edit,
   Save,
   AccountCircle,
+  Schedule,
 } from "@mui/icons-material";
-import commonData from "../../common.json";
+import { commonData } from "../config";
+import { apiService } from "../services/api";
 
 function TeamLeadProfile() {
   const [employee, setEmployee] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [trialInfo, setTrialInfo] = useState(null);
   const token = localStorage.getItem("token");
 
   useEffect(() => {
@@ -43,6 +47,17 @@ function TeamLeadProfile() {
       })
       .catch((err) => console.log(err));
   }, [token]);
+
+  useEffect(() => {
+    apiService
+      .getAdminTrailVersionCheck()
+      .then((res) => {
+        const data = res?.data?.Result ?? res?.Result ?? res?.data;
+        if (data && (data.isTrial || data.allowed)) setTrialInfo(data);
+        else setTrialInfo(null);
+      })
+      .catch(() => setTrialInfo(null));
+  }, []);
 
   const handleSave = () => {
     // Implement save functionality
@@ -65,9 +80,9 @@ function TeamLeadProfile() {
                 startIcon={<Edit />}
                 onClick={() => setIsEditing(true)}
                 sx={{
-                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
                   "&:hover": {
-                    background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                    background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
                   },
                 }}
               >
@@ -106,6 +121,56 @@ function TeamLeadProfile() {
               {employee?.EMPID || employee?.employeeId || "Team Lead ID"}
             </Typography>
           </Box>
+
+          {trialInfo && (trialInfo.isTrial || trialInfo.expired) && (
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2,
+                mb: 3,
+                bgcolor: trialInfo.expired ? "error.light" : "primary.light",
+                color: "white",
+                borderRadius: 2,
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                <Schedule />
+                <Typography variant="subtitle1" fontWeight="bold">
+                  Trial version
+                </Typography>
+                {trialInfo.expired && (
+                  <Chip label="Expired" size="small" color="error" sx={{ ml: 1 }} />
+                )}
+              </Box>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={4}>
+                  <Typography variant="caption" sx={{ opacity: 0.9 }}>Days used</Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {trialInfo.trialDaysUsed ?? 0} / {trialInfo.trialDaysTotal ?? 0} days
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <Typography variant="caption" sx={{ opacity: 0.9 }}>Expiry date</Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {trialInfo.trialExpiresAt
+                      ? new Date(trialInfo.trialExpiresAt).toLocaleDateString(undefined, { dateStyle: "medium" })
+                      : "—"}
+                  </Typography>
+                </Grid>
+                {trialInfo.expired && (
+                  <Grid item xs={12}>
+                    <Typography variant="body2">
+                      Your trial expired on{" "}
+                      {trialInfo.trialExpiresAt
+                        ? new Date(trialInfo.trialExpiresAt).toLocaleDateString(undefined, { dateStyle: "long" })
+                        : ""}
+                      . Contact admin for access.
+                    </Typography>
+                  </Grid>
+                )}
+              </Grid>
+            </Paper>
+          )}
 
           <Divider sx={{ my: 3 }} />
 

@@ -1,5 +1,5 @@
-import axios from "axios";
 import React, { useEffect, useState } from "react";
+import api from "../services/api";
 import {
   Box,
   Card,
@@ -27,7 +27,6 @@ import {
   Refresh,
   Person,
 } from "@mui/icons-material";
-import commonData from "../../common.json";
 import ClockInOutCard from "../components/ClockInOutCard";
 
 function HrHome() {
@@ -36,7 +35,7 @@ function HrHome() {
 
   useEffect(() => {
     // Fetch employee data
-    axios.get(`${commonData?.APIKEY}/getEmployee`)
+    api.get("/getEmployee")
       .then((res) => {
         if (res.data.Status === "Success") {
           setTotalEmployees(res.data.Result.length);
@@ -78,7 +77,7 @@ function HrHome() {
       {/* Stats Card */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={4}>
-          <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)", background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color: "white" }}>
+          <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)", background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)", color: "white" }}>
             <CardContent>
               <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                 <People sx={{ fontSize: 48 }} />

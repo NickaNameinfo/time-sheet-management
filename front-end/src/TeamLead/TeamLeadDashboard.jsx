@@ -3,7 +3,7 @@ import { Box } from "@mui/material";
 import { Outlet } from "react-router-dom";
 import CommonSidebar from "../components/CommonSidebar";
 
-const drawerWidth = 280;
+const drawerWidth = 104;
 
 function TeamLeadDashboard() {
 
@@ -20,7 +20,7 @@ function TeamLeadDashboard() {
           flexGrow: 1,
           p: { xs: 1, md: 3 },
           width: { md: `calc(100% - ${drawerWidth}px)` },
-          mt: { xs: 7, md: 0 },
+          mt: { xs: "56px", md: "64px" },
           bgcolor: "grey.50",
           minHeight: "100vh",
         }}

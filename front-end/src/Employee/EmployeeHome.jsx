@@ -43,6 +43,8 @@ import { useMutation } from "../hooks/useMutation";
 import { useAuth } from "../context/AuthContext";
 import Loading from "../components/Loading";
 import ErrorMessage from "../components/ErrorMessage";
+import EmployeeAssignedProjectPlansCard from "../components/EmployeeAssignedProjectPlansCard";
+import { useEmployeePlanAssignments } from "../hooks/useEmployeePlanAssignments";
 
 const EmployeeHome = () => {
   const { user } = useAuth();
@@ -283,25 +285,15 @@ const EmployeeHome = () => {
     }
   }, [todayClockStatus, formatTime, todayHours]);
 
-  // Fetch assigned projects from project plans and regular projects
-  const { data: assignedProjectsFromPlans, loading: assignedProjectsLoading } = useApi(
-    () => {
-      if (!user?.id) return Promise.resolve({ data: { Status: "Success", Result: [] } });
-      return apiService.getEmployeeAssignedProjects({ employee_id: user.id });
-    },
-    [user?.id],
-    !!user?.id
-  );
-  
+  const {
+    assignedProjectsList,
+    assignedProjectsLoading,
+    planWorkDetailsLoading,
+    assignedPlansWithProgress,
+  } = useEmployeePlanAssignments(user?.id);
+
   const { data: projects } = useApi(apiService.getProjects);
   const { data: areaOfWork } = useApi(apiService.getAreaOfWork);
-
-  // Process assigned projects from project plans
-  const assignedProjectsList = useMemo(() => {
-    if (!assignedProjectsFromPlans) return [];
-    if (Array.isArray(assignedProjectsFromPlans)) return assignedProjectsFromPlans;
-    return assignedProjectsFromPlans?.Result || assignedProjectsFromPlans?.data?.Result || [];
-  }, [assignedProjectsFromPlans]);
 
   // Process regular projects list
   const projectsList = useMemo(() => {
@@ -315,7 +307,6 @@ const EmployeeHome = () => {
     if (Array.isArray(areaOfWork)) return areaOfWork;
     return areaOfWork?.Result || areaOfWork?.data?.Result || [];
   }, [areaOfWork]);
-
 
   const { mutate: clockIn, loading: clockingIn } = useMutation(apiService.clockIn);
   const { mutate: clockOut, loading: clockingOut } = useMutation(apiService.clockOut);
@@ -599,7 +590,7 @@ const EmployeeHome = () => {
         title: "Total Leave",
         value: leaveBalances.total.toFixed(1),
         icon: <EventAvailable />,
-        color: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        color: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
       },
       {
         title: "Casual Leave",
@@ -752,7 +743,7 @@ const EmployeeHome = () => {
           fontWeight="bold"
           gutterBottom
           sx={{
-            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
             backgroundClip: "text",
@@ -837,9 +828,9 @@ const EmployeeHome = () => {
                     onClick={() => setClockInDialog(true)}
                     disabled={clockingIn}
                     sx={{
-                      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                      background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
                       "&:hover": {
-                        background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                        background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
                       },
                     }}
                   >
@@ -870,6 +861,13 @@ const EmployeeHome = () => {
           </Grid>
         </CardContent>
       </Card>
+
+      <EmployeeAssignedProjectPlansCard
+        assignedProjectsList={assignedProjectsList}
+        assignedProjectsLoading={assignedProjectsLoading}
+        planWorkDetailsLoading={planWorkDetailsLoading}
+        assignedPlansWithProgress={assignedPlansWithProgress}
+      />
 
       {/* Leave Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -1018,7 +1016,10 @@ const EmployeeHome = () => {
                 {assignedProjectsList.length > 0 ? (
                   // Show only assigned projects from plans with allotted hours
                   assignedProjectsList.map((project) => (
-                    <MenuItem key={project.project_id || project.id} value={project.projectName}>
+                    <MenuItem
+                      key={`${project.plan_id}-${project.assignment_id}`}
+                      value={project.projectName}
+                    >
                       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
                         <Typography variant="body2">{project.projectName}</Typography>
                         {project.allotted_hours && (
@@ -1087,9 +1088,9 @@ const EmployeeHome = () => {
             disabled={clockingIn}
             startIcon={clockingIn ? <CircularProgress size={20} /> : <Login />}
             sx={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
               "&:hover": {
-                background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
               },
             }}
           >

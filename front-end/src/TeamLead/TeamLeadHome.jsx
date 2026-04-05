@@ -1,5 +1,5 @@
-import axios from "axios";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import api from "../services/api";
 import {
   Box,
   Card,
@@ -29,7 +29,6 @@ import {
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
-import commonData from "../../common.json";
 import ClockInOutCard from "../components/ClockInOutCard";
 
 function TeamLeadHome() {
@@ -41,7 +40,6 @@ function TeamLeadHome() {
   const [expandedProjects, setExpandedProjects] = useState({});
   const [projectTimesheetData, setProjectTimesheetData] = useState({});
   const token = localStorage.getItem("token");
-  axios.defaults.withCredentials = true;
 
   const calculateProjectValues = (params, projectWorkHours) => {
     const project = projectWorkHours?.find(
@@ -261,10 +259,10 @@ function TeamLeadHome() {
   );
 
   const onGridReady = useCallback((params) => {
-    axios
-      .get(`${commonData?.APIKEY}/getProject`)
+    api
+      .get("/getProject")
       .then(async (res) => {
-        let userDetails = await axios.post(`${commonData?.APIKEY}/dashboard`, {
+        let userDetails = await api.post("/dashboard", {
           tokensss: token,
         });
         if (res.data.Status === "Success") {
@@ -280,8 +278,8 @@ function TeamLeadHome() {
   }, []);
 
   const onGetWorkDetails = (params) => {
-    axios
-      .get(`${commonData?.APIKEY}/getWorkDetails`)
+    api
+      .get("/getWorkDetails")
       .then((res) => {
         if (res.data.Status === "Success") {
           setWorkDetails(res.data.Result);
@@ -294,9 +292,9 @@ function TeamLeadHome() {
 
   const updateProjectDetails = (params) => {
     let apiTemp = { ...params.data, approvedDate: new Date() };
-    axios
+    api
       .put(
-        `${commonData?.APIKEY}/project/update/completion/` + params.data.id,
+        "/project/update/completion/" + params.data.id,
         apiTemp
       )
       .then(async (res) => {

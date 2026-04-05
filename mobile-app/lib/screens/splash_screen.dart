@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timesheet_mobile/providers/challenge_auth_provider.dart';
 import 'package:timesheet_mobile/screens/login_screen.dart';
 import 'package:timesheet_mobile/screens/challenge/challenge_login_screen.dart';
 import 'package:timesheet_mobile/screens/challenge/challenge_dashboard_screen.dart';
+import 'package:timesheet_mobile/services/notification_service.dart';
 import 'package:timesheet_mobile/utils/app_config.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -33,6 +36,9 @@ class _SplashScreenState extends State<SplashScreen> {
     }
     await Future.delayed(const Duration(milliseconds: 600));
     if (!mounted) return;
+    // Request reminder/notification permission early so reminders work when app is closed
+    await NotificationService.requestReminderPermissions();
+    if (!mounted) return;
     setState(() {});
   }
 
@@ -42,11 +48,15 @@ class _SplashScreenState extends State<SplashScreen> {
     );
   }
 
-  void _navigateToDailyChallenge() async {
+  Future<void> _navigateToDailyChallenge() async {
+    await context.read<ChallengeAuthProvider>().sessionReady;
+    if (!mounted) return;
+    final challengeAuth = context.read<ChallengeAuthProvider>();
     final prefs = await SharedPreferences.getInstance();
     final challengeToken = prefs.getString(AppConfig.challengeTokenKey);
     if (!mounted) return;
-    if (challengeToken != null) {
+    final goDashboard = challengeToken != null && challengeAuth.isAuthenticated;
+    if (goDashboard) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const ChallengeDashboardScreen()),
       );
@@ -120,16 +130,16 @@ class _SplashScreenState extends State<SplashScreen> {
                     letterSpacing: 0.2,
                   ),
                 ),
-                // const SizedBox(height: 40),
-                // _OptionCard(
-                //   onTap: _navigateToTimeSheet,
-                //   icon: Icons.schedule_rounded,
-                //   iconBgColor: Colors.white,
-                //   iconColor: primary,
-                //   title: 'Time Sheet',
-                //   subtitle: 'Clock in, leaves & work hours',
-                //   isPrimary: true,
-                // ),
+                const SizedBox(height: 40),
+                _OptionCard(
+                  onTap: _navigateToTimeSheet,
+                  icon: Icons.schedule_rounded,
+                  iconBgColor: Colors.white,
+                  iconColor: primary,
+                  title: 'Time Sheet',
+                  subtitle: 'Company portal, employee, HR & team lead — clock in, leaves, hours',
+                  isPrimary: true,
+                ),
                 const SizedBox(height: 20),
                 _OptionCard(
                   onTap: _navigateToDailyChallenge,

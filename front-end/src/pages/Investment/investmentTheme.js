@@ -2,16 +2,16 @@
  * Shared theme for Investment & My Self pages: colors, gradients, and common sx.
  */
 export const investmentColors = {
-  primary: "#6366F1",
-  primaryDark: "#4F46E5",
-  success: "#22C55E",
-  info: "#0EA5E9",
-  warning: "#F59E0B",
+  primary: "#4C86F9",
+  primaryDark: "#3d6dd1",
+  success: "#49A84C",
+  info: "#4C86F9",
+  warning: "#F6BC00",
   surface: "#FFFFFF",
   background: "#F1F5F9",
 };
 
-export const investmentGradient = `linear-gradient(135deg, ${investmentColors.primary} 0%, ${investmentColors.primaryDark} 100%)`;
+export const investmentGradient = `linear-gradient(135deg, ${investmentColors.primary} 0%, ${investmentColors.success} 100%)`;
 
 /** Page header wrapper - gradient bar + title */
 export const pageHeaderSx = {
@@ -21,7 +21,7 @@ export const pageHeaderSx = {
   px: { xs: 2, sm: 3 },
   py: 2.5,
   mb: 3,
-  boxShadow: "0 4px 14px rgba(99, 102, 241, 0.25)",
+  boxShadow: "0 4px 14px rgba(76, 134, 249, 0.25)",
 };
 
 /** Section card: rounded, soft shadow, border */

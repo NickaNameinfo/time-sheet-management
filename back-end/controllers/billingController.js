@@ -2,6 +2,15 @@ import { getTenantQuery } from "../config/database.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
+/** Client may send these in JSON body for auth; they are not DB columns */
+const IGNORED_BODY_KEYS_FOR_UPDATE = new Set([
+  "token",
+  "tokensss",
+  "Token",
+  "authorization",
+  "Authorization",
+]);
+
 // Get Clients
 export const getClients = asyncHandler(async (req, res) => {
   const q = getTenantQuery(req);
@@ -81,6 +90,7 @@ export const updateClient = asyncHandler(async (req, res) => {
   const values = [];
 
   Object.keys(updateData).forEach((key) => {
+    if (IGNORED_BODY_KEYS_FOR_UPDATE.has(key)) return;
     if (updateData[key] !== undefined) {
       // Use mapped field name if exists, otherwise use key as-is
       const dbField = fieldMapping[key] || key;
@@ -190,6 +200,7 @@ export const updateBillingRate = asyncHandler(async (req, res) => {
   const values = [];
 
   Object.keys(updateData).forEach((key) => {
+    if (IGNORED_BODY_KEYS_FOR_UPDATE.has(key)) return;
     if (updateData[key] !== undefined && key !== "currency") {
       // Use mapped field name if exists, otherwise use key as-is
       const dbField = fieldMapping[key] || key;

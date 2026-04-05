@@ -14,11 +14,9 @@ import {
   MenuItem,
   Select,
   FormHelperText,
-  IconButton,
   Stack,
 } from "@mui/material";
 import {
-  ArrowBack,
   Save,
   CalendarToday,
   Person,
@@ -31,8 +29,9 @@ import {
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
-  import { apiService } from "../../services/api.js";
+import { apiService } from "../../services/api.js";
 import { useParams } from "react-router-dom";
+import PageHeaderBreadcrumbs from "../../components/PageHeaderBreadcrumbs";
 
 function AddCrmDate() {
   const {
@@ -63,6 +62,7 @@ function AddCrmDate() {
             setValue("notes", crmData.notes || "");
             setValue("status", crmData.status || "New");
             setValue("scheduleDate", crmData.scheduleDate || "");
+            setValue("from", crmData.lead_from || crmData.from || "");
           }
         })
         .catch((error) => {
@@ -97,20 +97,15 @@ function AddCrmDate() {
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ display: "flex", alignItems: "center", mb: 3, gap: 2 }}>
-        <IconButton onClick={() => navigate("/Dashboard/Sales/CrmList")} color="primary">
-          <ArrowBack />
-        </IconButton>
-        <Box>
-          <Typography variant="h4" fontWeight="bold">
-            {id ? "Edit CRM Date" : "Add CRM Date"}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {id ? "Update CRM entry details" : "Add a new CRM entry with date and details"}
-          </Typography>
-        </Box>
-      </Box>
+      <PageHeaderBreadcrumbs
+        items={[
+          { label: "Dashboard", to: "/Dashboard" },
+          { label: "Sales", to: "/Dashboard/Sales" },
+          { label: "CRM list", to: "/Dashboard/Sales/CrmList" },
+        ]}
+        title={id ? "Edit CRM Date" : "Add CRM Date"}
+        subtitle={id ? "Update CRM entry details" : "Add a new CRM entry with date and details"}
+      />
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <Grid container spacing={3}>
@@ -266,6 +261,28 @@ function AddCrmDate() {
 
                   <Grid item xs={12} sm={6}>
                     <Controller
+                      name="from"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth
+                          label="From (Lead source)"
+                          placeholder='e.g. Website / Facebook / Referral'
+                          error={Boolean(errors.from)}
+                          helperText={errors.from?.message}
+                          InputProps={{
+                            startAdornment: (
+                              <Assignment sx={{ mr: 1, color: "text.secondary" }} />
+                            ),
+                          }}
+                        />
+                      )}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <Controller
                       name="status"
                       control={control}
                       rules={{ required: "Status is required" }}
@@ -376,9 +393,9 @@ function AddCrmDate() {
             startIcon={<Save />}
             size="large"
             sx={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
               "&:hover": {
-                background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
               },
             }}
           >

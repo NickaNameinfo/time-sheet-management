@@ -12,10 +12,11 @@ class InvestmentTheme {
   static const double kSectionSpacing = 24;
 
   static const Color kBackground = Color(0xFFF1F5F9);
-  static const Color kPrimary = Color(0xFF6366F1);
-  static const Color kPrimaryDark = Color(0xFF4F46E5);
-  static const Color kSuccess = Color(0xFF22C55E);
-  static const Color kInfo = Color(0xFF0EA5E9);
+  static const Color kPrimary = Color(0xFF4C86F9);
+  static const Color kPrimaryDark = Color(0xFF3D6DD1);
+  static const Color kSuccess = Color(0xFF49A84C);
+  static const Color kInfo = Color(0xFF4C86F9);
+  static const Color kAccent = Color(0xFFF6BC00);
   static const Color kSurface = Color(0xFFFFFFFF);
 
   /// Gradient for app bars and accents

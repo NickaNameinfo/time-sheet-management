@@ -214,7 +214,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           onChanged: (_) => _clearError(),
           decoration: InputDecoration(
             labelText: 'Email',
-            hintText: 'you@example.com',
+            hintText: 'business@nicknameinfotech.com',
             filled: true,
             fillColor: Colors.grey.shade50,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),

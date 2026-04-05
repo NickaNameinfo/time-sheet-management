@@ -522,6 +522,17 @@ export const getMenuPermissionsByEmployee = asyncHandler(async (req, res) => {
     }
 
     if (isSuperAdmin) {
+      const parseJsonFieldSuperAdmin = (field) => {
+        if (!field) return [];
+        try {
+          if (typeof field === "string") return JSON.parse(field);
+          if (Array.isArray(field)) return field;
+        } catch {
+          return [];
+        }
+        return [];
+      };
+
       const superAdminMenus = [
         // Root
         {
@@ -648,7 +659,81 @@ export const getMenuPermissionsByEmployee = asyncHandler(async (req, res) => {
         ...m,
       }));
 
-      return sendSuccess(res, superAdminMenus);
+      // Super admin: also expose full Investment / My Self menu subtree from menu_permissions
+      // (KYC, reports, referrals, withdrawals, etc.) so platform admins can open all routes.
+      let investmentMySelfMenus = [];
+      try {
+        const allMenuRows = await query(
+          "SELECT * FROM menu_permissions ORDER BY display_order ASC, menu_title ASC"
+        );
+        if (allMenuRows?.length) {
+          const byKey = new Map(allMenuRows.map((r) => [r.menu_key, r]));
+          const childrenByParent = new Map();
+          for (const r of allMenuRows) {
+            const p = r.parent_menu || "";
+            if (!childrenByParent.has(p)) childrenByParent.set(p, []);
+            childrenByParent.get(p).push(r);
+          }
+          const included = new Set();
+          const walk = (menuKey) => {
+            if (!menuKey || included.has(menuKey) || !byKey.has(menuKey)) return;
+            included.add(menuKey);
+            for (const k of childrenByParent.get(menuKey) || []) {
+              walk(k.menu_key);
+            }
+          };
+          for (const rk of [
+            "investment",
+            "investment_management",
+            "investment_kyc_management",
+            "investment_referral_management",
+          ]) {
+            walk(rk);
+          }
+          investmentMySelfMenus = allMenuRows
+            .filter((r) => included.has(r.menu_key))
+            .map((row) => {
+              const allowedRoles = parseJsonFieldSuperAdmin(row.allowed_roles);
+              const viewPermission = parseJsonFieldSuperAdmin(row.view_permission);
+              const addPermission = parseJsonFieldSuperAdmin(row.add_permission);
+              const editPermission = parseJsonFieldSuperAdmin(row.edit_permission);
+              const deletePermission = parseJsonFieldSuperAdmin(row.delete_permission);
+              const allPermission = parseJsonFieldSuperAdmin(row.all_permission);
+              return {
+                id: row.id,
+                menu_key: row.menu_key,
+                menu_title: row.menu_title,
+                menu_path: row.menu_path,
+                menu_icon: row.menu_icon,
+                parent_menu: row.parent_menu,
+                display_order: row.display_order || 0,
+                is_active: true,
+                allowed_roles: allowedRoles.length ? allowedRoles : ["Admin"],
+                view_permission: viewPermission.length ? viewPermission : ["Admin"],
+                add_permission: addPermission,
+                edit_permission: editPermission,
+                delete_permission: deletePermission,
+                all_permission: allPermission.length ? allPermission : ["Admin"],
+                emp_view_permission: true,
+                emp_add_permission: true,
+                emp_edit_permission: true,
+                emp_delete_permission: true,
+                emp_all_permission: true,
+              };
+            });
+        }
+      } catch (invErr) {
+        if (invErr?.code !== "ER_NO_SUCH_TABLE") {
+          console.error(
+            "[getMenuPermissionsByEmployee] super admin My Self / investment menus:",
+            invErr?.message || invErr
+          );
+        }
+      }
+
+      const mergedSuperAdminMenus = [...superAdminMenus, ...investmentMySelfMenus];
+      mergedSuperAdminMenus.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+      return sendSuccess(res, mergedSuperAdminMenus);
     }
 
     // Company user (company_users login): menus = company_menu_permissions (per company) ∩ role rules
@@ -1527,6 +1612,8 @@ const DEFAULT_APP_SETTINGS = {
   theme_primary: "#4C86F9",
   theme_success: "#49A84C",
   theme_accent: "#F6BC00",
+  theme_sidebar_bg: "#101835",
+  theme_sidebar_text: "#FFFFFF",
   logo_url: "",
   admin_trail_version_emails: "[]",
   admin_trail_version_days: "30",
@@ -1609,6 +1696,8 @@ export const updateAppSettings = asyncHandler(async (req, res) => {
     theme_primary,
     theme_success,
     theme_accent,
+    theme_sidebar_bg,
+    theme_sidebar_text,
     logo_url,
     admin_trail_version_emails,
     admin_trail_version_days,
@@ -1673,6 +1762,8 @@ export const updateAppSettings = asyncHandler(async (req, res) => {
       theme_primary: theme_primary ?? undefined,
       theme_success: theme_success ?? undefined,
       theme_accent: theme_accent ?? undefined,
+      theme_sidebar_bg: theme_sidebar_bg ?? undefined,
+      theme_sidebar_text: theme_sidebar_text ?? undefined,
       logo_url: logo_url !== undefined ? String(logo_url).trim() || '' : undefined,
       admin_trail_version_emails: trailEmailsValue,
       admin_trail_version_days: trailDaysValue,

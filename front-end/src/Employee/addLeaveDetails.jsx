@@ -22,6 +22,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Paper,
+  Chip,
 } from "@mui/material";
 import {
   EventAvailable,
@@ -43,11 +45,14 @@ import { apiService } from "../services/api";
 import { useApi } from "../hooks/useApi";
 import { useMutation } from "../hooks/useMutation";
 import { useAuth } from "../context/AuthContext";
+import { useLocation } from "react-router-dom";
 import ErrorMessage from "../components/ErrorMessage";
 import Loading from "../components/Loading";
 
 const AddLeaveDetails = () => {
   const { user } = useAuth();
+  const location = useLocation();
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   const {
     handleSubmit,
     control,
@@ -58,22 +63,97 @@ const AddLeaveDetails = () => {
   } = useForm();
   const formData = watch();
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+  const [validationMessage, setValidationMessage] = useState("");
   const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null });
 
   // Fetch leave details (filtered by employeeId)
-  const { data: leaveDetails, loading: leaveLoading, refetch: refetchLeaves } = useApi(
-    () => apiService.getLeaveDetails({ employeeId: user?.id }),
-    [user?.id],
-    !!user?.id
+  const {
+    data: leaveDetails,
+    loading: leaveLoading,
+    error: leaveError,
+    refetch: refetchLeaves,
+  } = useApi(
+    // Backend can resolve employee from JWT; employeeId param is optional.
+    () => apiService.getLeaveDetails(user?.id ? { employeeId: user.id } : undefined),
+    [user?.id, token],
+    !!token
   );
 
   // Fetch leave balance from API
   const currentYear = new Date().getFullYear();
-  const { data: leaveBalanceData, loading: balanceLoading, refetch: refetchBalance } = useApi(
-    () => apiService.getLeaveBalance({ employeeId: user?.id, year: currentYear }),
-    [user?.id, currentYear],
-    !!user?.id
+  const {
+    data: leaveBalanceData,
+    loading: balanceLoading,
+    error: balanceError,
+    refetch: refetchBalance,
+  } = useApi(
+    // Backend can resolve employee from JWT; employeeId param is optional.
+    () => apiService.getLeaveBalance({ ...(user?.id ? { employeeId: user.id } : {}), year: currentYear }),
+    [user?.id, currentYear, token],
+    !!token
   );
+
+  // Ensure balance loads automatically once user is available (some sessions require an explicit refetch)
+  useEffect(() => {
+    if (token && leaveBalanceData == null && !balanceLoading) {
+      refetchBalance();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, leaveBalanceData, balanceLoading]);
+
+  // When user returns to this route, aggressively refresh both leaves and balances.
+  useEffect(() => {
+    const onAddLeaveRoute = location.pathname?.toLowerCase().includes("/dashboard/addleaves");
+    if (token && onAddLeaveRoute) {
+      refetchLeaves();
+      refetchBalance();
+    }
+  }, [location.pathname, token, refetchLeaves, refetchBalance]);
+
+  // If API failed (network / 401 / etc.), do a single retry when coming back to this screen.
+  const hasRetriedRef = React.useRef(false);
+  useEffect(() => {
+    const onAddLeaveRoute = location.pathname?.toLowerCase().includes("/dashboard/addleaves");
+    if (!token || !onAddLeaveRoute) return;
+    if (hasRetriedRef.current) return;
+    if (leaveError || balanceError) {
+      hasRetriedRef.current = true;
+      refetchLeaves();
+      refetchBalance();
+    }
+  }, [location.pathname, token, leaveError, balanceError, refetchLeaves, refetchBalance]);
+
+  // Also refetch when tab regains focus/visibility after navigating around.
+  useEffect(() => {
+    if (!token) return undefined;
+
+    const refreshAll = () => {
+      refetchLeaves();
+      refetchBalance();
+    };
+
+    const handleFocus = () => refreshAll();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshAll();
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [token, refetchLeaves, refetchBalance]);
+
+  const apiErrorMessage = useMemo(() => {
+    const e = leaveError || balanceError;
+    if (!e) return null;
+    if (typeof e === "string") return e;
+    if (typeof e?.message === "string") return e.message;
+    return "Failed to load leave data. Please try Refresh.";
+  }, [leaveError, balanceError]);
 
   // Use leave details directly (already filtered by backend)
   const rowData = useMemo(() => {
@@ -244,7 +324,6 @@ const AddLeaveDetails = () => {
         cellRenderer: (params) => {
           const status = params?.data?.leaveStatus?.toLowerCase();
           const hasStatus = status && status !== "";
-          const isApproved = status === "approved";
 
           return (
             <Box sx={{ display: "flex", justifyContent: "center", gap: 1 }}>
@@ -262,27 +341,6 @@ const AddLeaveDetails = () => {
                     }}
                   >
                     <Delete fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              ) : isApproved ? (
-                <Tooltip title="Cancel Request">
-                  <IconButton
-                    size="small"
-                    color="warning"
-                    onClick={() => handleCancelRequest(params)}
-                    disabled={updatingLeave}
-                    sx={{
-                      "&:hover": {
-                        bgcolor: "warning.light",
-                        color: "white",
-                      },
-                    }}
-                  >
-                    {updatingLeave ? (
-                      <CircularProgress size={16} />
-                    ) : (
-                      <Cancel fontSize="small" />
-                    )}
                   </IconButton>
                 </Tooltip>
               ) : null}
@@ -327,6 +385,7 @@ const AddLeaveDetails = () => {
         vacationLeave: 0,
         sickLeave: 0,
         earnedLeave: 0,
+        emergencyLeave: 0,
         compOffLeave: 0,
       };
     }
@@ -346,11 +405,7 @@ const AddLeaveDetails = () => {
       } else if (leaveType === "annual") {
         balanceMap.earnedLeave = balance; // Earned Leave (annual)
       } else if (leaveType === "emergency") {
-        // Emergency leave - could be mapped to casual or kept separate
-        // For now, we'll keep it separate or map to casual if needed
-        if (!balanceMap.vacationLeave) {
-          balanceMap.vacationLeave = balance;
-        }
+        balanceMap.emergencyLeave = balance; // Emergency Leave
       }
       // Note: Comp-off might not be in the leave balance API, it could be separate
     });
@@ -359,6 +414,7 @@ const AddLeaveDetails = () => {
       vacationLeave: balanceMap.vacationLeave || 0,
       sickLeave: balanceMap.sickLeave || 0,
       earnedLeave: balanceMap.earnedLeave || 0,
+      emergencyLeave: balanceMap.emergencyLeave || 0,
       compOffLeave: balanceMap.compOffLeave || 0,
     };
   }, [leaveBalanceData]);
@@ -375,30 +431,35 @@ const AddLeaveDetails = () => {
 
       // Map form leave types to API leave types
       const leaveTypeMap = {
-        "Casual Leave": { 
-          balance: balance.vacationLeave, 
-          name: "Casual Leave",
-          apiType: "casual"
+        ANNUAL: {
+          balance: balance.earnedLeave,
+          name: "ANNUAL",
+          apiType: "annual",
         },
-        "Sick Leave": { 
-          balance: balance.sickLeave, 
-          name: "Sick Leave",
-          apiType: "sick"
+        CASUAL: {
+          balance: balance.vacationLeave,
+          name: "CASUAL",
+          apiType: "casual",
         },
-        "Earned Leave": { 
-          balance: balance.earnedLeave, 
-          name: "Earned Leave",
-          apiType: "earned"
+        EMERGENCY: {
+          balance: balance.emergencyLeave ?? 0,
+          name: "EMERGENCY",
+          apiType: "emergency",
         },
-        "Comp-off": { 
-          balance: balance.compOffLeave, 
-          name: "Comp-Off Leave",
-          apiType: "comp-off"
+        SICK: {
+          balance: balance.sickLeave,
+          name: "SICK",
+          apiType: "sick",
+        },
+        COMP_OFF: {
+          balance: balance.sickLeave,
+          name: "COMP OFF", // Capitalize the first letter
+          apiType: "comp_off",
         },
       };
 
       const leaveInfo = leaveTypeMap[leaveType];
-      if (!leaveInfo) return null; // LOP doesn't need validation
+      if (!leaveInfo) return null;
 
       if (leaveInfo.balance === 0 || hours > leaveInfo.balance) {
         return `You don't have sufficient ${leaveInfo.name} balance (Available: ${leaveInfo.balance} days). Select the LOP option or check the leave balance.`;
@@ -409,11 +470,52 @@ const AddLeaveDetails = () => {
     [getLeaveBalance, balanceLoading]
   );
 
+  // Prevent duplicate/overlapping leave applications for the same employee.
+  const hasLeaveDateConflict = useCallback(
+    (fromDate, toDate) => {
+      if (!fromDate || !toDate) return false;
+      const nextFrom = dayjs(fromDate).startOf("day");
+      const nextTo = dayjs(toDate).endOf("day");
+      if (!nextFrom.isValid() || !nextTo.isValid()) return false;
+
+      return rowData.some((row) => {
+        const status = String(row?.leaveStatus || "").trim().toLowerCase();
+        // Allow re-apply only for terminal states.
+        if (status === "rejected" || status === "canceled") return false;
+
+        const existingFrom = dayjs(row?.leaveFrom).startOf("day");
+        const existingTo = dayjs(row?.leaveTo || row?.leaveFrom).endOf("day");
+        if (!existingFrom.isValid() || !existingTo.isValid()) return false;
+
+        // Overlap check: A starts before/equal B end && A end after/equal B start
+        return (
+          !nextFrom.isAfter(existingTo, "day") &&
+          !nextTo.isBefore(existingFrom, "day")
+        );
+      });
+    },
+    [rowData]
+  );
+
   // Handle form submission
   const onSubmit = useCallback(
     async (data) => {
+      setValidationMessage("");
+
+      if (hasLeaveDateConflict(data.leaveFrom, data.leaveTo)) {
+        const msg = "Leave already applied for selected date range. Please choose different dates.";
+        setValidationMessage(msg);
+        setSnackbar({
+          open: true,
+          message: msg,
+          severity: "error",
+        });
+        return;
+      }
+
       const balanceError = validateLeaveBalance(data.leaveType, data.leaveHours);
       if (balanceError) {
+        setValidationMessage(balanceError);
         setSnackbar({
           open: true,
           message: balanceError,
@@ -431,6 +533,7 @@ const AddLeaveDetails = () => {
 
       const result = await applyLeave(submitData);
       if (result.success) {
+        setValidationMessage("");
         setSnackbar({
           open: true,
           message: "Leave request submitted successfully",
@@ -447,7 +550,7 @@ const AddLeaveDetails = () => {
         });
       }
     },
-    [user, applyLeave, validateLeaveBalance, reset, refetchLeaves, refetchBalance]
+    [user, applyLeave, validateLeaveBalance, hasLeaveDateConflict, reset, refetchLeaves, refetchBalance]
   );
 
   // Handle cancel request
@@ -500,6 +603,18 @@ const AddLeaveDetails = () => {
     }
   }, [deleteDialog.id, deleteLeave, refetchLeaves]);
 
+  if (apiErrorMessage && !rowData.length && leaveBalanceData == null) {
+    return (
+      <ErrorMessage
+        message={apiErrorMessage}
+        onRetry={() => {
+          refetchLeaves();
+          refetchBalance();
+        }}
+      />
+    );
+  }
+
   if ((leaveLoading || balanceLoading) && !rowData.length) {
     return <Loading message="Loading leave details..." />;
   }
@@ -522,7 +637,7 @@ const AddLeaveDetails = () => {
               fontWeight="bold"
               gutterBottom
               sx={{
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 backgroundClip: "text",
@@ -571,7 +686,54 @@ const AddLeaveDetails = () => {
               Leave Application Form
             </Typography>
           </Box>
+
+          {/* Available leaves */}
+          <Paper
+            variant="outlined"
+            sx={{
+              p: 2,
+              mb: 3,
+              borderRadius: 2,
+              bgcolor: (t) => (t.palette.mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(76,134,249,0.04)"),
+            }}
+          >
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+              <Typography variant="subtitle2" fontWeight={800}>
+                Available leaves
+              </Typography>
+              <Button size="small" variant="text" onClick={refetchBalance} disabled={balanceLoading}>
+                {balanceLoading ? "Loading…" : "Refresh balance"}
+              </Button>
+            </Box>
+            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mt: 1 }}>
+              {(() => {
+                const b = getLeaveBalance();
+                const hasLoaded = leaveBalanceData != null && !balanceLoading;
+                const selected = String(formData?.leaveType || "").trim().toUpperCase();
+                const items = [
+                  { key: "ANNUAL", label: "ANNUAL", value: b.earnedLeave },
+                  { key: "CASUAL", label: "CASUAL", value: b.vacationLeave },
+                  { key: "EMERGENCY", label: "EMERGENCY", value: b.emergencyLeave },
+                  { key: "SICK", label: "SICK", value: b.sickLeave },
+                ];
+                return items.map((it) => (
+                  <Chip
+                    key={it.key}
+                    label={`${it.label}: ${hasLoaded ? Number(it.value || 0) : "…"}`}
+                    color={selected === it.key ? "primary" : "default"}
+                    variant={selected === it.key ? "filled" : "outlined"}
+                    sx={{ fontWeight: 800 }}
+                  />
+                ));
+              })()}
+            </Box>
+          </Paper>
           <form onSubmit={handleSubmit(onSubmit)}>
+            {validationMessage ? (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {validationMessage}
+              </Alert>
+            ) : null}
             <Grid container spacing={3}>
               <Grid item xs={12} md={6}>
                 <FormControl fullWidth>
@@ -589,11 +751,11 @@ const AddLeaveDetails = () => {
                         {...field}
                         error={Boolean(errors.leaveType)}
                       >
-                        <MenuItem value={"Casual Leave"}>Casual Leave</MenuItem>
-                        <MenuItem value={"Sick Leave"}>Sick Leave</MenuItem>
-                        <MenuItem value={"Earned Leave"}>Earned Leave</MenuItem>
-                        <MenuItem value={"Comp-off"}>Comp-Off</MenuItem>
-                        <MenuItem value={"LOP"}>LOP</MenuItem>
+                        <MenuItem value={"ANNUAL"}>ANNUAL</MenuItem>
+                        <MenuItem value={"CASUAL"}>CASUAL</MenuItem>
+                        <MenuItem value={"EMERGENCY"}>EMERGENCY</MenuItem>
+                        <MenuItem value={"SICK"}>SICK</MenuItem>
+                        <MenuItem value={"COMP_OFF"}>COMP OFF</MenuItem>
                       </Select>
                     )}
                   />
@@ -749,11 +911,11 @@ const AddLeaveDetails = () => {
                     textTransform: "uppercase",
                     fontWeight: 600,
                     px: 3,
-                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                    boxShadow: "0 4px 15px rgba(102, 126, 234, 0.4)",
+                    background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
+                    boxShadow: "0 4px 15px rgba(76, 134, 249, 0.4)",
                     "&:hover": {
-                      background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
-                      boxShadow: "0 6px 20px rgba(102, 126, 234, 0.6)",
+                      background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
+                      boxShadow: "0 6px 20px rgba(76, 134, 249, 0.6)",
                     },
                   }}
                 >

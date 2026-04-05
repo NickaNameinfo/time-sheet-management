@@ -12,13 +12,16 @@ class ChallengeAuthProvider with ChangeNotifier {
   Map<String, dynamic>? _user;
   String? _error;
 
+  /// Completes after reading stored My Self token/user from disk (for routing on splash/login).
+  late final Future<void> sessionReady;
+
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _isAuthenticated;
   Map<String, dynamic>? get user => _user;
   String? get error => _error;
 
   ChallengeAuthProvider() {
-    _loadStoredAuth();
+    sessionReady = _loadStoredAuth();
   }
 
   Future<void> _loadStoredAuth() async {

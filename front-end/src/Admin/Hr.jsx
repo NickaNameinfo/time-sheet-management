@@ -31,7 +31,7 @@ import axios from "axios";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
-import commonData from "../../common.json";
+import { commonData } from "../config";
 
 function Hr() {
   const navigate = useNavigate();
@@ -199,9 +199,9 @@ function Hr() {
               startIcon={<Add />}
               onClick={() => navigate("/Dashboard/addHr")}
               sx={{
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
                 "&:hover": {
-                  background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                  background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
                 },
               }}
             >

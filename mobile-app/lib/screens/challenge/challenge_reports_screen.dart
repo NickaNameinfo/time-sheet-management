@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:timesheet_mobile/services/challenge_api_service.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -27,7 +28,10 @@ class _ChallengeReportsScreenState extends State<ChallengeReportsScreen> {
       final data = await _api.getReports();
       if (mounted) setState(() { _report = data; _loading = false; });
     } catch (e) {
-      if (mounted) setState(() {
+      final isSessionExpired = e is SessionExpiredException ||
+          (e is DioException && e.error is SessionExpiredException);
+      if (isSessionExpired && mounted) setState(() => _loading = false);
+      else if (mounted) setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
         _loading = false;
       });

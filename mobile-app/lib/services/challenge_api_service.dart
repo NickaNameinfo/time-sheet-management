@@ -4,9 +4,20 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timesheet_mobile/utils/app_config.dart';
 import 'package:logger/logger.dart';
 
+/// Thrown when the server returns 401; session is cleared and user is sent to login.
+class SessionExpiredException implements Exception {
+  final String message;
+  SessionExpiredException([this.message = 'Session expired. Please log in again.']);
+  @override
+  String toString() => message;
+}
+
 class ChallengeApiService {
   final Dio _dio = Dio();
   final Logger _logger = Logger();
+
+  /// Set from main.dart. Called when a 401 is received so app can show popup and navigate to login.
+  static void Function()? onSessionExpired;
 
   ChallengeApiService() {
     _dio.options.baseUrl = AppConfig.baseUrl;
@@ -20,6 +31,24 @@ class ChallengeApiService {
           options.headers['Authorization'] = 'Bearer $token';
         }
         return handler.next(options);
+      },
+      onError: (error, handler) async {
+        if (error.response?.statusCode == 401) {
+          _logger.w('Challenge API 401 Unauthorized – clearing session and redirecting to login');
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove(AppConfig.challengeTokenKey);
+          await prefs.remove(AppConfig.challengeUserKey);
+          onSessionExpired?.call();
+          return handler.reject(
+            DioException(
+              requestOptions: error.requestOptions,
+              response: error.response,
+              type: DioExceptionType.badResponse,
+              error: SessionExpiredException(),
+            ),
+          );
+        }
+        return handler.next(error);
       },
     ));
   }

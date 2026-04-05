@@ -31,11 +31,10 @@ import {
   TableChart,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../services/api";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
-import commonData from "../../common.json";
 
 export const Settings = ({ from }) => {
   const navigate = useNavigate();
@@ -191,8 +190,8 @@ export const Settings = ({ from }) => {
 
   const fetchSettingsData = useCallback(() => {
     setLoading(true);
-    axios
-      .get(`${commonData?.APIKEY}/settings`)
+    api
+      .get("/settings")
       .then((res) => {
         if (res.data.Status === "Success") {
           setRowData(res.data.Result);
@@ -228,8 +227,8 @@ export const Settings = ({ from }) => {
 
   const handleDeleteConfirm = () => {
     if (settingToDelete) {
-      axios
-        .delete(`${commonData?.APIKEY}/updates/delete/` + settingToDelete.id)
+      api
+        .delete("/updates/delete/" + settingToDelete.id)
         .then((res) => {
           if (res.data.Status === "Success") {
             setDeleteDialogOpen(false);
@@ -299,9 +298,9 @@ export const Settings = ({ from }) => {
                 }
               }}
               sx={{
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
                 "&:hover": {
-                  background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                  background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
                 },
               }}
             >

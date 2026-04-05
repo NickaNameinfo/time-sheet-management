@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:timesheet_mobile/providers/auth_provider.dart';
 import 'package:timesheet_mobile/services/api_service.dart';
+import 'package:timesheet_mobile/utils/app_config.dart';
 import 'package:intl/intl.dart';
 
 class EmployeeShiftDetailsScreen extends StatefulWidget {
@@ -29,7 +30,7 @@ class _EmployeeShiftDetailsScreenState extends State<EmployeeShiftDetailsScreen>
       final user = authProvider.user;
       if (user == null) return;
 
-      final employeeId = user['id']?.toString() ?? user['employeeId']?.toString();
+      final employeeId = AppConfig.employeeDbIdForApi(user);
       final assignments = await _apiService.getShiftAssignments(employeeId: employeeId);
 
       setState(() {

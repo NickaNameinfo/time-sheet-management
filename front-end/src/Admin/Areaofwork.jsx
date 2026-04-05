@@ -32,11 +32,10 @@ import {
   FilterList,
   Edit,
 } from "@mui/icons-material";
-import axios from "axios";
+import api from "../services/api";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
-import commonData from "../../common.json";
 
 export const Areaofwork = () => {
   const [rowData, setRowData] = useState([]);
@@ -255,8 +254,8 @@ export const Areaofwork = () => {
 
   const fetchAreaofworkData = useCallback(() => {
     setLoading(true);
-    axios
-      .get(`${commonData?.APIKEY}/areaofwork`)
+    api
+      .get("/areaofwork")
       .then((res) => {
         if (res.data.Status === "Success") {
           const data = res.data.Result || [];
@@ -275,8 +274,8 @@ export const Areaofwork = () => {
 
   const fetchProjects = useCallback(() => {
     setProjectsLoading(true);
-    axios
-      .get(`${commonData?.APIKEY}/getProject`)
+    api
+      .get("/getProject")
       .then((res) => {
         if (res.data.Status === "Success") {
           setProjects(res.data.Result || []);
@@ -289,8 +288,8 @@ export const Areaofwork = () => {
   }, []);
 
   const fetchWorkDetails = useCallback(() => {
-    axios
-      .get(`${commonData?.APIKEY}/getWorkDetails`)
+    api
+      .get("/getWorkDetails")
       .then((res) => {
         if (res.data.Status === "Success") {
           setWorkDetails(res.data.Result || []);
@@ -354,8 +353,8 @@ export const Areaofwork = () => {
 
   const handleDeleteConfirm = () => {
     if (areaofworkToDelete) {
-      axios
-        .delete(`${commonData?.APIKEY}/areaofwork/delete/` + areaofworkToDelete.id)
+      api
+        .delete("/areaofwork/delete/" + areaofworkToDelete.id)
         .then((res) => {
           if (res.data.Status === "Success") {
             setDeleteDialogOpen(false);
@@ -400,8 +399,8 @@ export const Areaofwork = () => {
         : []
     };
     
-    axios
-      .post(`${commonData?.APIKEY}/create/areaofwork`, payload)
+    api
+      .post("/create/areaofwork", payload)
       .then((res) => {
         if (res.data.Status === "Success") {
           setAddDialogOpen(false);
@@ -437,8 +436,8 @@ export const Areaofwork = () => {
         : []
     };
     
-    axios
-      .put(`${commonData?.APIKEY}/areaofwork/update/${areaofworkToEdit.id}`, payload)
+    api
+      .put("/areaofwork/update/" + areaofworkToEdit.id, payload)
       .then((res) => {
         if (res.data.Status === "Success") {
           setEditDialogOpen(false);
@@ -494,9 +493,9 @@ export const Areaofwork = () => {
               startIcon={<Add />}
               onClick={() => setAddDialogOpen(true)}
               sx={{
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
                 "&:hover": {
-                  background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                  background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
                 },
               }}
             >
@@ -725,9 +724,9 @@ export const Areaofwork = () => {
             variant="contained"
             startIcon={<Add />}
             sx={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
               "&:hover": {
-                background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
               },
             }}
           >
@@ -847,9 +846,9 @@ export const Areaofwork = () => {
             variant="contained"
             startIcon={<Edit />}
             sx={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
               "&:hover": {
-                background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
               },
             }}
           >

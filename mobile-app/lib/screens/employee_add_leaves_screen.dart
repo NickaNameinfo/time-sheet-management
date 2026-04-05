@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:timesheet_mobile/providers/auth_provider.dart';
 import 'package:timesheet_mobile/services/api_service.dart';
+import 'package:timesheet_mobile/utils/app_config.dart';
 import 'package:intl/intl.dart';
 
 class EmployeeAddLeavesScreen extends StatefulWidget {
@@ -17,7 +18,11 @@ class _EmployeeAddLeavesScreenState extends State<EmployeeAddLeavesScreen> {
   bool _isLoading = false;
   bool _isSubmitting = false;
   List<dynamic> _leaveDetails = [];
-  
+  /// Normalized leave_type key → remaining balance (from `/leave/balance`).
+  Map<String, double> _balanceByType = {};
+
+  static const List<String> _leaveTypeOptions = ['Casual', 'Sick', 'Annual', 'Emergency'];
+
   // Form controllers
   final _leaveTypeController = TextEditingController();
   final _fromDateController = TextEditingController();
@@ -43,6 +48,29 @@ class _EmployeeAddLeavesScreenState extends State<EmployeeAddLeavesScreen> {
     super.dispose();
   }
 
+  static double _toDouble(dynamic v) {
+    if (v == null) return 0;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString()) ?? 0;
+  }
+
+  static String _normBalanceKey(String raw) {
+    var k = raw.toLowerCase().trim();
+    if (k == 'earned') k = 'annual';
+    return k;
+  }
+
+  double _remainingForUiType(String uiType) {
+    final k = _normBalanceKey(uiType);
+    return _balanceByType[k] ?? 0;
+  }
+
+  static String _formatRemaining(double v) {
+    if (v.isNaN) return '0';
+    if ((v - v.round()).abs() < 1e-6) return v.round().toString();
+    return v.toStringAsFixed(1);
+  }
+
   Future<void> _loadLeaveDetails() async {
     setState(() => _isLoading = true);
     try {
@@ -50,11 +78,26 @@ class _EmployeeAddLeavesScreenState extends State<EmployeeAddLeavesScreen> {
       final user = authProvider.user;
       if (user == null) return;
 
-      final employeeId = user['id']?.toString() ?? user['employeeId']?.toString();
+      final isCompanyUser = user['isCompanyUser'] == true;
+      final employeeId = AppConfig.employeeDbIdForApi(user);
+      if (!isCompanyUser && (employeeId == null || employeeId.isEmpty)) return;
+
+      final year = DateTime.now().year;
       final leaveDetails = await _apiService.getLeaveDetails(employeeId: employeeId);
+      final balanceRows = await _apiService.getLeaveBalance(employeeId: employeeId, year: year);
+
+      final map = <String, double>{};
+      for (final item in balanceRows) {
+        final key = _normBalanceKey(
+          (item['leave_type'] ?? item['leaveType'] ?? '').toString(),
+        );
+        if (key.isEmpty) continue;
+        map[key] = _toDouble(item['balance']);
+      }
 
       setState(() {
         _leaveDetails = leaveDetails;
+        _balanceByType = map;
       });
     } catch (e) {
       if (mounted) {
@@ -115,8 +158,10 @@ class _EmployeeAddLeavesScreenState extends State<EmployeeAddLeavesScreen> {
       final user = authProvider.user;
       if (user == null) return;
 
-      final employeeId = user['id']?.toString() ?? user['employeeId']?.toString() ?? '';
-      if (employeeId.isEmpty) {
+      final isCompanyUser = user['isCompanyUser'] == true;
+      final rawId = AppConfig.employeeDbIdForApi(user) ?? '';
+      final employeeId = rawId.isNotEmpty ? rawId : null;
+      if (!isCompanyUser && (employeeId == null || employeeId.isEmpty)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Employee ID not found')),
         );
@@ -125,11 +170,12 @@ class _EmployeeAddLeavesScreenState extends State<EmployeeAddLeavesScreen> {
 
       await _apiService.applyLeave(
         employeeId: employeeId,
-        employeeName: user['employeeName'] ?? user['name'] ?? '',
+        employeeName: (user['employeeName'] ?? user['name'] ?? user['userName'] ?? '').toString(),
         leaveType: _selectedLeaveType,
         leaveFrom: _fromDateController.text,
         leaveTo: _toDateController.text,
         reason: _reasonController.text,
+        leaveHours: '1',
       );
 
       if (mounted) {
@@ -246,10 +292,11 @@ class _EmployeeAddLeavesScreenState extends State<EmployeeAddLeavesScreen> {
                                 labelText: 'Leave Type',
                                 border: OutlineInputBorder(),
                               ),
-                              items: ['Casual', 'Sick', 'Annual', 'Emergency'].map((type) {
+                              items: _leaveTypeOptions.map((type) {
+                                final rem = _remainingForUiType(type);
                                 return DropdownMenuItem(
                                   value: type,
-                                  child: Text(type),
+                                  child: Text('$type (${_formatRemaining(rem)})'),
                                 );
                               }).toList(),
                               onChanged: (value) {

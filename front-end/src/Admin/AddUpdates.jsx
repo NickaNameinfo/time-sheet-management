@@ -1,5 +1,5 @@
 import React from "react";
-import axios from "axios";
+import api from "../services/api";
 import { useNavigate } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
 import {
@@ -10,14 +10,12 @@ import {
   TextField,
   Button,
   Grid,
-  IconButton,
   Stack,
   FormControlLabel,
   Checkbox,
   FormGroup,
 } from "@mui/material";
 import {
-  ArrowBack,
   Article,
   Announcement,
   Description,
@@ -25,8 +23,7 @@ import {
   TableChart,
   Save,
 } from "@mui/icons-material";
-import commonData from "../../common.json";
-
+import PageHeaderBreadcrumbs from "../components/PageHeaderBreadcrumbs";
 function AddUpdates() {
   const {
     handleSubmit,
@@ -44,7 +41,7 @@ function AddUpdates() {
 
   const onSubmit = async (data) => {
     try {
-      const res = await axios.post(`${commonData?.APIKEY}/create/updates`, data);
+      const res = await api.post("/create/updates", data);
       if (res.data.Error) {
         alert(res.data.Error);
       } else {
@@ -58,20 +55,14 @@ function AddUpdates() {
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ display: "flex", alignItems: "center", mb: 3, gap: 2 }}>
-        <IconButton onClick={() => navigate("/Dashboard/Settings")} color="primary">
-          <ArrowBack />
-        </IconButton>
-        <Box>
-          <Typography variant="h4" fontWeight="bold">
-            Add Company Update
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Create a new company update or announcement
-          </Typography>
-        </Box>
-      </Box>
+      <PageHeaderBreadcrumbs
+        items={[
+          { label: "Dashboard", to: "/Dashboard" },
+          { label: "Settings", to: "/Dashboard/Settings" },
+        ]}
+        title="Add Company Update"
+        subtitle="Create a new company update or announcement"
+      />
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <Grid container spacing={3}>
@@ -221,9 +212,9 @@ function AddUpdates() {
             startIcon={<Save />}
             size="large"
             sx={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
               "&:hover": {
-                background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
               },
             }}
           >

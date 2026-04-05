@@ -23,11 +23,10 @@ import {
   AccessTime,
   Description,
 } from "@mui/icons-material";
-import axios from "axios";
+import api from "../services/api";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
-import commonData from "../../common.json";
 
 function Leaves() {
   const [rowData, setRowData] = useState([]);
@@ -43,8 +42,8 @@ function Leaves() {
     };
 
     try {
-      const res = await axios.put(
-        `${commonData?.APIKEY}/updateLeave/` + params.data.id,
+      const res = await api.put(
+        "/updateLeave/" + params.data.id,
         apiTemp
       );
       if (res.data.Status === "Success") {
@@ -61,14 +60,12 @@ function Leaves() {
 
   const fetchLeaveData = useCallback(() => {
     setLoading(true);
-    axios
-      .get(`${commonData?.APIKEY}/getLeaveDetails`)
+    api
+      .get("/getLeaveDetails")
       .then((res) => {
         if (res.data.Status === "Success") {
-          const filterDat = res.data.Result?.filter(
-            (item) => item?.leaveStatus !== "approved"
-          );
-          setRowData(filterDat || []);
+          // Approval Center should list all leave requests, not only pending items.
+          setRowData(res.data.Result || []);
         } else {
           alert("Error loading leave data");
         }

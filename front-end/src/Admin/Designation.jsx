@@ -24,11 +24,10 @@ import {
   Close,
   Badge,
 } from "@mui/icons-material";
-import axios from "axios";
+import api from "../services/api";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
-import commonData from "../../common.json";
 
 export const Designation = () => {
   const [rowData, setRowData] = useState([]);
@@ -84,8 +83,8 @@ export const Designation = () => {
 
   const fetchDesignationData = useCallback(() => {
     setLoading(true);
-    axios
-      .get(`${commonData?.APIKEY}/designation`)
+    api
+      .get("/designation")
       .then((res) => {
         if (res.data.Status === "Success") {
           setRowData(res.data.Result);
@@ -121,8 +120,8 @@ export const Designation = () => {
 
   const handleDeleteConfirm = () => {
     if (designationToDelete) {
-      axios
-        .delete(`${commonData?.APIKEY}/designation/delete/` + designationToDelete.id)
+      api
+        .delete("/designation/delete/" + designationToDelete.id)
         .then((res) => {
           if (res.data.Status === "Success") {
             setDeleteDialogOpen(false);
@@ -158,8 +157,8 @@ export const Designation = () => {
       return;
     }
 
-    axios
-      .post(`${commonData?.APIKEY}/create/designation`, modalValue)
+    api
+      .post("/create/designation", modalValue)
       .then((res) => {
         if (res.data.Status === "Success") {
           setAddDialogOpen(false);
@@ -209,9 +208,9 @@ export const Designation = () => {
               startIcon={<Add />}
               onClick={() => setAddDialogOpen(true)}
               sx={{
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
                 "&:hover": {
-                  background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                  background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
                 },
               }}
             >
@@ -360,9 +359,9 @@ export const Designation = () => {
             variant="contained"
             startIcon={<Add />}
             sx={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
               "&:hover": {
-                background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
               },
             }}
           >

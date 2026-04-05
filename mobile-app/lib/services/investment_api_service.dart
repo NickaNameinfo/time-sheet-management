@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timesheet_mobile/services/challenge_api_service.dart';
 import 'package:timesheet_mobile/utils/app_config.dart';
 
 class InvestmentApiService {
@@ -17,6 +18,23 @@ class InvestmentApiService {
           options.headers['Authorization'] = 'Bearer $token';
         }
         return handler.next(options);
+      },
+      onError: (error, handler) async {
+        if (error.response?.statusCode == 401) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove(AppConfig.challengeTokenKey);
+          await prefs.remove(AppConfig.challengeUserKey);
+          ChallengeApiService.onSessionExpired?.call();
+          return handler.reject(
+            DioException(
+              requestOptions: error.requestOptions,
+              response: error.response,
+              type: DioExceptionType.badResponse,
+              error: SessionExpiredException(),
+            ),
+          );
+        }
+        return handler.next(error);
       },
     ));
   }

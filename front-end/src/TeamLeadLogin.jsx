@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "./style.css";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Box, Button, TextField } from "@mui/material";
 import { Controller, useForm } from "react-hook-form";
 import { useAuth } from "./context/AuthContext";
@@ -15,10 +15,12 @@ function TeamLeadLogin() {
   const navigate = useNavigate();
   const { login, isAuthenticated } = useAuth();
   const [error, setError] = useState("");
+  const [accessDenied, setAccessDenied] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const Submit = async (data) => {
     setError("");
+    setAccessDenied(false);
     setLoading(true);
     const result = await login(data, "teamLead");
     setLoading(false);
@@ -27,6 +29,7 @@ function TeamLeadLogin() {
       navigate("/TeamLead/LeadHome");
     } else {
       setError(result.error || "Invalid Username and password");
+      setAccessDenied(!!result.accessDenied);
     }
   };
 
@@ -95,6 +98,11 @@ function TeamLeadLogin() {
           >
             {loading ? "Logging in..." : "Log in"}
           </Button>
+          {accessDenied && (
+            <Box sx={{ mt: 2, textAlign: "center" }}>
+              <Link to="/request-access">Request access from admin</Link>
+            </Box>
+          )}
         </form>
       </div>
     </div>

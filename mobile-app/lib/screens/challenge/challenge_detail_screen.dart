@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:timesheet_mobile/services/challenge_api_service.dart';
 import 'package:intl/intl.dart';
@@ -52,7 +53,10 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
       final data = await _api.getChallenge(widget.challengeId);
       if (mounted) setState(() { _data = data; _loading = false; });
     } catch (e) {
-      if (mounted) setState(() {
+      final isSessionExpired = e is SessionExpiredException ||
+          (e is DioException && e.error is SessionExpiredException);
+      if (isSessionExpired && mounted) setState(() => _loading = false);
+      else if (mounted) setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
         _loading = false;
       });

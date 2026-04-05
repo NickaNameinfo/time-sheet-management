@@ -206,7 +206,7 @@ class _ChallengeRegisterScreenState extends State<ChallengeRegisterScreen> {
                       keyboardType: TextInputType.emailAddress,
                       textInputAction: TextInputAction.next,
                       onChanged: (_) => setState(() => _otpSent = false),
-                      decoration: _inputDecoration('Email *', hint: 'you@example.com', icon: Icons.email_outlined),
+                      decoration: _inputDecoration('Email *', hint: 'business@nicknameinfotech.com', icon: Icons.email_outlined),
                       validator: (v) {
                         if (v == null || v.trim().isEmpty) return 'Email is required';
                         if (!v.contains('@')) return 'Enter a valid email';

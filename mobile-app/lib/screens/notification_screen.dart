@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:timesheet_mobile/providers/auth_provider.dart';
 import 'package:timesheet_mobile/providers/notification_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:timesheet_mobile/services/notification_service.dart';
 import 'package:intl/intl.dart';
 
 class NotificationScreen extends StatefulWidget {
@@ -13,6 +15,7 @@ class NotificationScreen extends StatefulWidget {
 
 class _NotificationScreenState extends State<NotificationScreen> {
   bool _hasLoaded = false;
+  bool _checkingPermission = false;
 
   @override
   void initState() {
@@ -67,6 +70,69 @@ class _NotificationScreenState extends State<NotificationScreen> {
       ),
       body: Consumer<NotificationProvider>(
         builder: (context, notificationProvider, _) {
+          return Column(
+            children: [
+              _buildPermissionCard(context),
+              Expanded(
+                child: notificationProvider.isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _buildNotificationBody(context, notificationProvider, authProvider),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildPermissionCard(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: Permission.notification.status.then((s) => s.isGranted).catchError((_) => true),
+      builder: (context, snapshot) {
+        if (snapshot.data == true) return const SizedBox.shrink();
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Reminder notifications',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Allow notifications so you get clock-in and task reminders.',
+                style: TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  FilledButton(
+                    onPressed: _checkingPermission
+                        ? null
+                        : () async {
+                            setState(() => _checkingPermission = true);
+                            await NotificationService.requestReminderPermissions();
+                            if (mounted) setState(() => _checkingPermission = false);
+                          },
+                    child: Text(_checkingPermission ? 'Requesting…' : 'Allow'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildNotificationBody(BuildContext context, NotificationProvider notificationProvider, AuthProvider authProvider) {
           if (notificationProvider.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -284,9 +350,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
               ),
             ],
           );
-        },
-      ),
-    );
   }
 }
 

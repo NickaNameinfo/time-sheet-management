@@ -38,7 +38,42 @@ import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 import { apiService } from "../../services/api.js";
-import { useAuth } from "../../context/AuthContext.jsx";
+import { useAuth } from "../../context/AuthContext";
+
+/** Same order/labels as Add CRM Date status dropdown */
+const CRM_STATUS_ORDER = [
+  "New",
+  "Attended",
+  "Follow Up",
+  "Not Attended",
+  "Details Pending",
+  "Rescheduled",
+  "Message Send",
+  "Product Provided",
+  "Not Interest",
+  "Registered Pending",
+  "Pending Product Update",
+  "Online Order Enable Pending",
+  "Need Other Service",
+  "Service Provider",
+];
+
+const CRM_STATUS_COLORS = {
+  New: "#2196F3",
+  Attended: "#4CAF50",
+  "Follow Up": "#00897B",
+  "Not Attended": "#78909C",
+  "Details Pending": "#FB8C00",
+  Rescheduled: "#FF9800",
+  "Message Send": "#9C27B0",
+  "Product Provided": "#00ACC1",
+  "Not Interest": "#F44336",
+  "Registered Pending": "#7E57C2",
+  "Pending Product Update": "#5C6BC0",
+  "Online Order Enable Pending": "#26A69A",
+  "Need Other Service": "#FF5722",
+  "Service Provider": "#6D4C41",
+};
 
 function CrmList() {
   const navigate = useNavigate();
@@ -54,9 +89,12 @@ function CrmList() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   
   // Check if user is Admin or TL (can filter by employee)
-  const canFilterByEmployee = user?.role?.toLowerCase() === 'admin' || 
-                              user?.role?.toLowerCase() === 'tl' || 
-                              user?.role?.toLowerCase() === 'teamlead';
+  // For company portal, JWT role is always "admin" — don't treat company users as Admin/TL here.
+  const canFilterByEmployee =
+    !user?.isCompanyUser &&
+    (user?.role?.toLowerCase() === "admin" ||
+      user?.role?.toLowerCase() === "tl" ||
+      user?.role?.toLowerCase() === "teamlead");
 
   const columnDefs = useMemo(
     () => [
@@ -99,24 +137,25 @@ function CrmList() {
         minWidth: 150,
       },
       {
+        field: "lead_from",
+        headerName: "From",
+        minWidth: 140,
+        valueFormatter: (p) => p.value || "-",
+      },
+      {
         field: "status",
         headerName: "Status",
         minWidth: 150,
         cellRenderer: (params) => {
           if (!params.value) return "-";
-          const statusColors = {
-            "New": "#2196F3",
-            "Attended": "#4CAF50",
-            "Rescheduled": "#FF9800",
-            "Message Send": "#9C27B0",
-            "Converted": "#00BCD4",
-            "Not Interest": "#F44336",
-            "Need Other Service": "#FF5722",
-          };
-          const color = statusColors[params.value] || "#757575";
+          const key = CRM_STATUS_ORDER.find(
+            (s) => s.toLowerCase() === String(params.value).trim().toLowerCase()
+          );
+          const color = (key && CRM_STATUS_COLORS[key]) || "#757575";
+          const label = key || params.value;
           return (
             <Chip
-              label={params.value}
+              label={label}
               size="small"
               sx={{
                 backgroundColor: `${color}20`,
@@ -302,6 +341,25 @@ function CrmList() {
     }
   }, [searchText, gridApi]);
 
+  const statusSummary = useMemo(() => {
+    const counts = Object.fromEntries(CRM_STATUS_ORDER.map((s) => [s, 0]));
+    let blank = 0;
+    let other = 0;
+    for (const row of rowData) {
+      const raw = row?.status;
+      if (raw == null || String(raw).trim() === "") {
+        blank += 1;
+        continue;
+      }
+      const key = CRM_STATUS_ORDER.find(
+        (s) => s.toLowerCase() === String(raw).trim().toLowerCase()
+      );
+      if (key) counts[key] += 1;
+      else other += 1;
+    }
+    return { counts, blank, other, total: rowData.length };
+  }, [rowData]);
+
   return (
     <Box sx={{ p: 3 }}>
       {/* Header */}
@@ -320,9 +378,9 @@ function CrmList() {
             startIcon={<Add />}
             onClick={() => navigate("/Dashboard/Sales/AddCrmDate")}
             sx={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
               "&:hover": {
-                background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
               },
             }}
           >
@@ -338,13 +396,102 @@ function CrmList() {
         </Stack>
       </Box>
 
+      {/* Status summary (counts match CRM form dropdown) */}
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1} sx={{ mb: 1.5 }}>
+          <Typography variant="subtitle1" fontWeight={700}>
+            Status summary
+          </Typography>
+          <Chip
+            size="small"
+            label={`Total records: ${statusSummary.total}`}
+            color="primary"
+            variant="outlined"
+          />
+        </Stack>
+        <Box
+          sx={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 1,
+            alignItems: "stretch",
+          }}
+        >
+          {CRM_STATUS_ORDER.map((status) => {
+            const n = statusSummary.counts[status] ?? 0;
+            const color = CRM_STATUS_COLORS[status] || "#757575";
+            return (
+              <Paper
+                key={status}
+                variant="outlined"
+                sx={{
+                  px: 1.5,
+                  py: 1,
+                  minWidth: { xs: "calc(50% - 8px)", sm: 140 },
+                  flex: { xs: "1 1 calc(50% - 8px)", md: "0 1 auto" },
+                  borderLeft: 3,
+                  borderColor: color,
+                }}
+              >
+                <Typography variant="caption" color="text.secondary" display="block" noWrap title={status}>
+                  {status}
+                </Typography>
+                <Typography variant="h6" fontWeight={800}>
+                  {n}
+                </Typography>
+              </Paper>
+            );
+          })}
+          {statusSummary.blank > 0 ? (
+            <Paper
+              variant="outlined"
+              sx={{
+                px: 1.5,
+                py: 1,
+                minWidth: { xs: "calc(50% - 8px)", sm: 140 },
+                flex: { xs: "1 1 calc(50% - 8px)", md: "0 1 auto" },
+                borderLeft: 3,
+                borderColor: "#9E9E9E",
+              }}
+            >
+              <Typography variant="caption" color="text.secondary" display="block" noWrap>
+                No status
+              </Typography>
+              <Typography variant="h6" fontWeight={800}>
+                {statusSummary.blank}
+              </Typography>
+            </Paper>
+          ) : null}
+          {statusSummary.other > 0 ? (
+            <Paper
+              variant="outlined"
+              sx={{
+                px: 1.5,
+                py: 1,
+                minWidth: { xs: "calc(50% - 8px)", sm: 140 },
+                flex: { xs: "1 1 calc(50% - 8px)", md: "0 1 auto" },
+                borderLeft: 3,
+                borderColor: "#607D8B",
+              }}
+            >
+              <Typography variant="caption" color="text.secondary" display="block" noWrap>
+                Other
+              </Typography>
+              <Typography variant="h6" fontWeight={800}>
+                {statusSummary.other}
+              </Typography>
+            </Paper>
+          ) : null}
+        </Box>
+      </Paper>
+
       {/* Filters */}
       <Paper sx={{ p: 2, mb: 3 }}>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} md={canFilterByEmployee ? 8 : 12}>
             <TextField
               fullWidth
-              placeholder="Search by client name, contact person, email, or location..."
+              placeholder="Search by client name, contact person, email, location, or from..."
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               InputProps={{
@@ -419,6 +566,10 @@ function CrmList() {
               rowSelection="multiple"
               animateRows={true}
               loading={loading}
+              pagination={true}
+              paginationPageSize={25}
+              paginationPageSizeSelector={[10, 25, 50, 100]}
+              suppressPaginationPanel={false}
             />
           </div>
         </CardContent>

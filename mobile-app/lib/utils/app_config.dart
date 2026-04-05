@@ -3,8 +3,8 @@ class AppConfig {
   // Note: Backend runs on port 8000
   // For web: use localhost:8000
   // For mobile: use your computer's IP address (e.g., http://192.168.1.100:8000)
-  // static const String baseUrl = 'https://nicknameinfo.net/timesheet';
-  static const String baseUrl = 'http://localhost:10000';
+  static const String baseUrl = 'https://nicknameinfo.net/timesheet';
+  // static const String baseUrl = 'http://localhost:10000';
   // For production, use your actual server URL
   // static const String baseUrl = 'https://api.yourcompany.com';
   
@@ -13,6 +13,8 @@ class AppConfig {
   // static const String baseUrl = 'http://192.168.1.XXX:8000';
   
   // API Endpoints
+  /// Company portal + platform admin (users / company_users / employee Admin)
+  static const String adminLoginEndpoint = '/login';
   static const String loginEndpoint = '/employeelogin';
   static const String hrLoginEndpoint = '/hrLogin';
   static const String dashboardEndpoint = '/dashboard';
@@ -74,6 +76,61 @@ class AppConfig {
   static const int syncIntervalSeconds = 300; // 5 minutes
   static const int maxRetryAttempts = 3;
   static const Duration requestTimeout = Duration(seconds: 30);
+
+  /// Tenant `employee.id` (dashboard `employeeRecordId`) for API params — required when company JWT has no `id`.
+  static String? employeeDbIdForApi(Map<String, dynamic>? user) {
+    if (user == null) return null;
+    final er = user['employeeRecordId'];
+    if (er != null) {
+      final s = er.toString().trim();
+      if (s.isNotEmpty && s != 'null') return s;
+    }
+    final id = user['id']?.toString().trim();
+    if (id != null && id.isNotEmpty && id != 'null') return id;
+    final eid = user['employeeId']?.toString().trim();
+    if (eid != null && eid.isNotEmpty && eid != 'null') return eid;
+    final emp = user['EMPID']?.toString().trim();
+    if (emp != null && emp.isNotEmpty && emp != 'null') return emp;
+    return null;
+  }
+
+  static bool looksLikeEmail(String s) {
+    final t = s.trim();
+    if (t.isEmpty) return false;
+    return t.contains('@');
+  }
+
+  /// Prefer real name over login email for UI labels.
+  static String displayNameForUser(Map<String, dynamic>? user) {
+    if (user == null) return 'Employee';
+    String? pick(String? a) {
+      final t = a?.trim() ?? '';
+      return t.isEmpty ? null : t;
+    }
+
+    for (final k in ['employeeName', 'tlName', 'leadName', 'hrName']) {
+      final v = pick(user[k]?.toString());
+      if (v != null && !looksLikeEmail(v)) return v;
+    }
+    final en = pick(user['employeeName']?.toString());
+    if (en != null) return en;
+    final un = pick(user['userName']?.toString());
+    if (un != null && !looksLikeEmail(un)) return un;
+    return 'Employee';
+  }
+
+  /// Build absolute URL for employee profile photo (`public/images` on server).
+  static String? employeePhotoUrlFromFilename(dynamic filename) {
+    if (filename == null) return null;
+    var s = filename.toString().trim();
+    if (s.isEmpty || s == 'default-image-filename.jpg') return null;
+    if (s.startsWith('http://') || s.startsWith('https://')) return s;
+    if (s.startsWith('images/')) s = s.substring('images/'.length);
+    if (s.startsWith('/images/')) s = s.substring('/images/'.length);
+    if (s.startsWith('/')) s = s.substring(1);
+    final base = baseUrl.replaceAll(RegExp(r'/$'), '');
+    return '$base/images/$s';
+  }
   
   // Notification Settings
   static const String notificationChannelId = 'timesheet_notifications';

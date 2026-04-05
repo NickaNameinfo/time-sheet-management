@@ -46,12 +46,13 @@ router.post("/project/workDetails/clockOut", verifyUser, clockOut);
 // Project Plan Routes
 router.post("/project-plan/create", verifyUser, createProjectPlan);
 router.get("/project-plan", verifyUser, getProjectPlans);
+// Static path before "/project-plan/:id" so it is not captured as an id
+router.get("/project-plan/employee/assigned", verifyUser, getEmployeeAssignedProjects);
 router.get("/project-plan/:id/utilization", verifyUser, getPlanUtilization);
 router.get("/project-plan/:id", verifyUser, getProjectPlanById);
 router.put("/project-plan/:id", verifyUser, updateProjectPlan);
 router.put("/project-plan/:id/assign-employees", verifyUser, assignEmployeesToPlan);
 router.get("/project/:project_id/employees", verifyUser, getProjectEmployees);
-router.get("/project-plan/employee/assigned", verifyUser, getEmployeeAssignedProjects);
 router.delete("/project-plan/:id", verifyUser, deleteProjectPlan);
 
 export default router;

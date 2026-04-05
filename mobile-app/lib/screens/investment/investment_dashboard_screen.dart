@@ -49,22 +49,24 @@ class _InvestmentDashboardScreenState extends State<InvestmentDashboardScreen> {
     }
   }
 
-  Widget _historyFab() {
+  Widget _investFab() {
     return FloatingActionButton.extended(
-      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InvestmentReportsScreen())),
-      icon: const Icon(Icons.history_rounded),
-      label: const Text('History'),
+      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InvestmentPlansScreen())),
+      backgroundColor: Colors.red,
+      foregroundColor: Colors.white,
+      icon: const Icon(Icons.trending_up_rounded),
+      label: const Text('Invest'),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return Scaffold(backgroundColor: InvestmentTheme.kBackground, floatingActionButton: _historyFab(), floatingActionButtonLocation: FloatingActionButtonLocation.endFloat, body: const Center(child: CircularProgressIndicator()));
+    if (_loading) return Scaffold(backgroundColor: InvestmentTheme.kBackground, floatingActionButton: _investFab(), floatingActionButtonLocation: FloatingActionButtonLocation.endFloat, body: const Center(child: CircularProgressIndicator()));
     if (_error != null) {
       return Scaffold(
         backgroundColor: InvestmentTheme.kBackground,
         appBar: InvestmentTheme.appBar('Investment Dashboard'),
-        floatingActionButton: _historyFab(),
+        floatingActionButton: _investFab(),
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         body: Center(
           child: Padding(
@@ -110,7 +112,7 @@ class _InvestmentDashboardScreenState extends State<InvestmentDashboardScreen> {
           ),
         ],
       ),
-      floatingActionButton: _historyFab(),
+      floatingActionButton: _investFab(),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: RefreshIndicator(
         onRefresh: _load,
@@ -182,8 +184,8 @@ class _InvestmentDashboardScreenState extends State<InvestmentDashboardScreen> {
               children: [
                 Text('Upcoming Maturity', style: InvestmentTheme.sectionTitle(context)),
                 TextButton(
-                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InvestmentPlansScreen())),
-                  child: const Text('Invest'),
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InvestmentReportsScreen())),
+                  child: const Text('History'),
                 ),
               ],
             ),

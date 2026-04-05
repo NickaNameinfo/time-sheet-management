@@ -32,7 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Time Sheet'),
+        title: const Text('My Self'),
         actions: [
           Consumer<OfflineProvider>(
             builder: (context, offlineProvider, _) {

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:timesheet_mobile/providers/auth_provider.dart';
 import 'package:timesheet_mobile/providers/attendance_provider.dart';
 import 'package:timesheet_mobile/services/api_service.dart';
+import 'package:timesheet_mobile/utils/app_config.dart';
 import 'package:intl/intl.dart';
 import 'package:dio/dio.dart';
 
@@ -84,12 +85,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         return;
       }
       
-      // Try multiple possible ID fields (matching frontend logic)
-      // In release builds, user data structure might be different
-      final employeeId = user['id']?.toString() ?? 
-                         user['employeeId']?.toString() ?? 
-                         user['EMPID']?.toString() ??
-                         user['employee_id']?.toString();
+      final employeeId = AppConfig.employeeDbIdForApi(user);
       
       // Log for debugging (works in both debug and release with proper logging)
       print('🔍 Loading projects for employeeId: $employeeId');
@@ -209,7 +205,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
 
     final success = await attendanceProvider.clockIn(
-      employeeId: authProvider.user!['EMPID']?.toString() ?? '',
+      employeeId: AppConfig.employeeDbIdForApi(authProvider.user!) ?? '',
       employeeName: authProvider.user!['employeeName'] ?? '',
       projectName: _selectedProject.isEmpty ? null : _selectedProject,
       referenceNo: _referenceController.text.trim().isEmpty
@@ -243,7 +239,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         attendanceProvider.currentAttendance!['id']?.toString() ?? '';
 
     final success = await attendanceProvider.clockOut(
-      employeeId: authProvider.user!['EMPID']?.toString() ?? '',
+      employeeId: AppConfig.employeeDbIdForApi(authProvider.user!) ?? '',
       workDetailId: workDetailId,
     );
 

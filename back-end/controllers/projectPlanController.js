@@ -541,24 +541,24 @@ export const getEmployeeAssignedProjects = asyncHandler(async (req, res) => {
   const q = getTenantQuery(req);
   const { employee_id } = req.query;
   
-  if (!employee_id) {
+  if (employee_id === undefined || employee_id === null || String(employee_id).trim() === "") {
     return sendError(res, "Employee ID is required", 400);
   }
 
-  const paramId = parseInt(employee_id, 10);
-  if (isNaN(paramId)) {
-    return sendError(res, "Invalid employee ID", 400);
-  }
+  const rawStr = String(employee_id).trim();
+  const rawNum = parseInt(rawStr, 10);
+  const numericCandidate = !Number.isNaN(rawNum) && String(rawNum) === rawStr ? rawNum : null;
 
-  // Resolve to employee.id (project_plan_employees.employee_id references employee.id)
-  let employeeDbId = paramId;
+  // Resolve to employee.id (project_plan_employees.employee_id references employee.id).
+  // Accept DB pk (number) or EMPID string (e.g. NN004).
   const lookup = await q(
-    "SELECT id FROM employee WHERE id = ? OR EMPID = ? LIMIT 1",
-    [paramId, paramId]
+    "SELECT id FROM employee WHERE id = ? OR CAST(id AS CHAR) = ? OR EMPID = ? LIMIT 1",
+    [numericCandidate ?? -1, rawStr, rawStr]
   );
-  if (lookup.length > 0) {
-    employeeDbId = lookup[0].id;
+  if (lookup.length === 0) {
+    return sendSuccess(res, []);
   }
+  const employeeDbId = lookup[0].id;
   
   // All rows from project_plan_employees for this employee, joined to project_plans and project.
   // Exclude only: assignment status 'removed', plan status 'cancelled'. Include active & completed plans.

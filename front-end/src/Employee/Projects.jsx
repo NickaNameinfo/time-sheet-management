@@ -17,10 +17,10 @@ import {
   Assignment,
 } from "@mui/icons-material";
 import { Link } from "react-router-dom";
-import axios from "axios";
+import api from "../services/api";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
-import commonData from "../../common.json";
+
 function Projects() {
   const containerStyle = { width: "100%", height: "100%" };
   const gridStyle = { height: "100%", width: "100%" };
@@ -86,8 +86,8 @@ function Projects() {
   );
 
   const onGridReady = useCallback((params) => {
-    axios
-      .get(`${commonData?.APIKEY}/getProject`)
+    api
+      .get("/getProject")
       .then((res) => {
         if (res.data.Status === "Success") {
           setRowData(res.data.Result);
@@ -150,9 +150,9 @@ function Projects() {
               variant="contained"
               startIcon={<Add />}
               sx={{
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
                 "&:hover": {
-                  background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                  background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
                 },
               }}
             >

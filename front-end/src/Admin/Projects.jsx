@@ -44,11 +44,10 @@ import {
   Schedule,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../services/api";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
-import commonData from "../../common.json";
 
 function Projects(props) {
   const token = localStorage.getItem("token");
@@ -67,8 +66,8 @@ function Projects(props) {
   const projectDetailRefs = useRef({});
 
   React.useEffect(() => {
-    axios
-      .post(`${commonData?.APIKEY}/dashboard`, { tokensss: token })
+    api
+      .post("/dashboard", { tokensss: token })
       .then((res) => {
         if (res.data.Status === "Success") {
           setRoles(res.data.role?.split(","));
@@ -443,11 +442,6 @@ function Projects(props) {
         minWidth: 120,
       },
       {
-        field: "orderId",
-        headerName: "Order ID",
-        minWidth: 120,
-      },
-      {
         field: "desciplineCode",
         headerName: "Discipline Code",
         minWidth: 150,
@@ -577,8 +571,8 @@ function Projects(props) {
   const fetchProjectData = useCallback(() => {
     setLoading(true);
     Promise.all([
-      axios.get(`${commonData?.APIKEY}/getProject`),
-      axios.get(`${commonData?.APIKEY}/getWorkDetails`)
+      api.get("/getProject"),
+      api.get("/getWorkDetails")
     ])
       .then(([projectsRes, workDetailsRes]) => {
         if (projectsRes.data.Status === "Success") {
@@ -630,8 +624,8 @@ function Projects(props) {
 
   const handleDeleteConfirm = () => {
     if (projectToDelete) {
-      axios
-        .delete(`${commonData?.APIKEY}/project/delete/` + projectToDelete.id)
+      api
+        .delete("/project/delete/" + projectToDelete.id)
         .then((res) => {
           if (res.data.Status === "Success") {
             setDeleteDialogOpen(false);
@@ -703,9 +697,9 @@ function Projects(props) {
                 startIcon={<Add />}
                 onClick={() => navigate("/Dashboard/addProject")}
                 sx={{
-                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
                   "&:hover": {
-                    background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                    background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
                   },
                 }}
               >

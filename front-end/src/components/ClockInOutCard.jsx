@@ -468,9 +468,9 @@ const ClockInOutCard = () => {
                     onClick={() => setClockInDialog(true)}
                     disabled={clockingIn}
                     sx={{
-                      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                      background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
                       "&:hover": {
-                        background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                        background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
                       },
                     }}
                   >
@@ -611,9 +611,9 @@ const ClockInOutCard = () => {
             disabled={clockingIn}
             startIcon={clockingIn ? <CircularProgress size={20} /> : <Login />}
             sx={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
               "&:hover": {
-                background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
               },
             }}
           >

@@ -12,10 +12,9 @@ import {
   FileDownload,
   Refresh,
 } from "@mui/icons-material";
-import axios from "axios";
+import api from "../../services/api";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
-import commonData from "../../../common.json";
 
 const ProjectReport = () => {
   const containerStyle = { width: "100%", height: "100%" };
@@ -54,8 +53,8 @@ const ProjectReport = () => {
   const onGridReady = (params) => {
     console.log(params, "paramsparams212");
     setExportApi(params?.api);
-    axios
-      .get(`${commonData?.APIKEY}/getProject`)
+    api
+      .get("/getProject")
       .then((res) => {
         if (res.data.Status === "Success") {
           setProjectDetails(res.data.Result);
@@ -67,8 +66,8 @@ const ProjectReport = () => {
   };
 
   const onGetWorkDetails = (params) => {
-    axios
-      .get(`${commonData?.APIKEY}/getWorkDetails`)
+    api
+      .get("/getWorkDetails")
       .then((res) => {
         if (res.data.Status === "Success") {
           let resultData = res.data.Result?.filter(
@@ -226,9 +225,9 @@ const ProjectReport = () => {
               variant="contained"
               startIcon={<FileDownload />}
               sx={{
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
                 "&:hover": {
-                  background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                  background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
                 },
               }}
             >

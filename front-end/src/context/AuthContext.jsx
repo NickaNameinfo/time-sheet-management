@@ -1,8 +1,44 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiService } from "../services/api.js";
+import { refetchAppThemeFromAuth } from "./appThemeRefetch";
 
 const AuthContext = createContext(null);
+
+/** Align JWT/dashboard role strings with hasRole() checks (HR, Admin, TL, …) */
+function normalizeRolesFromDashboard(role) {
+  let roleArray = [];
+  if (Array.isArray(role)) {
+    roleArray = role.map((r) => String(r ?? "").trim()).filter(Boolean);
+  } else if (typeof role === "string") {
+    roleArray = role.split(",").map((r) => r.trim()).filter(Boolean);
+  }
+  return roleArray.map((r) => {
+    const normalized = String(r).toLowerCase();
+    if (normalized === "hr") return "HR";
+    if (normalized === "tl" || normalized === "teamlead") return "TL";
+    if (normalized === "admin") return "Admin";
+    if (normalized === "employee") return "Employee";
+    if (normalized === "company_admin" || normalized === "company_user") return normalized;
+    return r;
+  });
+}
+
+/**
+ * Company portal JWT always sends role "admin"; use company_role for real access checks and sidebar.
+ */
+function sessionRolesFromDashboard(userData) {
+  if (userData?.isCompanyUser && userData?.company_role) {
+    const cr = String(userData.company_role).toLowerCase();
+    const employeeTableRole = String(userData?.employee_table_role || "").trim();
+    const menuRole = String(userData?.company_menu_role || "").trim();
+    const effectiveCompanyRole = employeeTableRole || menuRole;
+    if (cr === "company_admin") return effectiveCompanyRole ? [effectiveCompanyRole, "Admin", "company_admin"] : ["Admin", "company_admin"];
+    if (cr === "company_user") return effectiveCompanyRole ? [effectiveCompanyRole, "company_user"] : ["company_user"];
+    return effectiveCompanyRole ? [effectiveCompanyRole, "company_user"] : ["company_user"];
+  }
+  return normalizeRolesFromDashboard(userData?.role);
+}
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -38,8 +74,10 @@ export const AuthProvider = ({ children }) => {
       const status = response.data.Status || (userData ? "Success" : null);
       
       if (status === "Success" && userData) {
+        const resolvedEmployeePk = userData.employeeRecordId ?? userData.id;
         setUser({
-          id: userData.id,
+          id: resolvedEmployeePk,
+          employeeRecordId: userData.employeeRecordId ?? userData.id,
           userName: userData.userName,
           employeeName: userData.employeeName,
           employeeId: userData.employeeId,
@@ -57,14 +95,18 @@ export const AuthProvider = ({ children }) => {
           employeeDepartment: userData.employeeDepartment,
           employeeDesignation: userData.employeeDesignation,
           employeeDiscipline: userData.employeeDiscipline,
+          isCompanyUser: !!userData.isCompanyUser,
+          company_id: userData.company_id,
+          company_user_id: userData.company_user_id,
+          company_role: userData.company_role,
+          company_menu_role: userData.company_menu_role,
+          employee_table_role: userData.employee_table_role,
+          company_name: userData.company_name,
+          company_code: userData.company_code,
         });
-        // Normalize roles - split by comma, trim whitespace, filter empty
-        const roleString = userData.role || "";
-        const roleArray = roleString.split(",")
-          .map(role => role.trim())
-          .filter(role => role.length > 0);
-        setRoles(roleArray);
+        setRoles(sessionRolesFromDashboard(userData));
         setIsAuthenticated(true);
+        refetchAppThemeFromAuth();
       } else {
         logout();
       }
@@ -110,8 +152,10 @@ export const AuthProvider = ({ children }) => {
       const apiRespone = dashboardResponse.data?.Result || dashboardResponse.data;
       
       if (apiRespone !== null && apiRespone !== undefined) {
+        const resolvedEmployeePk = apiRespone.employeeRecordId ?? apiRespone.id;
         setUser({
-          id: apiRespone.id,
+          id: resolvedEmployeePk,
+          employeeRecordId: apiRespone.employeeRecordId ?? apiRespone.id,
           userName: apiRespone.userName,
           employeeName: apiRespone.employeeName,
           employeeId: apiRespone.employeeId,
@@ -121,30 +165,19 @@ export const AuthProvider = ({ children }) => {
           designation: apiRespone.designation,
           discipline: apiRespone.discipline,
           dateOfJoining: apiRespone.dateOfJoining,
+          isCompanyUser: !!apiRespone.isCompanyUser,
+          company_id: apiRespone.company_id,
+          company_user_id: apiRespone.company_user_id,
+          company_role: apiRespone.company_role,
+          company_menu_role: apiRespone.company_menu_role,
+          employee_table_role: apiRespone.employee_table_role,
+          company_name: apiRespone.company_name,
+          company_code: apiRespone.company_code,
         });
         
-        // Normalize roles - handle both string and array formats
-        let roleArray = [];
-        if (Array.isArray(apiRespone.role)) {
-          roleArray = apiRespone.role.map(role => role?.trim()).filter(role => role.length > 0);
-        } else if (typeof apiRespone.role === 'string') {
-          roleArray = apiRespone.role.split(",")
-            .map(role => role.trim())
-            .filter(role => role.length > 0);
-        }
-        
-        // Normalize role case: convert "hr" to "HR", "tl" to "TL", etc.
-        roleArray = roleArray.map(role => {
-          const normalized = role.toLowerCase();
-          if (normalized === 'hr') return 'HR';
-          if (normalized === 'tl' || normalized === 'teamlead') return 'TL';
-          if (normalized === 'admin') return 'Admin';
-          if (normalized === 'employee') return 'Employee';
-          return role; // Keep original if not recognized
-        });
-        
-        setRoles(roleArray);
+        setRoles(sessionRolesFromDashboard(apiRespone));
         setIsAuthenticated(true);
+        refetchAppThemeFromAuth();
         return { success: true };
       }
 
@@ -153,12 +186,14 @@ export const AuthProvider = ({ children }) => {
         error: response.data?.Error || "Login failed",
       };
     } catch (error) {
+      const isAccessDenied = error.response?.status === 403;
       return {
         success: false,
         error:
           error.response?.data?.Error ||
           error.response?.data?.error ||
           "Login failed. Please try again.",
+        accessDenied: isAccessDenied,
       };
     }
   };
@@ -174,6 +209,7 @@ export const AuthProvider = ({ children }) => {
       setRoles(null);
       setIsAuthenticated(false);
       navigate("/");
+      refetchAppThemeFromAuth();
     }
   };
 
@@ -185,6 +221,13 @@ export const AuthProvider = ({ children }) => {
   const isHR = () => hasRole("HR");
   const isTeamLead = () => hasRole("TL") || hasRole("teamLead");
   const isEmployee = () => hasRole("Employee");
+
+  /** Company profile login: admin can request new logins; company_user cannot */
+  const isCompanyAdmin = () => {
+    if (!user?.isCompanyUser) return false;
+    if (user.company_role === "company_user") return false;
+    return true;
+  };
 
   const value = {
     user,
@@ -199,6 +242,7 @@ export const AuthProvider = ({ children }) => {
     isHR,
     isTeamLead,
     isEmployee,
+    isCompanyAdmin,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

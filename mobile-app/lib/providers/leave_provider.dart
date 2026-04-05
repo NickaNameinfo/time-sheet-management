@@ -17,7 +17,7 @@ class LeaveProvider with ChangeNotifier {
   String? get error => _error;
   
   Future<bool> applyLeave({
-    required String employeeId,
+    String? employeeId,
     required String employeeName,
     required String leaveType,
     required String leaveFrom,
@@ -34,7 +34,7 @@ class LeaveProvider with ChangeNotifier {
       final isOnline = connectivityResult != ConnectivityResult.none;
       
       final leaveData = {
-        'employeeId': employeeId,
+        if (employeeId != null && employeeId.isNotEmpty) 'employeeId': employeeId,
         'employeeName': employeeName,
         'leaveType': leaveType,
         'leaveFrom': leaveFrom,

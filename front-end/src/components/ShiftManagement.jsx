@@ -164,7 +164,7 @@ const ShiftManagement = () => {
               fontWeight="bold"
               gutterBottom
               sx={{
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 backgroundClip: "text",
@@ -205,11 +205,11 @@ const ShiftManagement = () => {
                     borderRadius: 2,
                     textTransform: "uppercase",
                     fontWeight: 600,
-                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                    boxShadow: "0 4px 15px rgba(102, 126, 234, 0.4)",
+                    background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
+                    boxShadow: "0 4px 15px rgba(76, 134, 249, 0.4)",
                     "&:hover": {
-                      background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
-                      boxShadow: "0 6px 20px rgba(102, 126, 234, 0.6)",
+                      background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
+                      boxShadow: "0 6px 20px rgba(76, 134, 249, 0.6)",
                     },
                   }}
                 >
@@ -466,9 +466,9 @@ const ShiftManagement = () => {
             disabled={creating}
             startIcon={<CheckCircle />}
             sx={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
               "&:hover": {
-                background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
               },
             }}
           >
@@ -547,9 +547,9 @@ const ShiftManagement = () => {
             disabled={assigning}
             startIcon={<CheckCircle />}
             sx={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
               "&:hover": {
-                background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
               },
             }}
           >

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:timesheet_mobile/providers/auth_provider.dart';
 import 'package:timesheet_mobile/services/api_service.dart';
+import 'package:timesheet_mobile/theme/app_brand_colors.dart';
 import 'package:intl/intl.dart';
 
 class TeamLeadHomeScreen extends StatefulWidget {
@@ -100,14 +101,7 @@ class _TeamLeadHomeScreenState extends State<TeamLeadHomeScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          const Color(0xFF667eea),
-                          const Color(0xFF764ba2),
-                        ],
-                      ),
+                      gradient: AppBrandColors.heroGradient,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(

@@ -25,14 +25,19 @@ import {
   PhoneAndroid,
   GetApp,
 } from "@mui/icons-material";
+import { Link as RouterLink } from "react-router-dom";
 import Login from "./Login";
 import { apiService } from "./services/api";
 import config from "./config/index.js";
 import { useApi } from "./hooks/useApi";
 import ErrorMessage from "./components/ErrorMessage";
+import { useAppTheme } from "./context/AppThemeContext";
+import defaultLogo from "./assets/logo.png";
 
 function Start() {
   const theme = useTheme();
+  const { logoUrl } = useAppTheme();
+  const logoSrc = logoUrl || defaultLogo;
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { data: settingsData, error } = useApi(apiService.getSettings);
   const [lastValue, setLastValue] = useState(null);
@@ -60,7 +65,7 @@ function Start() {
     <Box
       sx={{
         minHeight: "100vh",
-        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
         py: { xs: 2, md: 0 },
       }}
     >
@@ -82,7 +87,7 @@ function Start() {
               >
                 <Box
                   sx={{
-                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
                     color: "white",
                     p: 2,
                     display: "flex",
@@ -191,7 +196,7 @@ function Start() {
                       width: "100%",
                       height: "100%",
                       minHeight: { xs: "200px", md: "400px" },
-                      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                      background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -252,7 +257,7 @@ function Start() {
                         >
                           <Box
                             sx={{
-                              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                              background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
                               color: "white",
                               p: 2,
                               textAlign: "center",
@@ -324,15 +329,17 @@ function Start() {
                     <Box sx={{ textAlign: "center", mb: 3 }}>
                       <Box
                         component="img"
-                        src={`${config.baseUrl}/src/assets/logo.png`}
+                        src={logoSrc}
                         alt="Logo"
                         sx={{
                           maxWidth: "150px",
                           height: "auto",
                           mb: 2,
+                          objectFit: "contain",
                         }}
                         onError={(e) => {
-                          e.target.style.display = "none";
+                          e.target.onerror = null;
+                          e.target.src = defaultLogo;
                         }}
                       />
                       <Typography variant="h6" fontWeight="bold" color="primary">
@@ -436,7 +443,7 @@ function Start() {
                 >
                   <Box
                     sx={{
-                      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                      background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
                       color: "white",
                       p: 2,
                       display: "flex",
@@ -491,6 +498,56 @@ function Start() {
             </Fade>
           </Grid>
         </Grid>
+
+        {/* Footer - Privacy Policy & Terms and Conditions */}
+        <Box
+          component="footer"
+          sx={{
+            textAlign: "center",
+            borderTop: "1px solid rgba(255,255,255,0.2)",
+          }}
+        >
+          <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.9)", mb: 1 }}>
+            <Link
+              component={RouterLink}
+              to="/privacy-policy"
+              sx={{
+                color: "rgba(255,255,255,0.95)",
+                textDecoration: "none",
+                "&:hover": { textDecoration: "underline" },
+                mr: 2,
+              }}
+            >
+              Privacy Policy
+            </Link>
+            <Link
+              component={RouterLink}
+              to="/terms-and-conditions"
+              sx={{
+                color: "rgba(255,255,255,0.95)",
+                textDecoration: "none",
+                "&:hover": { textDecoration: "underline" },
+                mr: 2,
+              }}
+            >
+              Terms and Conditions
+            </Link>
+            <Link
+              component={RouterLink}
+              to="/support"
+              sx={{
+                color: "rgba(255,255,255,0.95)",
+                textDecoration: "none",
+                "&:hover": { textDecoration: "underline" },
+              }}
+            >
+              Support
+            </Link>
+          </Typography>
+          <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.7)" }}>
+            © Time Sheet Management
+          </Typography>
+        </Box>
       </Container>
     </Box>
   );

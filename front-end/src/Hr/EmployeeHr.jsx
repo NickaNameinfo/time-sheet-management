@@ -1,5 +1,5 @@
-import axios from 'axios'
 import React, { useEffect, useState } from 'react'
+import api from "../services/api";
 import { Link } from 'react-router-dom'
 import {
   Box,
@@ -30,7 +30,7 @@ import {
   LocationOn,
   AttachMoney,
 } from "@mui/icons-material";
-import commonData from "../../common.json"
+import { commonData } from "../config";
 
 function EmployeeHr() {
   const [data, setData] = useState([])
@@ -40,7 +40,7 @@ function EmployeeHr() {
   }, [])
 
   const getEmployees = () => {
-    axios.get(`${commonData?.APIKEY}/getEmployee`)
+    api.get("/getEmployee")
     .then(res => {
       if(res.data.Status === "Success") {
         setData(res.data.Result);
@@ -53,7 +53,7 @@ function EmployeeHr() {
 
   const handleDelete = (id) => {
     if (window.confirm("Are you sure you want to delete this employee?")) {
-      axios.delete(`${commonData?.APIKEY}/delete/`+id)
+      api.delete("/delete/"+id)
       .then(res => {
         if(res.data.Status === "Success") {
           alert("Employee deleted successfully");
@@ -100,9 +100,9 @@ function EmployeeHr() {
               variant="contained"
               startIcon={<Add />}
               sx={{
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
                 "&:hover": {
-                  background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                  background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
                 },
               }}
             >

@@ -18,7 +18,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _userNameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
-  String _selectedRole = 'employee';
 
   @override
   void dispose() {
@@ -31,26 +30,26 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    
+
     final success = await authProvider.login(
       _userNameController.text.trim(),
       _passwordController.text,
-      role: _selectedRole,
     );
 
     if (success && mounted) {
       final user = authProvider.user;
-      final role = user?['role']?.toString().toLowerCase() ?? _selectedRole;
-      
+      final role = user?['role']?.toString().toLowerCase() ?? '';
+
       Widget destination;
       if (role == 'hr') {
         destination = const HrDashboardScreen();
-      } else if (role == 'teamlead' || role == 'team_lead') {
+      } else if (role == 'teamlead' || role == 'team_lead' || role == 'tl') {
         destination = const TeamLeadDashboardScreen();
       } else {
+        // Employee, company portal (JWT role admin + isCompanyUser), or platform admin — workforce shell
         destination = const EmployeeDashboardScreen();
       }
-      
+
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => destination),
       );
@@ -135,8 +134,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           children: [
                             TextFormField(
                               controller: _userNameController,
+                              keyboardType: TextInputType.emailAddress,
+                              autocorrect: false,
                               decoration: InputDecoration(
-                                labelText: 'Username',
+                                labelText: 'Email or username',
+                                hintText: 'Company portal uses your work email',
                                 prefixIcon: Icon(
                                   Icons.person_outline_rounded,
                                   color: Theme.of(context).colorScheme.primary,
@@ -144,7 +146,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Please enter your username';
+                                  return 'Please enter your email or username';
                                 }
                                 return null;
                               },

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Box,
   Card,
@@ -19,8 +19,8 @@ import {
   Paper,
   Alert,
   CircularProgress,
-  IconButton,
   InputAdornment,
+  Autocomplete,
 } from "@mui/material";
 import {
   Person,
@@ -29,7 +29,6 @@ import {
   Work,
   CalendarToday,
   CloudUpload,
-  ArrowBack,
   Save,
   AttachMoney,
   Description,
@@ -45,7 +44,9 @@ import { useApi } from "../hooks/useApi";
 import { useMutation } from "../hooks/useMutation";
 import ErrorMessage from "../components/ErrorMessage";
 import Loading from "../components/Loading";
+import PageHeaderBreadcrumbs from "../components/PageHeaderBreadcrumbs";
 import { getImageUrl } from "../utils/helpers";
+import { getDisplayEmployeeId } from "../utils/employeeId";
 
 function AddEmployee({ from }) {
   const {
@@ -60,7 +61,6 @@ function AddEmployee({ from }) {
       permanentDate: null,
       date: null,
       employeeStatus: "",
-      discipline: "",
       designation: "",
       tempRole: "Employee",
       salary: "",
@@ -82,11 +82,6 @@ function AddEmployee({ from }) {
   const [idProofPreview, setIdProofPreview] = useState(null);
   const [error, setError] = useState("");
 
-  const { data: disciplines, loading: disciplinesLoading } = useApi(
-    () => apiService.getDisciplines(),
-    [],
-    true
-  );
   const { data: designations, loading: designationsLoading } = useApi(
     () => apiService.getDesignations(),
     [],
@@ -98,6 +93,20 @@ function AddEmployee({ from }) {
     [],
     true
   );
+
+  // Company login emails (company_admin/company_user) to reuse for employee creation
+  // If API is not accessible, suggestions will be empty and user can type manually.
+  const {
+    data: companyLoginUsers,
+    loading: companyLoginUsersLoading,
+  } = useApi(() => apiService.getMyCompanyLoginEmails(), [], true);
+
+  const companyLoginEmails = useMemo(() => {
+    if (!Array.isArray(companyLoginUsers)) return [];
+    return (companyLoginUsers || [])
+      .map((u) => u?.email)
+      .filter((e) => typeof e === "string" && e.trim() !== "");
+  }, [companyLoginUsers]);
   
   // Set default role from settings when roles are loaded
   useEffect(() => {
@@ -139,10 +148,9 @@ function AddEmployee({ from }) {
       const emp = Array.isArray(employeeData) ? employeeData[0] : employeeData;
       if (emp && emp.id) {
         setValue("employeeName", emp.employeeName || "");
-        setValue("EMPID", emp.EMPID || "");
+        setValue("EMPID", getDisplayEmployeeId(emp));
         setValue("employeeEmail", emp.employeeEmail || "");
         setValue("userName", emp.userName || "");
-        setValue("discipline", emp.discipline || "");
         setValue("designation", emp.designation || "");
         setValue("employeeStatus", emp.employeeStatus || "");
         setValue("date", emp.date ? dayjs(emp.date) : null);
@@ -260,25 +268,21 @@ function AddEmployee({ from }) {
   return (
     <Box sx={{ p: 3 }}>
       {/* Header */}
-      <Box sx={{ display: "flex", alignItems: "center", mb: 3, gap: 2 }}>
-        <IconButton onClick={() => {
-          if (from === "hr") {
-            navigate("/Hr/employee");
-          } else {
-            navigate("/Dashboard/employee");
-          }
-        }} color="primary">
-          <ArrowBack />
-        </IconButton>
-        <Box>
-          <Typography variant="h4" fontWeight="bold">
-            {id ? "Edit Employee" : "Add New Employee"}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {id ? "Update employee information" : "Create a new employee profile"}
-          </Typography>
-        </Box>
-      </Box>
+      <PageHeaderBreadcrumbs
+        items={
+          from === "hr"
+            ? [
+                { label: "HR", to: "/Hr" },
+                { label: "Employees", to: "/Hr/employee" },
+              ]
+            : [
+                { label: "Dashboard", to: "/Dashboard" },
+                { label: "Employees", to: "/Dashboard/employee" },
+              ]
+        }
+        title={id ? "Edit Employee" : "Add New Employee"}
+        subtitle={id ? "Update employee information" : "Create a new employee profile"}
+      />
 
       <ErrorMessage error={error} onClose={() => setError("")} />
 
@@ -347,17 +351,37 @@ function AddEmployee({ from }) {
                         },
                       }}
                       render={({ field }) => (
-                        <TextField
-                          {...field}
-                          fullWidth
-                          label="Email Address"
-                          type="email"
-                          placeholder="employee@example.com"
-                          error={Boolean(errors.employeeEmail)}
-                          helperText={errors.employeeEmail?.message}
-                          InputProps={{
-                            startAdornment: <Email sx={{ mr: 1, color: "text.secondary" }} />,
+                        <Autocomplete
+                          freeSolo
+                          loading={companyLoginUsersLoading}
+                          options={companyLoginEmails}
+                          value={field.value || ""}
+                          onInputChange={(_, v) => {
+                            const email = (v || "").toString();
+                            field.onChange(email);
+                            // Keep username synced with selected/typed email
+                            setValue("userName", email);
                           }}
+                          onChange={(_, v) => {
+                            const email = (v || "").toString();
+                            field.onChange(email);
+                            setValue("userName", email);
+                          }}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              fullWidth
+                              label="Email Address"
+                              type="email"
+                              placeholder="employee@example.com"
+                              error={Boolean(errors.employeeEmail)}
+                              helperText={errors.employeeEmail?.message}
+                              InputProps={{
+                                ...params.InputProps,
+                                startAdornment: <Email sx={{ mr: 1, color: "text.secondary" }} />,
+                              }}
+                            />
+                          )}
                         />
                       )}
                     />
@@ -477,31 +501,6 @@ function AddEmployee({ from }) {
                       </Grid>
                     </>
                   )}
-
-                  <Grid item xs={12} sm={6}>
-                    <FormControl fullWidth error={Boolean(errors.discipline)}>
-                      <InputLabel>Discipline</InputLabel>
-                      <Controller
-                        name="discipline"
-                        control={control}
-                        rules={{ required: "Discipline is required" }}
-                        render={({ field }) => (
-                          <Select {...field} label="Discipline" disabled={disciplinesLoading}>
-                            {disciplinesLoading ? (
-                              <MenuItem>Loading...</MenuItem>
-                            ) : (
-                              disciplines?.map((item) => (
-                                <MenuItem key={item.id} value={item.discipline}>
-                                  {item.discipline}
-                                </MenuItem>
-                              ))
-                            )}
-                          </Select>
-                        )}
-                      />
-                      <FormHelperText>{errors.discipline?.message}</FormHelperText>
-                    </FormControl>
-                  </Grid>
 
                   <Grid item xs={12} sm={6}>
                     <FormControl fullWidth error={Boolean(errors.designation)}>
@@ -1007,9 +1006,9 @@ function AddEmployee({ from }) {
                 startIcon={creating || updating ? <CircularProgress size={20} /> : <Save />}
                 disabled={creating || updating}
                 sx={{
-                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
                   "&:hover": {
-                    background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                    background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
                   },
                 }}
               >

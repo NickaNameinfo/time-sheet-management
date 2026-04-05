@@ -22,11 +22,10 @@ import {
   AccessTime,
   Edit,
 } from "@mui/icons-material";
-import axios from "axios";
+import api from "../services/api";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
-import commonData from "../../common.json";
 
 function CompOffLIst() {
   const [rowData, setRowData] = useState([]);
@@ -48,8 +47,8 @@ function CompOffLIst() {
     };
 
     try {
-      const res = await axios.put(
-        `${commonData?.APIKEY}/updateCompOff/` + params.data.id,
+      const res = await api.put(
+        "/updateCompOff/" + params.data.id,
         apiTemp
       );
       if (res.data.Status === "Success") {
@@ -66,8 +65,8 @@ function CompOffLIst() {
 
   const fetchCompOffData = useCallback(() => {
     setLoading(true);
-    axios
-      .get(`${commonData?.APIKEY}/getcompOffDetails`)
+    api
+      .get("/getcompOffDetails")
       .then((res) => {
         if (res.data.Status === "Success") {
           const filterDat = res.data.Result?.filter(

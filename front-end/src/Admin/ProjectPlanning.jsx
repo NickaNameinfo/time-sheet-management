@@ -42,6 +42,7 @@ import {
   Assignment,
   CheckCircle,
   Schedule,
+  List,
 } from "@mui/icons-material";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
@@ -88,8 +89,17 @@ function ProjectPlanning() {
   const [selectedProject, setSelectedProject] = useState(null);
   const [addEmployeeDialogOpen, setAddEmployeeDialogOpen] = useState(false);
   const [allEmployees, setAllEmployees] = useState([]);
+  /** Rows from GET /project-plan/:id — includes assignees not on the project's roster (assignedEmployees JSON). */
+  const [planEmployeesSnapshot, setPlanEmployeesSnapshot] = useState([]);
   const [allEmployeesLoading, setAllEmployeesLoading] = useState(false);
   const [employeeSearchText, setEmployeeSearchText] = useState("");
+  const [logDialogOpen, setLogDialogOpen] = useState(false);
+  const [logDetails, setLogDetails] = useState({ utilized_hours: 0, progress_percent: 0, log_details: [] });
+  const [logDetailsLoading, setLogDetailsLoading] = useState(false);
+  const [selectedPlanForLog, setSelectedPlanForLog] = useState(null);
+  const [filterEmployeeId, setFilterEmployeeId] = useState("");
+  const [filterPlanId, setFilterPlanId] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
 
   // Fetch data
   const { data: projects, loading: projectsLoading } = useApi(
@@ -97,7 +107,21 @@ function ProjectPlanning() {
     []
   );
   const { data: plans, loading: plansLoading, refetch: refetchPlans } = useApi(
+    () => {
+      const params = {};
+      if (filterEmployeeId) params.employee_id = filterEmployeeId;
+      if (filterPlanId) params.plan_id = filterPlanId;
+      if (filterStatus) params.status = filterStatus;
+      return apiService.getProjectPlans(params);
+    },
+    [filterEmployeeId, filterPlanId, filterStatus]
+  );
+  const { data: allPlansForFilter } = useApi(
     () => apiService.getProjectPlans(),
+    []
+  );
+  const { data: filterEmployees } = useApi(
+    () => apiService.getEmployees(),
     []
   );
   const { data: projectEmployees, loading: employeesLoading } = useApi(
@@ -123,6 +147,17 @@ function ProjectPlanning() {
     const data = Array.isArray(plans) ? plans : plans?.Result || plans?.data || [];
     return data;
   }, [plans]);
+
+  const allPlansList = useMemo(() => {
+    if (!allPlansForFilter) return [];
+    const data = Array.isArray(allPlansForFilter) ? allPlansForFilter : allPlansForFilter?.Result || allPlansForFilter?.data || [];
+    return data;
+  }, [allPlansForFilter]);
+
+  const employeesForFilter = useMemo(() => {
+    if (!filterEmployees) return [];
+    return Array.isArray(filterEmployees) ? filterEmployees : filterEmployees?.Result || filterEmployees?.data || [];
+  }, [filterEmployees]);
 
   // Fetch selected project details
   useEffect(() => {
@@ -209,33 +244,76 @@ function ProjectPlanning() {
   );
   const { mutate: deletePlan, loading: deleting } = useMutation(apiService.deleteProjectPlan);
 
-  // Process employees data - combine project employees with manually added employees
+  // Project roster + plan API snapshot + allEmployees (snapshot fills gaps before "Add Employee" loads full list)
   const employeesList = useMemo(() => {
-    const projectEmpData = projectEmployees 
-      ? (Array.isArray(projectEmployees) 
-          ? projectEmployees 
-          : projectEmployees?.Result || projectEmployees?.data || [])
+    const projectEmpData = projectEmployees
+      ? Array.isArray(projectEmployees)
+        ? projectEmployees
+        : projectEmployees?.Result || projectEmployees?.data || []
       : [];
-    
-    // Get manually added employees (those in selectedEmployees but not in project employees)
-    const projectEmployeeIds = projectEmpData.map(emp => {
-      const id = emp.id || emp.EMPID;
-      return id ? String(id) : null;
-    }).filter(Boolean);
-    
-    const manuallyAddedEmployeeIds = selectedEmployees
-      .map(id => String(id))
-      .filter(id => !projectEmployeeIds.includes(id));
-    
-    // Fetch manually added employees from allEmployees
-    const manuallyAddedEmployees = allEmployees.filter(emp => {
-      const empId = emp.id || emp.EMPID;
-      return empId && manuallyAddedEmployeeIds.includes(String(empId));
+
+    const snapshot = Array.isArray(planEmployeesSnapshot) ? planEmployeesSnapshot : [];
+
+    const map = new Map();
+    const addToMap = (emp) => {
+      if (!emp) return;
+      const pk = emp.employee_id ?? emp.id;
+      if (pk == null && pk !== 0) return;
+      const key = String(pk);
+      if (map.has(key)) return;
+      map.set(key, {
+        ...emp,
+        id: pk,
+        employee_id: pk,
+      });
+    };
+
+    projectEmpData.forEach(addToMap);
+    snapshot.forEach(addToMap);
+
+    const projectEmployeeIds = projectEmpData
+      .map((emp) => {
+        const id = emp.id ?? emp.employee_id ?? emp.EMPID;
+        return id != null ? String(id) : null;
+      })
+      .filter(Boolean);
+
+    const stillMissingIds = selectedEmployees
+      .map((id) => String(id))
+      .filter((id) => !projectEmployeeIds.includes(id) && !map.has(id));
+
+    const manuallyAddedEmployees = allEmployees.filter((emp) => {
+      const empId = emp.id ?? emp.EMPID;
+      return empId != null && stillMissingIds.includes(String(empId));
     });
-    
-    // Combine project employees with manually added employees
-    return [...projectEmpData, ...manuallyAddedEmployees];
-  }, [projectEmployees, selectedEmployees, allEmployees]);
+    manuallyAddedEmployees.forEach(addToMap);
+
+    const ordered = [];
+    const seen = new Set();
+    const pushKey = (key) => {
+      if (key == null || seen.has(key)) return;
+      const row = map.get(key);
+      if (row) {
+        seen.add(key);
+        ordered.push(row);
+      }
+    };
+
+    projectEmpData.forEach((emp) => {
+      const pk = emp.id ?? emp.employee_id;
+      if (pk != null) pushKey(String(pk));
+    });
+    snapshot.forEach((emp) => {
+      const pk = emp.employee_id ?? emp.id;
+      if (pk != null) pushKey(String(pk));
+    });
+    manuallyAddedEmployees.forEach((emp) => {
+      const pk = emp.id ?? emp.EMPID;
+      if (pk != null) pushKey(String(pk));
+    });
+
+    return ordered;
+  }, [projectEmployees, selectedEmployees, allEmployees, planEmployeesSnapshot]);
   
   // Fetch all employees for adding
   const fetchAllEmployees = async () => {
@@ -295,20 +373,26 @@ function ProjectPlanning() {
         status: plan.status || "draft",
       });
       
-      // Fetch plan details with employees
+      // Fetch plan details with employees (full rows — needed for assignees not on project roster)
       try {
         const res = await apiService.getProjectPlan(plan.id);
         const planData = res.data?.Result || res.data?.data || res.data;
-        if (planData.employees) {
-          setSelectedEmployees(planData.employees.map((e) => e.employee_id));
-          const hours = {};
-          planData.employees.forEach((e) => {
-            hours[e.employee_id] = e.allotted_hours || 0;
-          });
-          setEmployeeHours(hours);
-        }
+        const list = Array.isArray(planData.employees) ? planData.employees : [];
+        setSelectedEmployees(list.map((e) => e.employee_id));
+        const hours = {};
+        list.forEach((e) => {
+          hours[e.employee_id] = e.allotted_hours || 0;
+        });
+        setEmployeeHours(hours);
+        setPlanEmployeesSnapshot(
+          list.map((e) => ({
+            ...e,
+            id: e.employee_id,
+          }))
+        );
       } catch (error) {
         console.error("Error fetching plan employees:", error);
+        setPlanEmployeesSnapshot([]);
       }
     } else {
       setSelectedPlan(null);
@@ -323,6 +407,7 @@ function ProjectPlanning() {
       });
       setSelectedEmployees([]);
       setEmployeeHours({});
+      setPlanEmployeesSnapshot([]);
     }
     setDialogOpen(true);
   };
@@ -341,6 +426,7 @@ function ProjectPlanning() {
     });
     setSelectedEmployees([]);
     setEmployeeHours({});
+    setPlanEmployeesSnapshot([]);
   };
 
   const handleSubmit = async () => {
@@ -389,12 +475,19 @@ function ProjectPlanning() {
 
   const handleOpenEmployeeDialog = (plan) => {
     setSelectedPlan(plan);
-    setSelectedEmployees(plan.employees?.map((e) => e.employee_id) || []);
+    const emps = Array.isArray(plan.employees) ? plan.employees : [];
+    setSelectedEmployees(emps.map((e) => e.employee_id));
     const hours = {};
-    plan.employees?.forEach((e) => {
+    emps.forEach((e) => {
       hours[e.employee_id] = e.allotted_hours || 0;
     });
     setEmployeeHours(hours);
+    setPlanEmployeesSnapshot(
+      emps.map((e) => ({
+        ...e,
+        id: e.employee_id,
+      }))
+    );
     // Update formData to fetch employees for this project
     if (plan.project_id) {
       setFormData(prev => ({ ...prev, project_id: plan.project_id }));
@@ -433,6 +526,27 @@ function ProjectPlanning() {
     }));
   };
 
+  const handleOpenLogDetails = async (plan) => {
+    setSelectedPlanForLog(plan);
+    setLogDialogOpen(true);
+    setLogDetailsLoading(true);
+    try {
+      const res = await apiService.getPlanUtilization(plan.id);
+      const data = res.data?.Result || res.data || {};
+      setLogDetails({
+        utilized_hours: data.utilized_hours ?? 0,
+        progress_percent: data.progress_percent ?? 0,
+        total_allotted_hours: data.total_allotted_hours ?? plan.total_allotted_hours ?? 0,
+        log_details: data.log_details || [],
+      });
+    } catch (err) {
+      console.error("Error fetching plan utilization:", err);
+      setLogDetails({ utilized_hours: 0, progress_percent: 0, log_details: [] });
+    } finally {
+      setLogDetailsLoading(false);
+    }
+  };
+
   const columnDefs = [
     {
       field: "plan_name",
@@ -447,10 +561,46 @@ function ProjectPlanning() {
         </Box>
       ),
     },
+
     {
-      field: "projectName",
-      headerName: "Project",
-      minWidth: 150,
+      field: "progress_percent",
+      headerName: "Progress",
+      minWidth: 100,
+      cellRenderer: (params) => {
+        const pct = params.value ?? 0;
+        const color = pct >= 100 ? "success" : pct >= 75 ? "primary" : pct >= 50 ? "info" : "warning";
+        return (
+          <Chip
+            label={`${pct}%`}
+            size="small"
+            color={color}
+            variant="outlined"
+          />
+        );
+      },
+    },
+
+    {
+      field: "total_allotted_hours",
+      headerName: "Allotted Hours",
+      minWidth: 120,
+      cellRenderer: (params) => (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          <AccessTime sx={{ fontSize: 14, color: "text.secondary" }} />
+          <Typography variant="body2">{params.value ?? "0"}</Typography>
+        </Box>
+      ),
+    },
+    {
+      field: "utilized_hours",
+      headerName: "Utilized Hours",
+      minWidth: 120,
+      cellRenderer: (params) => (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          <Schedule sx={{ fontSize: 14, color: "info.main" }} />
+          <Typography variant="body2">{params.value ?? "0"}</Typography>
+        </Box>
+      ),
     },
     {
       field: "time_period",
@@ -469,6 +619,26 @@ function ProjectPlanning() {
       },
     },
     {
+      field: "status",
+      headerName: "Status",
+      minWidth: 120,
+      cellRenderer: (params) => {
+        const status = STATUS_OPTIONS.find((s) => s.value === params.value);
+        return (
+          <Chip
+            label={status?.label || params.value}
+            size="small"
+            color={status?.color || "default"}
+          />
+        );
+      },
+    },
+    {
+      field: "projectName",
+      headerName: "Project",
+      minWidth: 200,
+    },
+    {
       field: "start_date",
       headerName: "Start Date",
       minWidth: 120,
@@ -481,17 +651,6 @@ function ProjectPlanning() {
       minWidth: 120,
       cellRenderer: (params) =>
         params.value ? new Date(params.value).toLocaleDateString() : "N/A",
-    },
-    {
-      field: "total_allotted_hours",
-      headerName: "Allotted Hours",
-      minWidth: 140,
-      cellRenderer: (params) => (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-          <AccessTime sx={{ fontSize: 14, color: "text.secondary" }} />
-          <Typography variant="body2">{params.value || "0"}</Typography>
-        </Box>
-      ),
     },
     {
       field: "assigned_employees_count",
@@ -508,21 +667,6 @@ function ProjectPlanning() {
       ),
     },
     {
-      field: "status",
-      headerName: "Status",
-      minWidth: 120,
-      cellRenderer: (params) => {
-        const status = STATUS_OPTIONS.find((s) => s.value === params.value);
-        return (
-          <Chip
-            label={status?.label || params.value}
-            size="small"
-            color={status?.color || "default"}
-          />
-        );
-      },
-    },
-    {
       field: "actions",
       headerName: "Actions",
       minWidth: 200,
@@ -532,6 +676,15 @@ function ProjectPlanning() {
         const plan = params.data;
         return (
           <Box sx={{ display: "flex", gap: 1 }}>
+            <Tooltip title="Log details & utilization">
+              <IconButton
+                size="small"
+                color="info"
+                onClick={() => handleOpenLogDetails(plan)}
+              >
+                <List fontSize="small" />
+              </IconButton>
+            </Tooltip>
             <Tooltip title="Assign Employees">
               <IconButton
                 size="small"
@@ -609,9 +762,9 @@ function ProjectPlanning() {
             startIcon={<Add />}
             onClick={() => handleOpenDialog()}
             sx={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
               "&:hover": {
-                background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
               },
             }}
           >
@@ -619,6 +772,79 @@ function ProjectPlanning() {
           </Button>
         </Box>
       </Box>
+
+      {/* Filters */}
+      <Paper sx={{ p: 2, mb: 2, borderRadius: 2 }}>
+        <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1.5 }}>
+          Filter by
+        </Typography>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} sm={4} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Employee</InputLabel>
+              <Select
+                value={filterEmployeeId}
+                label="Employee"
+                onChange={(e) => setFilterEmployeeId(e.target.value)}
+              >
+                <MenuItem value="">All employees</MenuItem>
+                {employeesForFilter.map((emp) => (
+                  <MenuItem key={emp.id} value={emp.id}>
+                    {emp.employeeName || emp.userName} {emp.EMPID ? `(${emp.EMPID})` : ""}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={4} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Plan</InputLabel>
+              <Select
+                value={filterPlanId}
+                label="Plan"
+                onChange={(e) => setFilterPlanId(e.target.value)}
+              >
+                <MenuItem value="">All plans</MenuItem>
+                {allPlansList.map((plan) => (
+                  <MenuItem key={plan.id} value={plan.id}>
+                    {plan.plan_name} {plan.projectName ? `— ${plan.projectName}` : ""}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={4} md={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Status</InputLabel>
+              <Select
+                value={filterStatus}
+                label="Status"
+                onChange={(e) => setFilterStatus(e.target.value)}
+              >
+                <MenuItem value="">All statuses</MenuItem>
+                <MenuItem value="active">{STATUS_OPTIONS.find((s) => s.value === "active")?.label || "Active"}</MenuItem>
+                <MenuItem value="draft">{STATUS_OPTIONS.find((s) => s.value === "draft")?.label || "Draft"} (In progress)</MenuItem>
+                <MenuItem value="completed">{STATUS_OPTIONS.find((s) => s.value === "completed")?.label || "Completed"}</MenuItem>
+                <MenuItem value="cancelled">{STATUS_OPTIONS.find((s) => s.value === "cancelled")?.label || "Cancelled"}</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={4} md={2}>
+            <Button
+              variant="outlined"
+              size="medium"
+              onClick={() => {
+                setFilterEmployeeId("");
+                setFilterPlanId("");
+                setFilterStatus("");
+              }}
+              disabled={!filterEmployeeId && !filterPlanId && !filterStatus}
+            >
+              Clear filters
+            </Button>
+          </Grid>
+        </Grid>
+      </Paper>
 
       {/* Plans Grid */}
       <Card sx={{ borderRadius: 3, overflow: "hidden" }}>
@@ -883,12 +1109,18 @@ function ProjectPlanning() {
                         </TableHead>
                         <TableBody>
                           {employeesList.map((employee) => {
-                            const employeeId = employee.id || employee.EMPID;
-                            const isSelected = selectedEmployees.includes(employeeId);
-                            const hours = employeeHours[employeeId] || 0;
-                            
+                            const employeeId =
+                              employee.employee_id ?? employee.id ?? employee.EMPID;
+                            const isSelected = selectedEmployees.some(
+                              (x) => String(x) === String(employeeId)
+                            );
+                            const hours =
+                              employeeHours[employeeId] ??
+                              employeeHours[Number(employeeId)] ??
+                              0;
+
                             return (
-                              <TableRow key={employeeId} hover>
+                              <TableRow key={`emp-${String(employeeId)}`} hover>
                                 <TableCell padding="checkbox">
                                   <Checkbox
                                     checked={isSelected}
@@ -1187,6 +1419,91 @@ function ProjectPlanning() {
           >
             {assigning ? <CircularProgress size={20} /> : "Assign Employees"}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Log details & utilization Dialog */}
+      <Dialog
+        open={logDialogOpen}
+        onClose={() => setLogDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle>
+          <Typography variant="h6" fontWeight="bold">
+            Log details & progress — {selectedPlanForLog?.plan_name || "Plan"}
+          </Typography>
+          {selectedPlanForLog && (
+            <Stack direction="row" spacing={2} sx={{ mt: 1 }} flexWrap="wrap">
+              <Chip
+                icon={<AccessTime />}
+                label={`Allotted: ${Number(logDetails.total_allotted_hours ?? selectedPlanForLog.total_allotted_hours ?? 0).toFixed(2)} hrs`}
+                size="small"
+                variant="outlined"
+              />
+              <Chip
+                icon={<Schedule />}
+                label={`Utilized: ${Number(logDetails.utilized_hours).toFixed(2)} hrs`}
+                size="small"
+                color="info"
+                variant="outlined"
+              />
+              <Chip
+                label={`Progress: ${logDetails.progress_percent}%`}
+                size="small"
+                color={logDetails.progress_percent >= 100 ? "success" : "primary"}
+                variant="outlined"
+              />
+            </Stack>
+          )}
+        </DialogTitle>
+        <DialogContent>
+          {logDetailsLoading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <TableContainer component={Paper} sx={{ mt: 1 }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Employee</TableCell>
+                    <TableCell>Date</TableCell>
+                    <TableCell>Hours</TableCell>
+                    <TableCell>Clock In</TableCell>
+                    <TableCell>Clock Out</TableCell>
+                    <TableCell>Status</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {(logDetails.log_details || []).length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
+                        <Typography color="text.secondary">No log entries in plan period</Typography>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    (logDetails.log_details || []).map((row) => (
+                      <TableRow key={row.id} hover>
+                        <TableCell>{row.employeeName || row.userName || "—"}</TableCell>
+                        <TableCell>{row.sentDate ? new Date(row.sentDate).toLocaleDateString() : "—"}</TableCell>
+                        <TableCell>{row.totalHours != null ? Number(row.totalHours).toFixed(2) : "—"}</TableCell>
+                        <TableCell>{row.clockInTime ? new Date(row.clockInTime).toLocaleString() : "—"}</TableCell>
+                        <TableCell>{row.clockOutTime ? new Date(row.clockOutTime).toLocaleString() : "—"}</TableCell>
+                        <TableCell>
+                          <Chip label={row.status || "—"} size="small" variant="outlined" />
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setLogDialogOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </Box>

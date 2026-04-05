@@ -6,14 +6,12 @@ import {
   Typography,
   Button,
   Switch,
-  FormControlLabel,
   Chip,
   Stack,
   Paper,
   TextField,
   InputAdornment,
   Checkbox,
-  FormGroup,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -21,9 +19,7 @@ import {
   Alert,
   Snackbar,
   CircularProgress,
-  Divider,
   Grid,
-  Collapse,
   IconButton,
   List,
   ListItem,
@@ -31,27 +27,22 @@ import {
   ListItemText,
   alpha,
   useTheme,
-  Fade,
-  Zoom,
+  Tooltip,
 } from "@mui/material";
 import {
   Save,
   Refresh,
   Settings,
   Search,
-  Lock,
-  LockOpen,
   CheckCircle,
   Cancel,
   People,
-  PersonAdd,
   ExpandMore,
   ExpandLess,
   ChevronRight,
 } from "@mui/icons-material";
 import { apiService } from "../../services/api";
 import { useApi, useMutation } from "../../hooks/useApi";
-import { useAuth } from "../../context/AuthContext";
 import {
   Table,
   TableBody,
@@ -65,24 +56,106 @@ import {
   InputLabel,
 } from "@mui/material";
 
+/** Table columns: Access (sidebar) + View / Add / Edit / Delete / All — each cell = one checkbox per role */
+const PERMISSION_COLUMNS = [
+  { key: "allowed_roles", label: "Access" },
+  { key: "view_permission", label: "View" },
+  { key: "add_permission", label: "Add" },
+  { key: "edit_permission", label: "Edit" },
+  { key: "delete_permission", label: "Delete" },
+  { key: "all_permission", label: "All" },
+];
+
+const ROLE_FILTER_KEYS = PERMISSION_COLUMNS.map((c) => c.key);
+
+function parseJsonFieldForRoleFilter(field) {
+  if (!field) return [];
+  if (Array.isArray(field)) return field;
+  if (typeof field === "string") {
+    try {
+      return JSON.parse(field);
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+/** Role filter: check every column (Access, View, …, All), not only allowed_roles. */
+function menuRowIncludesRoleName(menuRow, roleName) {
+  if (!menuRow || roleName == null || roleName === "") return false;
+  const target = String(roleName).trim().toLowerCase();
+  return ROLE_FILTER_KEYS.some((key) => {
+    const arr = parseJsonFieldForRoleFilter(menuRow[key]);
+    return arr.some((r) => String(r ?? "").trim().toLowerCase() === target);
+  });
+}
+
+/** Reset / “default” state: no role checks, menu inactive (matches “uncheck all”). */
+function buildEmptyPermissions(menuItemsList) {
+  const perms = {};
+  menuItemsList.forEach((item) => {
+    perms[item.id] = {
+      allowed_roles: [],
+      view_permission: [],
+      add_permission: [],
+      edit_permission: [],
+      delete_permission: [],
+      all_permission: [],
+      is_active: false,
+    };
+  });
+  return perms;
+}
+
+/** Used only if Settings → Roles has no rows (legacy / empty DB). */
+const FALLBACK_SYSTEM_ROLES = [
+  { role_name: "Admin", role_display_name: "Admin", display_order: 0 },
+  { role_name: "HR", role_display_name: "HR", display_order: 1 },
+  { role_name: "TL", role_display_name: "TL", display_order: 2 },
+  { role_name: "Employee", role_display_name: "Employee", display_order: 3 },
+];
+
 const MenuPermissions = () => {
   const theme = useTheme();
-  const { roles } = useAuth();
   const [searchText, setSearchText] = useState("");
   const [selectedRole, setSelectedRole] = useState("All");
   const [selectedMenuFilter, setSelectedMenuFilter] = useState("all");
   const [permissions, setPermissions] = useState({});
   const [hasChanges, setHasChanges] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
-  const [activeTab, setActiveTab] = useState(0);
   const [selectedMenuId, setSelectedMenuId] = useState(null);
   const [employeePermissionsDialog, setEmployeePermissionsDialog] = useState(false);
   const [employeePermissions, setEmployeePermissions] = useState({});
   const [selectedEmployees, setSelectedEmployees] = useState([]);
   const [expandedNodes, setExpandedNodes] = useState({});
 
-  // Available roles
-  const availableRoles = ["Admin", "HR", "TL", "Employee"];
+  // Roles from Settings → Roles (system); drives filters and permission matrix columns
+  const { data: rolesData, loading: rolesLoading } = useApi(
+    () => apiService.getRoles(),
+    []
+  );
+
+  /** role_name values are stored in menu permission JSON; labels come from Settings → Roles */
+  const systemRoles = useMemo(() => {
+    let list = [];
+    if (rolesData != null) {
+      const raw = Array.isArray(rolesData) ? rolesData : rolesData?.Result || [];
+      list = [...raw]
+        .filter((r) => r && r.is_active !== false)
+        .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+    }
+    return list.length > 0 ? list : FALLBACK_SYSTEM_ROLES;
+  }, [rolesData]);
+
+  // If selected filter role was removed from system settings, reset to "All"
+  useEffect(() => {
+    if (selectedRole === "All") return;
+    const names = systemRoles.map((r) => r.role_name).filter(Boolean);
+    if (names.length > 0 && !names.includes(selectedRole)) {
+      setSelectedRole("All");
+    }
+  }, [systemRoles, selectedRole]);
 
   // Fetch employees
   const { data: employeesData } = useApi(
@@ -131,28 +204,28 @@ const MenuPermissions = () => {
     return [];
   };
 
-  // Initialize permissions state
+  // Sync permissions from API whenever menu data loads or refetches (browser refresh, Save, Refresh).
+  // Reset uses buildEmptyPermissions() only via handleReset — not on first paint.
   useEffect(() => {
-    if (menuPermissionsData) {
-      const data = Array.isArray(menuPermissionsData) 
-        ? menuPermissionsData 
-        : menuPermissionsData?.Result || [];
-      
-      const perms = {};
-      data.forEach((item) => {
-        perms[item.id] = {
-          allowed_roles: parseJsonField(item.allowed_roles),
-          view_permission: parseJsonField(item.view_permission),
-          add_permission: parseJsonField(item.add_permission),
-          edit_permission: parseJsonField(item.edit_permission),
-          delete_permission: parseJsonField(item.delete_permission),
-          all_permission: parseJsonField(item.all_permission),
-          is_active: item.is_active !== undefined ? item.is_active : true,
-        };
-      });
-      setPermissions(perms);
-      setHasChanges(false);
-    }
+    if (!menuPermissionsData) return;
+    const data = Array.isArray(menuPermissionsData)
+      ? menuPermissionsData
+      : menuPermissionsData?.Result || [];
+
+    const perms = {};
+    data.forEach((item) => {
+      perms[item.id] = {
+        allowed_roles: parseJsonField(item.allowed_roles),
+        view_permission: parseJsonField(item.view_permission),
+        add_permission: parseJsonField(item.add_permission),
+        edit_permission: parseJsonField(item.edit_permission),
+        delete_permission: parseJsonField(item.delete_permission),
+        all_permission: parseJsonField(item.all_permission),
+        is_active: item.is_active !== undefined ? item.is_active : true,
+      };
+    });
+    setPermissions(perms);
+    setHasChanges(false);
   }, [menuPermissionsData]);
 
   // Get all menu items for select dropdown
@@ -216,16 +289,37 @@ const MenuPermissions = () => {
       );
     }
     
-    // Filter by role
+    // Filter by role: match role_name in any permission column (not only Access / allowed_roles)
     if (selectedRole !== "All") {
-      filtered = filtered.filter((item) => {
-        const allowedRoles = Array.isArray(item.allowed_roles) 
-          ? item.allowed_roles 
-          : typeof item.allowed_roles === 'string' 
-            ? JSON.parse(item.allowed_roles) 
-            : [];
-        return allowedRoles.includes(selectedRole);
+      const rowForRoleFilter = (item) => {
+        const live = permissions[item.id];
+        if (!live) return item;
+        return {
+          ...item,
+          allowed_roles: live.allowed_roles,
+          view_permission: live.view_permission,
+          add_permission: live.add_permission,
+          edit_permission: live.edit_permission,
+          delete_permission: live.delete_permission,
+          all_permission: live.all_permission,
+        };
+      };
+      const directMatchKeys = new Set();
+      filtered.forEach((item) => {
+        if (menuRowIncludesRoleName(rowForRoleFilter(item), selectedRole)) {
+          directMatchKeys.add(item.menu_key);
+        }
       });
+      const includeKeys = new Set(directMatchKeys);
+      // Keep parent rows so the tree stays navigable when only a child matches
+      directMatchKeys.forEach((mk) => {
+        let row = data.find((d) => d.menu_key === mk);
+        while (row?.parent_menu) {
+          includeKeys.add(row.parent_menu);
+          row = data.find((d) => d.menu_key === row.parent_menu);
+        }
+      });
+      filtered = filtered.filter((item) => includeKeys.has(item.menu_key));
     }
     
     // Build tree structure
@@ -259,7 +353,7 @@ const MenuPermissions = () => {
     
     sortItems(rootItems);
     return rootItems;
-  }, [menuPermissionsData, searchText, selectedRole, selectedMenuFilter]);
+  }, [menuPermissionsData, searchText, selectedRole, selectedMenuFilter, permissions]);
 
   // Auto-expand selected menu and its parents when menu filter changes
   useEffect(() => {
@@ -402,33 +496,21 @@ const MenuPermissions = () => {
     }
   };
 
+  /** Reset to default: all checkboxes off, all menus inactive (not a reload from server). */
   const handleReset = () => {
-    if (menuPermissionsData) {
-      const data = Array.isArray(menuPermissionsData) 
-        ? menuPermissionsData 
-        : menuPermissionsData?.Result || [];
-      
-      const perms = {};
-      data.forEach((item) => {
-        perms[item.id] = {
-          allowed_roles: parseJsonField(item.allowed_roles),
-          view_permission: parseJsonField(item.view_permission),
-          add_permission: parseJsonField(item.add_permission),
-          edit_permission: parseJsonField(item.edit_permission),
-          delete_permission: parseJsonField(item.delete_permission),
-          all_permission: parseJsonField(item.all_permission),
-          is_active: item.is_active !== undefined ? item.is_active : true,
-        };
-      });
-      setPermissions(perms);
-      setHasChanges(false);
-    }
+    if (!menuPermissionsData) return;
+    const data = Array.isArray(menuPermissionsData)
+      ? menuPermissionsData
+      : menuPermissionsData?.Result || [];
+    if (!data.length) return;
+    setPermissions(buildEmptyPermissions(data));
+    setHasChanges(true);
   };
 
-  // Render tree node recursively
-  const renderTreeNode = (node, level = 0) => {
+  /** Hierarchical table rows: menu column + View/Add/Edit/Delete/All (checkbox per role) */
+  const renderPermissionTableRows = (node, depth = 0) => {
     const hasChildren = node.children && node.children.length > 0;
-    const isExpanded = expandedNodes[node.menu_key] || false;
+    const isExpanded = expandedNodes[node.menu_key] !== false;
     const perm = permissions[node.id] || {
       allowed_roles: parseJsonField(node.allowed_roles),
       view_permission: parseJsonField(node.view_permission),
@@ -438,292 +520,125 @@ const MenuPermissions = () => {
       all_permission: parseJsonField(node.all_permission),
       is_active: node.is_active !== undefined ? node.is_active : true,
     };
-    
-    const permissionTypes = [
-      { key: 'view_permission', label: 'View', color: 'info' },
-      { key: 'add_permission', label: 'Add', color: 'success' },
-      { key: 'edit_permission', label: 'Edit', color: 'warning' },
-      { key: 'delete_permission', label: 'Delete', color: 'error' },
-      { key: 'all_permission', label: 'All', color: 'primary' },
-    ];
 
-    return (
-      <Fade in={true} timeout={300}>
-        <Box key={node.id} sx={{ mb: 2 }}>
-          <Card
-            elevation={0}
-            sx={{
-              background: perm.is_active 
-                ? `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.02)} 0%, ${alpha(theme.palette.secondary.main, 0.02)} 100%)`
-                : alpha(theme.palette.grey[50], 0.5),
-              border: `2px solid ${perm.is_active 
-                ? alpha(theme.palette.primary.main, 0.2) 
-                : alpha(theme.palette.grey[300], 0.5)}`,
-              borderRadius: 3,
-              opacity: perm.is_active ? 1 : 0.6,
-              ml: level * 4,
-              position: "relative",
-              overflow: "hidden",
-              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-              "&::before": {
-                content: '""',
-                position: "absolute",
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: perm.is_active ? 4 : 0,
-                background: "linear-gradient(180deg, #667eea 0%, #764ba2 100%)",
-                transition: "width 0.3s ease",
-              },
-              "&:hover": {
-                transform: "translateY(-2px)",
-                boxShadow: `0 8px 24px ${alpha(theme.palette.primary.main, 0.15)}`,
-                borderColor: perm.is_active 
-                  ? alpha(theme.palette.primary.main, 0.4) 
-                  : alpha(theme.palette.grey[400], 0.5),
-              },
+    const row = (
+      <TableRow
+        key={node.id}
+        hover
+        sx={{
+          opacity: perm.is_active ? 1 : 0.55,
+          "&:nth-of-type(even)": { bgcolor: alpha(theme.palette.action.hover, 0.06) },
+        }}
+      >
+        <TableCell
+          sx={{
+            position: "sticky",
+            left: 0,
+            zIndex: 2,
+            bgcolor: "background.paper",
+            borderRight: `1px solid ${theme.palette.divider}`,
+            py: 1.25,
+            pl: 1 + depth * 2,
+            minWidth: 240,
+            maxWidth: 400,
+            boxShadow: 1,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.5 }}>
+            {hasChildren ? (
+              <IconButton
+                size="small"
+                onClick={() => toggleNode(node.menu_key)}
+                sx={{ mt: -0.25, p: 0.25 }}
+                aria-label={isExpanded ? "Collapse" : "Expand"}
+              >
+                {isExpanded ? <ExpandLess fontSize="small" /> : <ChevronRight fontSize="small" />}
+              </IconButton>
+            ) : (
+              <Box sx={{ width: 28, flexShrink: 0 }} />
+            )}
+            <Box sx={{ minWidth: 0 }}>
+              <Typography
+                variant="body2"
+                fontWeight={depth === 0 ? 700 : depth === 1 ? 600 : 500}
+                color="text.primary"
+                lineHeight={1.3}
+              >
+                {node.menu_title}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" noWrap display="block" title={node.menu_path || node.menu_key}>
+                {node.menu_key}
+              </Typography>
+            </Box>
+          </Box>
+        </TableCell>
+        {PERMISSION_COLUMNS.map((col) => (
+          <TableCell key={col.key} align="center" sx={{ py: 0.75, px: 0.5, minWidth: 112, verticalAlign: "middle" }}>
+            <Stack direction="row" spacing={0} justifyContent="center" alignItems="center" flexWrap="wrap" useFlexGap>
+              {systemRoles.map((roleRow) => {
+                const role = roleRow.role_name;
+                const roleLabel = roleRow.role_display_name || roleRow.role_name || role;
+                const isChecked = (perm[col.key] || []).includes(role);
+                const tip =
+                  col.key === "allowed_roles"
+                    ? `${roleLabel}: show this menu in the sidebar`
+                    : `${roleLabel} — ${col.label}`;
+                return (
+                  <Tooltip key={role} title={tip} arrow placement="top">
+                    <span>
+                      <Checkbox
+                        checked={isChecked}
+                        onChange={() => handleRoleToggle(node.id, role, col.key)}
+                        disabled={!perm.is_active}
+                        size="small"
+                        sx={{ p: 0.2 }}
+                      />
+                    </span>
+                  </Tooltip>
+                );
+              })}
+            </Stack>
+          </TableCell>
+        ))}
+        <TableCell align="center" sx={{ width: 88 }}>
+          <Switch
+            checked={!!perm.is_active}
+            onChange={() => handleActiveToggle(node.id)}
+            size="small"
+            color="success"
+          />
+        </TableCell>
+        <TableCell align="center" sx={{ width: 100 }}>
+          <Button
+            size="small"
+            variant="text"
+            startIcon={<People fontSize="small" />}
+            onClick={() => {
+              setSelectedMenuId(node.id);
+              setEmployeePermissionsDialog(true);
+              refetchEmployeePermissions();
             }}
+            sx={{ textTransform: "none", fontSize: "0.75rem", minWidth: 0, px: 0.5 }}
           >
-            <CardContent sx={{ p: 3 }}>
-              {/* Header with expand/collapse */}
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 3 }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flex: 1 }}>
-                  {hasChildren && (
-                    <IconButton
-                      size="small"
-                      onClick={() => toggleNode(node.menu_key)}
-                      sx={{
-                        p: 1,
-                        bgcolor: isExpanded 
-                          ? alpha(theme.palette.primary.main, 0.1) 
-                          : "transparent",
-                        color: isExpanded ? "primary.main" : "text.secondary",
-                        border: `1px solid ${isExpanded 
-                          ? alpha(theme.palette.primary.main, 0.3) 
-                          : alpha(theme.palette.grey[300], 0.5)}`,
-                        transition: "all 0.2s ease",
-                        "&:hover": {
-                          bgcolor: alpha(theme.palette.primary.main, 0.15),
-                          borderColor: theme.palette.primary.main,
-                          transform: "scale(1.1)",
-                        },
-                      }}
-                    >
-                      {isExpanded ? <ExpandLess /> : <ChevronRight />}
-                    </IconButton>
-                  )}
-                  {!hasChildren && <Box sx={{ width: 40 }} />}
-                  <Box sx={{ flex: 1 }}>
-                    <Typography 
-                      variant="h6" 
-                      fontWeight={700}
-                      sx={{
-                        background: perm.is_active 
-                          ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-                          : "none",
-                        backgroundClip: perm.is_active ? "text" : "unset",
-                        WebkitBackgroundClip: perm.is_active ? "text" : "unset",
-                        WebkitTextFillColor: perm.is_active ? "transparent" : "inherit",
-                        mb: 0.5,
-                        fontSize: "1.1rem",
-                      }}
-                    >
-                      {node.menu_title}
-                    </Typography>
-                    <Typography 
-                      variant="caption" 
-                      sx={{
-                        color: "text.secondary",
-                        fontFamily: "monospace",
-                        bgcolor: alpha(theme.palette.grey[200], 0.5),
-                        px: 1,
-                        py: 0.25,
-                        borderRadius: 1,
-                        display: "inline-block",
-                      }}
-                    >
-                      {node.menu_path || node.menu_key}
-                    </Typography>
-                  </Box>
-                </Box>
-                <Stack direction="row" spacing={1.5} alignItems="center">
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={<People />}
-                    onClick={() => {
-                      setSelectedMenuId(node.id);
-                      setEmployeePermissionsDialog(true);
-                      refetchEmployeePermissions();
-                    }}
-                    sx={{
-                      textTransform: "none",
-                      borderRadius: 2,
-                      px: 2,
-                      borderColor: alpha(theme.palette.primary.main, 0.3),
-                      color: "primary.main",
-                      "&:hover": {
-                        borderColor: "primary.main",
-                        bgcolor: alpha(theme.palette.primary.main, 0.08),
-                        transform: "translateY(-1px)",
-                        boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.2)}`,
-                      },
-                      transition: "all 0.2s ease",
-                    }}
-                  >
-                    Employees
-                  </Button>
-                  <Chip
-                    icon={perm.is_active ? <CheckCircle /> : <Cancel />}
-                    label={perm.is_active ? "Active" : "Inactive"}
-                    color={perm.is_active ? "success" : "default"}
-                    size="small"
-                    sx={{
-                      fontWeight: 600,
-                      "& .MuiChip-icon": {
-                        fontSize: "1rem",
-                      },
-                    }}
-                  />
-                  <Switch
-                    checked={perm.is_active}
-                    onChange={() => handleActiveToggle(node.id)}
-                    size="small"
-                    sx={{
-                      "& .MuiSwitch-switchBase.Mui-checked": {
-                        color: theme.palette.success.main,
-                      },
-                      "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
-                        backgroundColor: theme.palette.success.main,
-                      },
-                    }}
-                  />
-                </Stack>
-              </Box>
-              
-              <Divider 
-                sx={{ 
-                  my: 3,
-                  background: `linear-gradient(90deg, transparent 0%, ${alpha(theme.palette.primary.main, 0.2)} 50%, transparent 100%)`,
-                  height: 1,
-                }} 
-              />
-              
-              {/* Permission Types */}
-              <Grid container spacing={3}>
-                {permissionTypes.map((permType, idx) => (
-                  <Grid item xs={12} md={6} key={permType.key}>
-                    <Zoom in={true} timeout={300 + idx * 100}>
-                      <Paper
-                        elevation={0}
-                        sx={{
-                          p: 2,
-                          borderRadius: 2,
-                          bgcolor: alpha(theme.palette[permType.color].main, 0.05),
-                          border: `1px solid ${alpha(theme.palette[permType.color].main, 0.2)}`,
-                          transition: "all 0.2s ease",
-                          "&:hover": {
-                            bgcolor: alpha(theme.palette[permType.color].main, 0.08),
-                            borderColor: alpha(theme.palette[permType.color].main, 0.4),
-                            transform: "translateY(-2px)",
-                            boxShadow: `0 4px 12px ${alpha(theme.palette[permType.color].main, 0.15)}`,
-                          },
-                        }}
-                      >
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-                          <Chip 
-                            label={permType.label} 
-                            size="small" 
-                            color={permType.color}
-                            sx={{ 
-                              fontWeight: 700,
-                              fontSize: "0.75rem",
-                              height: 28,
-                            }}
-                          />
-                          <Typography variant="body2" fontWeight={600} color="text.secondary">
-                            Permissions
-                          </Typography>
-                        </Box>
-                        <FormGroup>
-                          {availableRoles.map((role) => {
-                            const isChecked = (perm[permType.key] || []).includes(role);
-                            return (
-                              <FormControlLabel
-                                key={role}
-                                control={
-                                  <Checkbox
-                                    checked={isChecked}
-                                    onChange={() => handleRoleToggle(node.id, role, permType.key)}
-                                    size="small"
-                                    disabled={!perm.is_active}
-                                    sx={{
-                                      "&.Mui-checked": {
-                                        color: theme.palette[permType.color].main,
-                                      },
-                                    }}
-                                  />
-                                }
-                                label={
-                                  <Chip
-                                    label={role}
-                                    size="small"
-                                    sx={{
-                                      height: 26,
-                                      fontSize: "0.7rem",
-                                      fontWeight: isChecked ? 600 : 400,
-                                      bgcolor: isChecked 
-                                        ? alpha(theme.palette[permType.color].main, 0.15)
-                                        : "transparent",
-                                      color: isChecked 
-                                        ? theme.palette[permType.color].main
-                                        : "text.secondary",
-                                      border: `1px solid ${isChecked 
-                                        ? alpha(theme.palette[permType.color].main, 0.3)
-                                        : alpha(theme.palette.grey[300], 0.5)}`,
-                                      transition: "all 0.2s ease",
-                                      "&:hover": {
-                                        borderColor: theme.palette[permType.color].main,
-                                        transform: "scale(1.05)",
-                                      },
-                                    }}
-                                  />
-                                }
-                                sx={{
-                                  mb: 0.5,
-                                  "&:hover": {
-                                    "& .MuiFormControlLabel-label": {
-                                      transform: "translateX(4px)",
-                                    },
-                                  },
-                                  transition: "all 0.2s ease",
-                                }}
-                              />
-                            );
-                          })}
-                        </FormGroup>
-                      </Paper>
-                    </Zoom>
-                  </Grid>
-                ))}
-              </Grid>
-            </CardContent>
-          </Card>
-        
-          {/* Render children */}
-          {hasChildren && (
-            <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-              <Box sx={{ mt: 2, ml: 1 }}>
-                {node.children.map((child) => renderTreeNode(child, level + 1))}
-              </Box>
-            </Collapse>
-          )}
-        </Box>
-      </Fade>
+            Staff
+          </Button>
+        </TableCell>
+      </TableRow>
     );
+
+    const childRows =
+      hasChildren && isExpanded
+        ? node.children.flatMap((child) => renderPermissionTableRows(child, depth + 1))
+        : [];
+
+    return [row, ...childRows];
   };
 
-  if (loading) {
+  /** Full-page spinner only before first data arrives; refetch keeps UI and shows spinner on Refresh */
+  const hasMenuData = menuPermissionsData != null;
+  const isInitialLoading = (loading || rolesLoading) && !hasMenuData;
+
+  if (isInitialLoading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 400 }}>
         <CircularProgress />
@@ -768,7 +683,7 @@ const MenuPermissions = () => {
                 sx={{
                   p: 1.5,
                   borderRadius: 2,
-                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -781,7 +696,7 @@ const MenuPermissions = () => {
                   variant="h4" 
                   fontWeight={800}
                   sx={{
-                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
                     backgroundClip: "text",
                     WebkitBackgroundClip: "text",
                     WebkitTextFillColor: "transparent",
@@ -791,7 +706,7 @@ const MenuPermissions = () => {
                   Menu Permissions
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                  Configure which menu items are visible to different user roles and employees
+                  Tree of menus with Access / View / Add / Edit / Delete / All — checkboxes per role (A H T E).
                 </Typography>
               </Box>
             </Box>
@@ -826,12 +741,13 @@ const MenuPermissions = () => {
                 transition: "all 0.2s ease",
               }}
             >
-              Refresh
+              {loading && hasMenuData ? "Loading…" : "Refresh"}
             </Button>
             <Button
               variant="outlined"
               onClick={handleReset}
-              disabled={!hasChanges}
+              disabled={loading || !menuPermissionsData}
+              title="Clear all permissions to default (everything unchecked, menus inactive). Save to apply."
               sx={{
                 borderRadius: 2,
                 px: 2.5,
@@ -858,10 +774,10 @@ const MenuPermissions = () => {
                 px: 3,
                 textTransform: "none",
                 fontWeight: 700,
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
                 boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.3)}`,
                 "&:hover:not(:disabled)": {
-                  background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                  background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
                   transform: "translateY(-2px)",
                   boxShadow: `0 6px 24px ${alpha(theme.palette.primary.main, 0.4)}`,
                 },
@@ -981,10 +897,13 @@ const MenuPermissions = () => {
                     },
                   }}
                 />
-                {availableRoles.map((role) => (
+                {systemRoles.map((roleRow) => {
+                  const role = roleRow.role_name;
+                  const label = roleRow.role_display_name || roleRow.role_name || role;
+                  return (
                   <Chip
                     key={role}
-                    label={role}
+                    label={label}
                     onClick={() => setSelectedRole(role)}
                     color={selectedRole === role ? "primary" : "default"}
                     variant={selectedRole === role ? "filled" : "outlined"}
@@ -1000,23 +919,96 @@ const MenuPermissions = () => {
                       },
                     }}
                   />
-                ))}
+                );
+                })}
               </Stack>
             </Grid>
           </Grid>
         </Paper>
       </Box>
 
-      {/* Menu Permissions Tree */}
+      {/* Hierarchical permission matrix (tree + View/Add/Edit/Delete/All × roles) */}
       {menuTree.length > 0 ? (
-        <Box>
-          {menuTree.map((node) => renderTreeNode(node, 0))}
-        </Box>
+        <TableContainer
+          component={Paper}
+          elevation={0}
+          sx={{
+            borderRadius: 2,
+            border: `1px solid ${theme.palette.divider}`,
+            maxHeight: "calc(100vh - 280px)",
+            overflow: "auto",
+          }}
+        >
+          <Table size="small" stickyHeader sx={{ minWidth: 720 }}>
+            <TableHead>
+              <TableRow>
+                <TableCell
+                  rowSpan={2}
+                  sx={{
+                    position: "sticky",
+                    left: 0,
+                    zIndex: 3,
+                    bgcolor: "background.paper",
+                    fontWeight: 700,
+                    borderRight: `1px solid ${theme.palette.divider}`,
+                    verticalAlign: "bottom",
+                    minWidth: 240,
+                  }}
+                >
+                  Menu
+                </TableCell>
+                {PERMISSION_COLUMNS.map((col) => (
+                  <TableCell key={col.key} align="center" sx={{ fontWeight: 700, py: 1, borderBottom: 0 }}>
+                    {col.label}
+                  </TableCell>
+                ))}
+                <TableCell rowSpan={2} align="center" sx={{ fontWeight: 700, verticalAlign: "bottom", whiteSpace: "nowrap" }}>
+                  Active
+                </TableCell>
+                <TableCell rowSpan={2} align="center" sx={{ fontWeight: 700, verticalAlign: "bottom", whiteSpace: "nowrap" }}>
+                  Staff
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                {PERMISSION_COLUMNS.map((col) => (
+                  <TableCell key={`${col.key}-roles`} align="center" sx={{ py: 0.5, pt: 0, borderTop: 0 }}>
+                    <Stack direction="row" spacing={0.25} justifyContent="center" alignItems="center" flexWrap="wrap" useFlexGap>
+                      {systemRoles.map((roleRow) => {
+                        const role = roleRow.role_name;
+                        const short =
+                          (roleRow.role_display_name || role || "").trim().charAt(0).toUpperCase() ||
+                          "?";
+                        return (
+                        <Tooltip key={role} title={roleRow.role_display_name || role} arrow>
+                          <Typography
+                            variant="caption"
+                            component="span"
+                            sx={{
+                              width: 18,
+                              textAlign: "center",
+                              fontWeight: 700,
+                              color: "text.secondary",
+                              fontSize: "0.65rem",
+                            }}
+                          >
+                            {short}
+                          </Typography>
+                        </Tooltip>
+                        );
+                      })}
+                    </Stack>
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>{menuTree.flatMap((node) => renderPermissionTableRows(node, 0))}</TableBody>
+          </Table>
+        </TableContainer>
       ) : (
-        <Card>
+        <Card variant="outlined">
           <CardContent>
-            <Typography variant="body1" color="text.secondary" align="center" sx={{ py: 4 }}>
-              No menu permissions found. Please run the migration to create the menu_permissions table.
+            <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 4 }}>
+              No menu permissions found. Run the menu migration or check your database connection.
             </Typography>
           </CardContent>
         </Card>

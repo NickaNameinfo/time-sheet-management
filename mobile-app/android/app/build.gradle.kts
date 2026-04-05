@@ -24,8 +24,9 @@ android {
         applicationId = "com.timesheet.mobile"
         minSdk = flutter.minSdkVersion
         targetSdk = 36
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        // Override so Play Store gets a new version code (increment for each release)
+        versionCode = 2
+        versionName = "2.0.0"
     }
 
     buildTypes {

@@ -24,11 +24,10 @@ import {
   Close,
   School,
 } from "@mui/icons-material";
-import axios from "axios";
+import api from "../services/api";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
-import commonData from "../../common.json";
 
 export const Discipline = () => {
   const [rowData, setRowData] = useState([]);
@@ -36,7 +35,7 @@ export const Discipline = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [disciplineToDelete, setDisciplineToDelete] = useState(null);
-  const [modalValue, setModalValue] = useState({ discipline: "" });
+  const [modalValue, setModalValue] = useState({ discipline: "", discipline_code: "" });
   const [searchText, setSearchText] = useState("");
   const [gridApi, setGridApi] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -49,15 +48,29 @@ export const Discipline = () => {
         minWidth: 200,
         checkboxSelection: true,
         cellRenderer: (params) => {
+          const code = params.data?.discipline_code;
           return (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 1 }}>
               <School color="primary" sx={{ fontSize: 20 }} />
               <Typography variant="body2" fontWeight="medium">
                 {params.value || "N/A"}
+                {code != null && code !== "" && (
+                  <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 0.5 }}>
+                    – {code}
+                  </Typography>
+                )}
               </Typography>
             </Box>
           );
         },
+      },
+      {
+        field: "discipline_code",
+        headerName: "Code",
+        minWidth: 100,
+        cellRenderer: (params) => (
+          <Chip size="small" label={params.value || "—"} sx={{ fontWeight: 600 }} />
+        ),
       },
     ],
     []
@@ -84,8 +97,8 @@ export const Discipline = () => {
 
   const fetchDisciplineData = useCallback(() => {
     setLoading(true);
-    axios
-      .get(`${commonData?.APIKEY}/discipline`)
+    api
+      .get("/discipline")
       .then((res) => {
         if (res.data.Status === "Success") {
           setRowData(res.data.Result);
@@ -121,8 +134,8 @@ export const Discipline = () => {
 
   const handleDeleteConfirm = () => {
     if (disciplineToDelete) {
-      axios
-        .delete(`${commonData?.APIKEY}/discipline/delete/` + disciplineToDelete.id)
+      api
+        .delete("/discipline/delete/" + disciplineToDelete.id)
         .then((res) => {
           if (res.data.Status === "Success") {
             setDeleteDialogOpen(false);
@@ -154,16 +167,22 @@ export const Discipline = () => {
 
   const handleAddDiscipline = () => {
     if (!modalValue.discipline || !modalValue.discipline.trim()) {
-      alert("Please enter a discipline");
+      alert("Please enter a discipline name");
       return;
     }
-
-    axios
-      .post(`${commonData?.APIKEY}/create/discipline`, modalValue)
+    if (!modalValue.discipline_code || !modalValue.discipline_code.trim()) {
+      alert("Please enter a discipline code (e.g. 101, 201)");
+      return;
+    }
+    api
+      .post("/create/discipline", {
+        discipline: modalValue.discipline.trim(),
+        discipline_code: modalValue.discipline_code.trim(),
+      })
       .then((res) => {
         if (res.data.Status === "Success") {
           setAddDialogOpen(false);
-          setModalValue({ discipline: "" });
+          setModalValue({ discipline: "", discipline_code: "" });
           fetchDisciplineData();
         } else {
           alert("Error creating discipline");
@@ -189,10 +208,10 @@ export const Discipline = () => {
         >
           <Box>
             <Typography variant="h4" fontWeight="bold" gutterBottom>
-              Discipline Management
+              Discipline Rules
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Manage and view all disciplines in your organization
+              Add discipline name and code (e.g. Marketing – 101). Codes are used when creating projects.
             </Typography>
           </Box>
           <Stack direction="row" spacing={2}>
@@ -209,9 +228,9 @@ export const Discipline = () => {
               startIcon={<Add />}
               onClick={() => setAddDialogOpen(true)}
               sx={{
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
                 "&:hover": {
-                  background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                  background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
                 },
               }}
             >
@@ -306,7 +325,7 @@ export const Discipline = () => {
         open={addDialogOpen}
         onClose={() => {
           setAddDialogOpen(false);
-          setModalValue({ discipline: "" });
+          setModalValue({ discipline: "", discipline_code: "" });
         }}
         maxWidth="sm"
       >
@@ -318,11 +337,11 @@ export const Discipline = () => {
               alignItems: "center",
             }}
           >
-            <Typography variant="h6">Add Discipline</Typography>
+            <Typography variant="h6">Add Discipline Rule</Typography>
             <IconButton
               onClick={() => {
                 setAddDialogOpen(false);
-                setModalValue({ discipline: "" });
+                setModalValue({ discipline: "", discipline_code: "" });
               }}
               size="small"
             >
@@ -331,26 +350,31 @@ export const Discipline = () => {
           </Box>
         </DialogTitle>
         <DialogContent>
-          <Box sx={{ mt: 2 }}>
+          <Stack spacing={2} sx={{ mt: 2 }}>
             <TextField
               fullWidth
-              multiline
-              rows={4}
-              label="Discipline"
+              label="Discipline name"
               variant="outlined"
               value={modalValue.discipline}
-              onChange={(e) => {
-                setModalValue({ discipline: e.target.value });
-              }}
-              placeholder="Enter discipline description"
+              onChange={(e) => setModalValue((p) => ({ ...p, discipline: e.target.value }))}
+              placeholder="e.g. Marketing, Sales"
             />
-          </Box>
+            <TextField
+              fullWidth
+              label="Discipline code"
+              variant="outlined"
+              value={modalValue.discipline_code}
+              onChange={(e) => setModalValue((p) => ({ ...p, discipline_code: e.target.value }))}
+              placeholder="e.g. 101, 201 (used in project creation)"
+              helperText="Code used when creating projects"
+            />
+          </Stack>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
           <Button
             onClick={() => {
               setAddDialogOpen(false);
-              setModalValue({ discipline: "" });
+              setModalValue({ discipline: "", discipline_code: "" });
             }}
           >
             Cancel
@@ -360,9 +384,9 @@ export const Discipline = () => {
             variant="contained"
             startIcon={<Add />}
             sx={{
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
               "&:hover": {
-                background: "linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)",
+                background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
               },
             }}
           >
@@ -387,7 +411,8 @@ export const Discipline = () => {
         <DialogContent>
           <Typography>
             Are you sure you want to delete discipline{" "}
-            <strong>{disciplineToDelete?.discipline}</strong>?
+            <strong>{disciplineToDelete?.discipline}</strong>
+            {disciplineToDelete?.discipline_code ? ` (${disciplineToDelete.discipline_code})` : ""}?
             <br />
             <br />
             This action cannot be undone.

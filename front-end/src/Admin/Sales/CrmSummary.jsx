@@ -26,7 +26,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
 import { apiService } from "../../services/api.js";
-import { useAuth } from "../../context/AuthContext.jsx";
+import { useAuth } from "../../context/AuthContext";
 
 function CrmSummary() {
   const { user } = useAuth();
@@ -251,7 +251,7 @@ function CrmSummary() {
             title="Total Entries"
             value={summaryData.totalEntries || 0}
             icon={CalendarToday}
-            color="#667eea"
+            color="#4C86F9"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -259,7 +259,7 @@ function CrmSummary() {
             title="Total Clients"
             value={summaryData.totalClients || 0}
             icon={Business}
-            color="#764ba2"
+            color="#49A84C"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>

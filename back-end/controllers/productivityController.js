@@ -4,7 +4,8 @@ import { asyncHandler } from "../middleware/errorHandler.js";
 
 // Helper function to calculate productivity for an employee on a specific date
 // This can be called from both the API endpoint and from approval controller
-export const calculateProductivityForEmployee = async (employeeId, date) => {
+export const calculateProductivityForEmployee = async (req, employeeId, date) => {
+  const q = getTenantQuery(req);
   // Get employee info - employeeId can be employee.id or EMPID
   const employeeSql = `
     SELECT id, EMPID, userName 
@@ -153,7 +154,7 @@ export const calculateProductivity = asyncHandler(async (req, res) => {
   }
 
   try {
-    const result = await calculateProductivityForEmployee(employeeId, date);
+    const result = await calculateProductivityForEmployee(req, employeeId, date);
     return sendSuccess(res, result);
   } catch (error) {
     return sendError(res, error.message || "Failed to calculate productivity", 500);
