@@ -1,4 +1,4 @@
-import { getTenantQuery } from "../config/database.js";
+import { getTenantQuery, query as primaryQuery } from "../config/database.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 import { calculateProductivityForEmployee } from "./productivityController.js";
@@ -477,60 +477,145 @@ export const approveEntity = asyncHandler(async (req, res) => {
 
 // Get Approval History
 export const getApprovalHistory = asyncHandler(async (req, res) => {
-  const q = getTenantQuery(req);
+  // Most entities are tenant-scoped (company DB). However, timesheet approvals have historically
+  // been written to the primary DB in some deployments.
+  //
+  // Behavior:
+  // - Company login + entityType=timesheet/workdetails: read from primary DB (timesheet inclusive).
+  // - Company login + entityType empty (All Types): merge tenant (non-timesheet) + primary (timesheet/workdetails).
+  const requestedType = String(req.query?.entityType || "").toLowerCase();
+  const isCompanyUser = req.isCompanyUser === true;
+  const wantsTimesheets = requestedType === "timesheet" || requestedType === "workdetails";
+  const wantsAllTypes = requestedType === "";
+
   const { entityType, entityId, status, approverId, startDate, endDate, employeeName, projectName } = req.query;
 
-  let sql = `
-    SELECT ah.*, 
-           e.employeeName as approver_name, 
-           e.EMPID as approver_emp_id,
-           COALESCE(ah.employee_name, entity_emp.employeeName) as entityEmployeeName,
-           ah.project_name as entityProjectName
-    FROM approval_history ah
-    LEFT JOIN employee e ON ah.approver_id = e.id
-    LEFT JOIN employee entity_emp ON ah.employee_id = entity_emp.id
-    WHERE 1=1
-  `;
-  const params = [];
+  const buildHistoryQuery = ({ typeMode, excludeTimesheets }) => {
+    // typeMode:
+    // - "all": no entity_type filter
+    // - "exact": entity_type = requestedType
+    // - "timesheetInclusive": (timesheet OR workdetails)
+    let sql = `
+      SELECT ah.*, 
+             e.employeeName as approver_name, 
+             e.EMPID as approver_emp_id,
+             COALESCE(ah.employee_name, entity_emp.employeeName) as entityEmployeeName,
+             ah.project_name as entityProjectName
+      FROM approval_history ah
+      LEFT JOIN employee e ON ah.approver_id = e.id
+      LEFT JOIN employee entity_emp ON ah.employee_id = entity_emp.id
+      WHERE 1=1
+    `;
+    const params = [];
 
-  if (entityType) {
-    // Handle timesheet and workdetails as the same entity type
-    if (entityType === "timesheet" || entityType === "workdetails") {
+    if (typeMode === "exact" && requestedType) {
+      sql += " AND ah.entity_type = ?";
+      params.push(requestedType);
+    } else if (typeMode === "timesheetInclusive") {
       sql += " AND (ah.entity_type = ? OR ah.entity_type = ?)";
       params.push("timesheet", "workdetails");
-    } else {
-      sql += " AND ah.entity_type = ?";
-      params.push(entityType);
     }
-  }
-  if (entityId) {
-    sql += " AND ah.entity_id = ?";
-    params.push(entityId);
-  }
-  if (status) {
-    sql += " AND ah.status = ?";
-    params.push(status);
-  }
-  if (approverId) {
-    sql += " AND ah.approver_id = ?";
-    params.push(approverId);
-  }
-  if (startDate) {
-    sql += " AND DATE(ah.created_at) >= ?";
-    params.push(startDate);
-  }
-  if (endDate) {
-    sql += " AND DATE(ah.created_at) <= ?";
-    params.push(endDate);
-  }
 
-  sql += " ORDER BY ah.created_at DESC, ah.approval_level DESC";
+    if (excludeTimesheets) {
+      sql += " AND ah.entity_type NOT IN ('timesheet','workdetails')";
+    }
+
+    if (entityId) {
+      sql += " AND ah.entity_id = ?";
+      params.push(entityId);
+    }
+    if (status) {
+      sql += " AND ah.status = ?";
+      params.push(status);
+    }
+    if (approverId) {
+      sql += " AND ah.approver_id = ?";
+      params.push(approverId);
+    }
+    if (startDate) {
+      sql += " AND DATE(ah.created_at) >= ?";
+      params.push(startDate);
+    }
+    if (endDate) {
+      sql += " AND DATE(ah.created_at) <= ?";
+      params.push(endDate);
+    }
+    if (employeeName) {
+      sql += " AND COALESCE(ah.employee_name, entity_emp.employeeName) LIKE ?";
+      params.push(`%${employeeName}%`);
+    }
+    if (projectName) {
+      sql += " AND ah.project_name LIKE ?";
+      params.push(`%${projectName}%`);
+    }
+
+    sql += " ORDER BY ah.created_at DESC, ah.approval_level DESC";
+    return { sql, params };
+  };
+
+  const usingDb =
+    isCompanyUser && wantsAllTypes ? "mixed" : isCompanyUser && wantsTimesheets ? "primary" : "tenant";
+
+  console.log("[approvals/history] filters", {
+    isCompanyUser,
+    entityType: req.query?.entityType ?? "",
+    status: req.query?.status ?? "",
+    startDate: req.query?.startDate ?? null,
+    endDate: req.query?.endDate ?? null,
+    employeeName: req.query?.employeeName ?? "",
+    projectName: req.query?.projectName ?? "",
+    usingDb,
+  });
+
+  const tenantQ = getTenantQuery(req);
+  const primaryQ = primaryQuery;
 
   try {
-    const results = await q(sql, params);
+    let results = [];
+
+    if (isCompanyUser && wantsAllTypes) {
+      // Merge: tenant (exclude timesheets) + primary (timesheets)
+      const tenantQueryBuilt = buildHistoryQuery({ typeMode: "all", excludeTimesheets: true });
+      const primaryQueryBuilt = buildHistoryQuery({ typeMode: "timesheetInclusive", excludeTimesheets: false });
+
+      const [tenantResults, primaryResults] = await Promise.all([
+        tenantQ(tenantQueryBuilt.sql, tenantQueryBuilt.params),
+        primaryQ(primaryQueryBuilt.sql, primaryQueryBuilt.params),
+      ]);
+
+      // Deduplicate by stable composite key
+      const seen = new Set();
+      const merged = [];
+      for (const r of [...primaryResults, ...tenantResults]) {
+        const key = `${r.entity_type}:${r.id}:${r.entity_id}:${r.created_at}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        merged.push(r);
+      }
+
+      // Sort by created_at desc
+      merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      results = merged;
+    } else if (isCompanyUser && wantsTimesheets) {
+      // Company timesheet history always from primary DB (timesheet inclusive)
+      const qb = buildHistoryQuery({ typeMode: "timesheetInclusive", excludeTimesheets: false });
+      results = await primaryQ(qb.sql, qb.params);
+    } else {
+      // Default behavior: tenant DB (or primary for super admin) with exact/all type filtering
+      const q = getTenantQuery(req);
+      const qb = buildHistoryQuery({
+        typeMode: requestedType ? "exact" : "all",
+        excludeTimesheets: false,
+      });
+      results = await q(qb.sql, qb.params);
+    }
     
     // Use stored employee_name and project_name if available, otherwise enrich (for backward compatibility with old records)
     const enrichedResults = await Promise.all(results.map(async (record) => {
+      const recordType = String(record.entity_type || "").toLowerCase();
+      const recordQuery =
+        isCompanyUser && (recordType === "timesheet" || recordType === "workdetails") ? primaryQ : tenantQ;
+
       // Use stored values if available
       let entityEmployeeName = record.entityEmployeeName || null;
       let entityProjectName = record.entityProjectName || null;
@@ -540,13 +625,13 @@ export const getApprovalHistory = asyncHandler(async (req, res) => {
         try {
           if (record.entity_type === 'leave') {
             const leaveSql = `SELECT employeeName FROM leavedetails WHERE id = ?`;
-            const leaves = await q(leaveSql, [record.entity_id]);
+            const leaves = await recordQuery(leaveSql, [record.entity_id]);
             if (leaves.length > 0) {
               entityEmployeeName = entityEmployeeName || leaves[0].employeeName;
             }
           } else if (record.entity_type === 'overtime') {
             const otSql = `SELECT e.employeeName FROM ot_records ot LEFT JOIN employee e ON ot.employee_id = e.id WHERE ot.id = ?`;
-            const ots = await q(otSql, [record.entity_id]);
+            const ots = await recordQuery(otSql, [record.entity_id]);
             if (ots.length > 0) {
               entityEmployeeName = entityEmployeeName || ots[0].employeeName;
             }
@@ -555,14 +640,14 @@ export const getApprovalHistory = asyncHandler(async (req, res) => {
                            FROM workdetails wd 
                            LEFT JOIN employee e ON wd.userName = e.userName 
                            WHERE wd.id = ?`;
-            const timesheets = await q(tsSql, [record.entity_id]);
+            const timesheets = await recordQuery(tsSql, [record.entity_id]);
             if (timesheets.length > 0) {
               entityEmployeeName = entityEmployeeName || (timesheets[0].empName || timesheets[0].employeeName);
               entityProjectName = entityProjectName || timesheets[0].projectName;
             }
           } else if (record.entity_type === 'compoff') {
             const compoffSql = `SELECT employeeName FROM compoffdetails WHERE id = ?`;
-            const compoffs = await q(compoffSql, [record.entity_id]);
+            const compoffs = await recordQuery(compoffSql, [record.entity_id]);
             if (compoffs.length > 0) {
               entityEmployeeName = entityEmployeeName || compoffs[0].employeeName;
             }
@@ -581,9 +666,7 @@ export const getApprovalHistory = asyncHandler(async (req, res) => {
     }));
     
     console.log(`✓ Approval history query returned ${enrichedResults.length} records`);
-    if (params.length > 0) {
-      console.log(`  Filters applied:`, { entityType, entityId, status, approverId, startDate, endDate });
-    }
+    // (Filters already logged above)
     return sendSuccess(res, enrichedResults);
   } catch (error) {
     // If approval_history table doesn't exist, return empty array

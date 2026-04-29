@@ -6,6 +6,25 @@ import { sendSuccess, sendError } from "../utils/response.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 import { checkUserAccessAllowed } from "./userAccessController.js";
 
+const normalizeStatus = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "");
+
+const isExEmployeeStatus = (employeeStatus) => {
+  const s = normalizeStatus(employeeStatus);
+  // Keep this intentionally strict to your request: block "ex-employee" variants.
+  return s === "exemployee";
+};
+
+const blockIfExEmployee = (res, employeeStatus) => {
+  if (isExEmployeeStatus(employeeStatus)) {
+    return sendError(res, "Account is inactive (ex-employee). Contact HR/Admin.", 403);
+  }
+  return null;
+};
+
 export const adminLogin = asyncHandler(async (req, res) => {
   const { userName, password } = req.body;
 
@@ -70,6 +89,35 @@ export const adminLogin = asyncHandler(async (req, res) => {
   if (!user) {
     console.log(`Admin login failed: User not found - userName: ${userName}`);
     return sendError(res, "Wrong userName or Password", 401);
+  }
+
+  // If logging in via employee table, block ex-employees
+  if (isFromEmployeeTable) {
+    const blocked = blockIfExEmployee(res, user.employeeStatus);
+    if (blocked) return blocked;
+  }
+
+  // If logging in via company_users, also block ex-employees if an employee row exists
+  if (isCompanyUser) {
+    try {
+      const em = String(user.email || userName || "").trim();
+      if (em) {
+        const empRows = await companyQuery(
+          `SELECT employeeStatus FROM employee
+           WHERE LOWER(TRIM(employeeEmail)) = LOWER(TRIM(?))
+              OR LOWER(TRIM(userName)) = LOWER(TRIM(?))
+           ORDER BY id DESC
+           LIMIT 1`,
+          [em, em]
+        );
+        const empStatus = empRows?.[0]?.employeeStatus;
+        const blocked = blockIfExEmployee(res, empStatus);
+        if (blocked) return blocked;
+      }
+    } catch (e) {
+      // If tenant employee table isn't available, do not hard-fail company login here.
+      if (e?.code !== "ER_NO_SUCH_TABLE") throw e;
+    }
   }
 
   // Verify password - check if password is hashed or plaintext (company_users always hashed)
@@ -153,6 +201,9 @@ export const employeeLogin = asyncHandler(async (req, res) => {
   }
 
   const user = results[0];
+
+  const blocked = blockIfExEmployee(res, user.employeeStatus);
+  if (blocked) return blocked;
 
   // Verify password - check if password is hashed or plaintext
   let passwordValid = false;
@@ -250,6 +301,11 @@ export const teamLeadLogin = asyncHandler(async (req, res) => {
   if (!teamLead) {
     console.log(`TeamLead login failed: User not found - userName: ${userName}`);
     return sendError(res, "Wrong userName or Password", 401);
+  }
+
+  if (isFromEmployeeTable) {
+    const blocked = blockIfExEmployee(res, teamLead.employeeStatus);
+    if (blocked) return blocked;
   }
 
   if (!teamLead.password) {
@@ -357,6 +413,11 @@ export const hrLogin = asyncHandler(async (req, res) => {
   if (!hr) {
     console.log(`HR login failed: User not found - userName: ${userName}`);
     return sendError(res, "Wrong Email or Password", 401);
+  }
+
+  if (isFromEmployeeTable) {
+    const blocked = blockIfExEmployee(res, hr.employeeStatus);
+    if (blocked) return blocked;
   }
 
   if (!hr.password) {

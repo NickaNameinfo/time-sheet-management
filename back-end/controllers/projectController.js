@@ -1,4 +1,4 @@
-import { getTenantQuery, biometricQuery } from "../config/database.js";
+import { getTenantQuery, biometricQuery, query as primaryQuery } from "../config/database.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 
@@ -498,7 +498,7 @@ export const getWorkDetails = asyncHandler(async (req, res) => {
   const q = getTenantQuery(req);
   const { employeeId, startDate, endDate, tlId } = req.query;
   
-  let sql = "SELECT * FROM workdetails WHERE 1=1";
+  let sql = "SELECT wd.* FROM workdetails wd";
   const params = [];
   
   if (employeeId) {
@@ -516,26 +516,150 @@ export const getWorkDetails = asyncHandler(async (req, res) => {
   }
   
   if (tlId) {
-    // Filter by tlName matching tlId directly (tlName stores the ID)
-    sql += " AND tlName = ?";
-    params.push(tlId.toString());
+    // Filter by team lead via project ownership. In some deployments, workdetails.tlName is NULL,
+    // so rely on project.tlID (authoritative) joined by projectName/referenceNo.
+    const tlIdNum = Number(tlId);
+    let resolvedTlName = (req.employeeName || "").toString().trim();
+    let resolvedTlEmployeeId = null;
+
+    // Resolve TL identity across tenant/primary DBs. tlId from UI might be a primary employee id,
+    // while tenant DB uses a different employee id. Prefer resolving via employee record lookup.
+    if (!Number.isNaN(tlIdNum)) {
+      try {
+        const tenantEmp = await q(
+          "SELECT id, employeeName, userName, employeeEmail FROM employee WHERE id = ? OR EMPID = ? LIMIT 1",
+          [tlIdNum, tlIdNum]
+        );
+        if (tenantEmp?.length) {
+          resolvedTlEmployeeId = tenantEmp[0].id ?? null;
+          resolvedTlName =
+            resolvedTlName ||
+            String(tenantEmp[0].employeeName || "").trim() ||
+            String(tenantEmp[0].userName || "").trim() ||
+            String(tenantEmp[0].employeeEmail || "").trim();
+        } else {
+          const primaryEmp = await primaryQuery(
+            "SELECT employeeName, userName, employeeEmail FROM employee WHERE id = ? OR EMPID = ? LIMIT 1",
+            [tlIdNum, tlIdNum]
+          );
+          if (primaryEmp?.length) {
+            const pName = String(primaryEmp[0].employeeName || "").trim();
+            const pUser = String(primaryEmp[0].userName || "").trim();
+            const pEmail = String(primaryEmp[0].employeeEmail || "").trim();
+
+            // Try to map primary employee identity to tenant employee record (by email/username).
+            try {
+              const tenantByIdentity = await q(
+                `SELECT id, employeeName, userName, employeeEmail
+                 FROM employee
+                 WHERE (employeeEmail IS NOT NULL AND LOWER(TRIM(employeeEmail)) = LOWER(TRIM(?)))
+                    OR (userName IS NOT NULL AND LOWER(TRIM(userName)) = LOWER(TRIM(?)))
+                 ORDER BY id DESC
+                 LIMIT 1`,
+                [pEmail, pUser]
+              );
+              if (tenantByIdentity?.length) {
+                resolvedTlEmployeeId = tenantByIdentity[0].id ?? null;
+                resolvedTlName =
+                  resolvedTlName ||
+                  String(tenantByIdentity[0].employeeName || "").trim() ||
+                  String(tenantByIdentity[0].userName || "").trim() ||
+                  String(tenantByIdentity[0].employeeEmail || "").trim();
+              }
+            } catch {
+              // ignore mapping failure
+            }
+
+            // Fallback to primary values if tenant mapping not found
+            resolvedTlName =
+              resolvedTlName ||
+              pName ||
+              pUser ||
+              pEmail;
+
+            // Last-resort: infer tenant tlID from project.tlName using token match
+            if (!resolvedTlEmployeeId && resolvedTlName) {
+              const token = resolvedTlName.split(/\s+/).find((t) => t && t.length >= 3) || "";
+              if (token) {
+                try {
+                  const projTl = await q(
+                    "SELECT DISTINCT tlID, tlName FROM project WHERE tlID IS NOT NULL AND tlName LIKE ? ORDER BY tlID ASC LIMIT 1",
+                    [`%${token}%`]
+                  );
+                  if (projTl?.length) {
+                    resolvedTlEmployeeId = projTl[0].tlID ?? null;
+                    // keep existing resolvedTlName; project.tlName matching is handled below
+                  }
+                } catch {
+                  // ignore
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // Ignore lookup errors; fallback to raw tlId matching only.
+      }
+    }
+
+    console.log("[getWorkDetails] tl resolve", {
+      tlIdRaw: String(tlId),
+      tlIdNum: Number.isNaN(tlIdNum) ? null : tlIdNum,
+      resolvedTlEmployeeId,
+      resolvedTlName,
+    });
+
+    sql += `
+      LEFT JOIN project p
+        ON (wd.projectName = p.projectName OR (wd.referenceNo IS NOT NULL AND wd.referenceNo = p.referenceNo))
+      WHERE 1=1
+    `;
+
+    const orParts = [];
+    if (resolvedTlEmployeeId != null) {
+      orParts.push("p.tlID = ?");
+      params.push(Number(resolvedTlEmployeeId));
+    } else if (!Number.isNaN(tlIdNum)) {
+      orParts.push("p.tlID = ?");
+      params.push(tlIdNum);
+    }
+    if (resolvedTlName) {
+      orParts.push("(p.tlName IS NOT NULL AND LOWER(TRIM(p.tlName)) = LOWER(TRIM(?)))");
+      params.push(resolvedTlName);
+    }
+    // Backward compatibility: some installs store tlName as an id or name on workdetails.
+    orParts.push("wd.tlName = ?");
+    params.push(String(tlId));
+    if (resolvedTlName) {
+      orParts.push("(wd.tlName IS NOT NULL AND LOWER(TRIM(wd.tlName)) = LOWER(TRIM(?)))");
+      params.push(resolvedTlName);
+    }
+
+    sql += ` AND (${orParts.join(" OR ")})`;
+  } else {
+    sql += " WHERE 1=1";
   }
   
   if (startDate) {
     // Use sentDate field for date filtering
-    sql += " AND (DATE(STR_TO_DATE(SUBSTRING(sentDate, 1, 10), '%Y-%m-%d')) >= ? OR DATE(STR_TO_DATE(sentDate, '%Y-%m-%d')) >= ?)";
+    sql += " AND (DATE(STR_TO_DATE(SUBSTRING(wd.sentDate, 1, 10), '%Y-%m-%d')) >= ? OR DATE(STR_TO_DATE(wd.sentDate, '%Y-%m-%d')) >= ?)";
     params.push(startDate, startDate);
   }
   
   if (endDate) {
     // Use sentDate field for date filtering
-    sql += " AND (DATE(STR_TO_DATE(SUBSTRING(sentDate, 1, 10), '%Y-%m-%d')) <= ? OR DATE(STR_TO_DATE(sentDate, '%Y-%m-%d')) <= ?)";
+    sql += " AND (DATE(STR_TO_DATE(SUBSTRING(wd.sentDate, 1, 10), '%Y-%m-%d')) <= ? OR DATE(STR_TO_DATE(wd.sentDate, '%Y-%m-%d')) <= ?)";
     params.push(endDate, endDate);
   }
   
-  sql += " ORDER BY sentDate DESC, id DESC";
+  sql += " ORDER BY wd.sentDate DESC, wd.id DESC";
   
   const results = await q(sql, params);
+  // Debug: confirm clock-in/out fields exist in API response (prints only keys, not values)
+  if (tlId && Array.isArray(results) && results.length > 0) {
+    const keys = Object.keys(results[0] || {});
+    console.log("[getWorkDetails] tlId response keys:", keys);
+  }
   return sendSuccess(res, results);
 });
 
