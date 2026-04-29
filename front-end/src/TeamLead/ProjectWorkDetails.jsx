@@ -295,8 +295,6 @@ function ProjectWorkDetails() {
       },
       { field: "areaofWork", headerName: "Area of Work", minWidth: 170 },
       { field: "projectName", headerName: "Project Name", minWidth: 170 },
-      { field: "referenceNo", headerName: "Reference No", minWidth: 170 },
-      { field: "taskNo", headerName: "Task No", minWidth: 170 },
       { field: "monday", headerName: "Monday", minWidth: 100 },
       { field: "tuesday", headerName: "Tuesday", minWidth: 100 },
       { field: "wednesday", headerName: "Wednesday", minWidth: 100 },
@@ -305,6 +303,56 @@ function ProjectWorkDetails() {
       { field: "saturday", headerName: "Saturday", minWidth: 100 },
       { field: "sunday", headerName: "Sunday", minWidth: 100 },
       { field: "totalHours", headerName: "Total Hours", filter: false, minWidth: 120 },
+      {
+        headerName: "Clock In",
+        colId: "clockInTime",
+        filter: false,
+        minWidth: 170,
+        valueGetter: (params) => params?.data?.clockInTime || params?.data?.sentDate || null,
+        valueFormatter: (params) => {
+          if (!params.value) return "-";
+          try {
+            const date = new Date(params.value);
+            if (isNaN(date.getTime())) return String(params.value);
+            return date.toLocaleString("en-US", {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+              hour12: false,
+            });
+          } catch (e) {
+            return String(params.value || "-");
+          }
+        },
+      },
+      {
+        headerName: "Clock Out",
+        colId: "clockOutTime",
+        filter: false,
+        minWidth: 170,
+        valueGetter: (params) => params?.data?.clockOutTime || params?.data?.approvedDate || null,
+        valueFormatter: (params) => {
+          if (!params.value) return "-";
+          try {
+            const date = new Date(params.value);
+            if (isNaN(date.getTime())) return String(params.value);
+            return date.toLocaleString("en-US", {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+              hour12: false,
+            });
+          } catch (e) {
+            return String(params.value || "-");
+          }
+        },
+      },
       { field: "weekNumber", headerName: "Week Number", filter: false, minWidth: 120 },
       { 
         field: "sentDate", 

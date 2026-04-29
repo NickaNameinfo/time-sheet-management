@@ -19,6 +19,7 @@ import {
   Chip,
   OutlinedInput,
   Autocomplete,
+  Paper,
 } from "@mui/material";
 import {
   Person,
@@ -52,6 +53,12 @@ function AddProject() {
   const [existingProjectNos, setExistingProjectNos] = useState([]);
   const [existingDisciplineCodes, setExistingDisciplineCodes] = useState([]);
   const [disciplineRules, setDisciplineRules] = useState([]); // From Settings > Discipline Rules (name + code)
+  const [planHoursSummary, setPlanHoursSummary] = useState({
+    loading: false,
+    totalPlanAllotted: 0,
+    totalPlanUtilized: 0,
+    progressPercent: 0,
+  });
 
   let formDatas = watch();
   const navigate = useNavigate();
@@ -153,6 +160,26 @@ function AddProject() {
         setSelectedEmployees(res.data.Result.assignedEmployees);
       }
     });
+
+    // Fetch project plan totals (used hours) for this project
+    try {
+      setPlanHoursSummary((prev) => ({ ...prev, loading: true }));
+      const plansRes = await api.get("/project-plan", { params: { project_id: id } });
+      const plans = plansRes.data?.Result || plansRes.data?.data?.Result || plansRes.data?.data || [];
+      const list = Array.isArray(plans) ? plans : [];
+      const totalPlanAllotted = list.reduce((sum, p) => sum + (parseFloat(p.total_allotted_hours) || 0), 0);
+      const totalPlanUtilized = list.reduce((sum, p) => sum + (parseFloat(p.utilized_hours) || 0), 0);
+      const progressPercent =
+        totalPlanAllotted > 0 ? Math.min(100, Math.round((totalPlanUtilized / totalPlanAllotted) * 100)) : 0;
+      setPlanHoursSummary({
+        loading: false,
+        totalPlanAllotted: Math.round(totalPlanAllotted * 100) / 100,
+        totalPlanUtilized: Math.round(totalPlanUtilized * 100) / 100,
+        progressPercent,
+      });
+    } catch (e) {
+      setPlanHoursSummary((prev) => ({ ...prev, loading: false }));
+    }
   };
 
   const updateProject = (data) => {
@@ -467,6 +494,52 @@ function AddProject() {
                         />
                       )}
                     />
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <Paper
+                      variant="outlined"
+                      sx={{ p: 2, borderRadius: 2, bgcolor: "background.paper" }}
+                    >
+                      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                        <Chip
+                          label={`Plan allotted: ${Number(planHoursSummary.totalPlanAllotted || 0).toFixed(2)} hrs`}
+                          size="small"
+                          variant="outlined"
+                          color="primary"
+                        />
+                        <Chip
+                          label={`Plan utilized: ${Number(planHoursSummary.totalPlanUtilized || 0).toFixed(2)} hrs`}
+                          size="small"
+                          variant="outlined"
+                          color="info"
+                        />
+                        <Chip
+                          label={`Plan progress: ${Number(planHoursSummary.progressPercent || 0)}%`}
+                          size="small"
+                          variant="outlined"
+                          color={planHoursSummary.progressPercent >= 100 ? "success" : "default"}
+                        />
+                        <Chip
+                          label={`Project remaining: ${Math.max(
+                            0,
+                            (parseFloat(formDatas?.allotatedHours) || 0) -
+                              (parseFloat(planHoursSummary.totalPlanAllotted) || 0)
+                          ).toFixed(2)} hrs`}
+                          size="small"
+                          variant="outlined"
+                          color="warning"
+                        />
+                        {planHoursSummary.loading && (
+                          <Typography variant="caption" color="text.secondary">
+                            Calculating…
+                          </Typography>
+                        )}
+                      </Stack>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+                        Totals are calculated from Project Planning (sum of plans for this project).
+                      </Typography>
+                    </Paper>
                   </Grid>
 
                   <Grid item xs={12} sm={6}>

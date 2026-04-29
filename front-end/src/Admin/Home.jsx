@@ -128,17 +128,29 @@ function Home() {
 
   const { data: employees, loading: employeesLoading } = useApi(apiService.getEmployees);
   const { data: projects, loading: projectsLoading } = useApi(apiService.getProjects);
+  const { data: projectPlans, loading: plansLoading } = useApi(apiService.getProjectPlans);
 
   const projectList = Array.isArray(projects) ? projects : [];
 
   const visibleProjects = useMemo(() => {
-    const uid = user?.employeeRecordId ?? user?.id;
+    const candidateIds = [
+      user?.employeeRecordId,
+      user?.id,
+      user?.employeeId, // EMPID for many tables
+    ]
+      .filter((v) => v !== null && v !== undefined && String(v).trim() !== "")
+      .map((v) => String(v));
     const seeAll = isAdmin() || isHR() || isCompanyAdmin();
     if (seeAll) return projectList;
     return projectList.filter((p) => {
       const assigned = Array.isArray(p.assignedEmployees) ? p.assignedEmployees : [];
-      const onTeam = uid != null && assigned.some((eid) => String(eid) === String(uid));
-      const isLead = uid != null && p.tlID != null && String(p.tlID) === String(uid);
+      const onTeam =
+        candidateIds.length > 0 &&
+        assigned.some((eid) => candidateIds.includes(String(eid)));
+      const isLead =
+        candidateIds.length > 0 &&
+        p.tlID != null &&
+        candidateIds.includes(String(p.tlID));
       return onTeam || isLead;
     });
   }, [projectList, user, isAdmin, isHR, isCompanyAdmin]);
@@ -160,7 +172,78 @@ function Home() {
   const dashboardEmployeePk = user?.employeeRecordId ?? user?.id;
   const planAssignments = useEmployeePlanAssignments(dashboardEmployeePk);
 
-  if (projectsLoading || (showAdminOverview && employeesLoading)) {
+  const planTotalsByProjectKey = useMemo(() => {
+    const map = new Map();
+    const rows = Array.isArray(projectPlans)
+      ? projectPlans
+      : projectPlans?.Result || projectPlans?.data?.Result || [];
+    for (const p of rows) {
+      const key = String(p.projectName || p.project_name || "").trim().toLowerCase();
+      if (!key) continue;
+      const utilized = Number(p.utilized_hours ?? p.utilizedHours ?? 0) || 0;
+      const allotted = Number(p.total_allotted_hours ?? p.totalAllottedHours ?? p.total_allotted ?? 0) || 0;
+      const pctRaw = p.progress_percent ?? p.progressPercent ?? null;
+      const pct =
+        pctRaw != null && pctRaw !== ""
+          ? Math.min(100, Math.max(0, Number(pctRaw) || 0))
+          : allotted > 0
+          ? Math.min(100, Math.max(0, (utilized / allotted) * 100))
+          : 0;
+
+      const prev = map.get(key);
+      if (!prev || pct > prev.pct) {
+        map.set(key, { pct, utilized, allotted });
+      }
+    }
+    return map;
+  }, [projectPlans]);
+
+  const planProgressByProjectKey = useMemo(() => {
+    const map = new Map();
+    const rows = Array.isArray(planAssignments.assignedPlansWithProgress)
+      ? planAssignments.assignedPlansWithProgress
+      : [];
+    for (const a of rows) {
+      const key = String(a.projectName || "").trim().toLowerCase();
+      if (!key) continue;
+      const pct = Number(a.progressPercent ?? 0) || 0;
+      const prev = map.get(key);
+      if (prev == null || pct > prev) map.set(key, pct);
+    }
+    return map;
+  }, [planAssignments.assignedPlansWithProgress]);
+
+  const planUsedHoursByProjectKey = useMemo(() => {
+    const map = new Map();
+    const rows = Array.isArray(planAssignments.assignedPlansWithProgress)
+      ? planAssignments.assignedPlansWithProgress
+      : [];
+    for (const a of rows) {
+      const key = String(a.projectName || "").trim().toLowerCase();
+      if (!key) continue;
+      const used = Number(a.usedHours ?? 0) || 0;
+      const prev = map.get(key);
+      if (prev == null || used > prev) map.set(key, used);
+    }
+    return map;
+  }, [planAssignments.assignedPlansWithProgress]);
+
+  const planCapHoursByProjectKey = useMemo(() => {
+    const map = new Map();
+    const rows = Array.isArray(planAssignments.assignedPlansWithProgress)
+      ? planAssignments.assignedPlansWithProgress
+      : [];
+    for (const a of rows) {
+      const key = String(a.projectName || "").trim().toLowerCase();
+      if (!key) continue;
+      const cap = Number(a.progressCap ?? 0) || 0;
+      const prev = map.get(key);
+      if (prev == null || cap > prev) map.set(key, cap);
+    }
+    return map;
+  }, [planAssignments.assignedPlansWithProgress]);
+
+  if (projectsLoading || plansLoading || (showAdminOverview && employeesLoading)) {
     return <Loading message="Loading dashboard..." />;
   }
 
@@ -223,11 +306,26 @@ function Home() {
         ) : (
           <Grid container spacing={2}>
             {visibleProjects.map((p) => {
-              const pct = projectProgressPercent(p);
+              const seeAll = isAdmin() || isHR() || isCompanyAdmin();
+              const projectKey = String(p.projectName || "").trim().toLowerCase();
+              const totals = projectKey ? planTotalsByProjectKey.get(projectKey) : null;
+              const planPctAll = totals?.pct ?? null;
+              const planPct = projectKey ? planProgressByProjectKey.get(projectKey) : null;
+              const projectAllotted = Number(p.allotatedHours ?? p.allottedHours ?? 0) || 0;
+              const utilizedHours = Number(totals?.utilized ?? 0) || 0;
+              const pctByProjectAllotted =
+                projectAllotted > 0
+                  ? Math.min(100, Math.max(0, (utilizedHours / projectAllotted) * 100))
+                  : null;
+              const pct = pctByProjectAllotted ?? planPctAll ?? planPct ?? projectProgressPercent(p);
               const status = (p.status || "active").toLowerCase();
               const canOpenEditor =
                 isAdmin() || isHR() || isCompanyAdmin() || isTeamLead();
               const projectHref = canOpenEditor ? `/Dashboard/addProject/${p.id}` : "/Dashboard/projects";
+              const used = projectKey ? planUsedHoursByProjectKey.get(projectKey) : null;
+              const cap = projectKey ? planCapHoursByProjectKey.get(projectKey) : null;
+              const plannedAllotted = Number(totals?.allotted ?? 0) || 0;
+              const plannedRemaining = Math.max(0, projectAllotted - plannedAllotted);
               return (
                 <Grid item xs={12} sm={6} lg={4} key={p.id}>
                   <Card
@@ -286,6 +384,40 @@ function Home() {
                           {Math.round(pct)}%
                         </Typography>
                       </Box>
+                      <Stack
+                        direction="row"
+                        flexWrap="wrap"
+                        sx={{
+                          mt: 1,
+                          columnGap: 1,
+                          rowGap: 1,
+                          "& .MuiChip-root": { height: 28, fontWeight: 600 },
+                        }}
+                      >
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          color="info"
+                          label={`Utilized: ${utilizedHours.toFixed(2)} hrs`}
+                        />
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          color="primary"
+                          label={`Allotted: ${projectAllotted.toFixed(2)} hrs`}
+                        />
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          color={plannedRemaining <= 0 ? "success" : "warning"}
+                          label={`Remaining: ${plannedRemaining.toFixed(2)} hrs`}
+                        />
+                      </Stack>
+                      {!seeAll && used != null && cap != null && cap > 0 && (
+                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.75 }}>
+                          {used.toFixed(2)} / {cap.toFixed(2)} hrs
+                        </Typography>
+                      )}
                       <Button
                         component={Link}
                         to={projectHref}

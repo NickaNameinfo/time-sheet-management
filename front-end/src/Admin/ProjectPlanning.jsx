@@ -24,6 +24,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  TablePagination,
   Checkbox,
   FormControlLabel,
   Alert,
@@ -97,6 +98,8 @@ function ProjectPlanning() {
   const [logDetails, setLogDetails] = useState({ utilized_hours: 0, progress_percent: 0, log_details: [] });
   const [logDetailsLoading, setLogDetailsLoading] = useState(false);
   const [selectedPlanForLog, setSelectedPlanForLog] = useState(null);
+  const [logPage, setLogPage] = useState(0);
+  const [logRowsPerPage, setLogRowsPerPage] = useState(25);
   const [filterEmployeeId, setFilterEmployeeId] = useState("");
   const [filterPlanId, setFilterPlanId] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
@@ -530,6 +533,7 @@ function ProjectPlanning() {
     setSelectedPlanForLog(plan);
     setLogDialogOpen(true);
     setLogDetailsLoading(true);
+    setLogPage(0);
     try {
       const res = await apiService.getPlanUtilization(plan.id);
       const data = res.data?.Result || res.data || {};
@@ -547,11 +551,46 @@ function ProjectPlanning() {
     }
   };
 
+  const filteredLogDetails = useMemo(() => {
+    const rows = Array.isArray(logDetails?.log_details) ? logDetails.log_details : [];
+    const plan = selectedPlanForLog;
+    if (!plan) return rows;
+
+    const normalize = (v) => String(v || "").trim().toLowerCase();
+    const planProjectId = plan.project_id ?? plan.projectId ?? null;
+    const planProjectName = normalize(plan.projectName || plan.project_name);
+    const planRefNo = normalize(plan.referenceNo || plan.reference_no);
+
+    return rows.filter((row) => {
+      const rowProjectId = row.project_id ?? row.projectId ?? null;
+      if (planProjectId != null && rowProjectId != null && String(planProjectId) === String(rowProjectId)) {
+        return true;
+      }
+
+      const rowProjectName = normalize(row.projectName || row.project_name);
+      if (planProjectName && rowProjectName && planProjectName === rowProjectName) return true;
+
+      const rowRefNo = normalize(row.referenceNo || row.reference_no);
+      if (planRefNo && rowRefNo && planRefNo === rowRefNo) return true;
+
+      return false;
+    });
+  }, [logDetails?.log_details, selectedPlanForLog]);
+
+  const pagedLogDetails = useMemo(() => {
+    return filteredLogDetails.slice(
+      logPage * logRowsPerPage,
+      logPage * logRowsPerPage + logRowsPerPage
+    );
+  }, [filteredLogDetails, logPage, logRowsPerPage]);
+
   const columnDefs = [
     {
       field: "plan_name",
       headerName: "Plan Name",
       minWidth: 200,
+      flex: 2,
+      pinned: "left",
       cellRenderer: (params) => (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Assignment color="primary" sx={{ fontSize: 20 }} />
@@ -566,6 +605,7 @@ function ProjectPlanning() {
       field: "progress_percent",
       headerName: "Progress",
       minWidth: 100,
+      flex: 1,
       cellRenderer: (params) => {
         const pct = params.value ?? 0;
         const color = pct >= 100 ? "success" : pct >= 75 ? "primary" : pct >= 50 ? "info" : "warning";
@@ -582,8 +622,9 @@ function ProjectPlanning() {
 
     {
       field: "total_allotted_hours",
-      headerName: "Allotted Hours",
+      headerName: "Allotted",
       minWidth: 120,
+      flex: 1,
       cellRenderer: (params) => (
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
           <AccessTime sx={{ fontSize: 14, color: "text.secondary" }} />
@@ -593,8 +634,9 @@ function ProjectPlanning() {
     },
     {
       field: "utilized_hours",
-      headerName: "Utilized Hours",
+      headerName: "Utilized",
       minWidth: 120,
+      flex: 1,
       cellRenderer: (params) => (
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
           <Schedule sx={{ fontSize: 14, color: "info.main" }} />
@@ -604,8 +646,9 @@ function ProjectPlanning() {
     },
     {
       field: "time_period",
-      headerName: "Time Period",
+      headerName: "Period",
       minWidth: 120,
+      flex: 1,
       cellRenderer: (params) => {
         const period = TIME_PERIODS.find((p) => p.value === params.value);
         return (
@@ -622,6 +665,7 @@ function ProjectPlanning() {
       field: "status",
       headerName: "Status",
       minWidth: 120,
+      flex: 1,
       cellRenderer: (params) => {
         const status = STATUS_OPTIONS.find((s) => s.value === params.value);
         return (
@@ -637,11 +681,13 @@ function ProjectPlanning() {
       field: "projectName",
       headerName: "Project",
       minWidth: 200,
+      flex: 2,
     },
     {
       field: "start_date",
       headerName: "Start Date",
       minWidth: 120,
+      flex: 1,
       cellRenderer: (params) =>
         params.value ? new Date(params.value).toLocaleDateString() : "N/A",
     },
@@ -649,13 +695,15 @@ function ProjectPlanning() {
       field: "end_date",
       headerName: "End Date",
       minWidth: 120,
+      flex: 1,
       cellRenderer: (params) =>
         params.value ? new Date(params.value).toLocaleDateString() : "N/A",
     },
     {
       field: "assigned_employees_count",
-      headerName: "Employees",
+      headerName: "Emp",
       minWidth: 120,
+      flex: 1,
       cellRenderer: (params) => (
         <Chip
           icon={<People />}
@@ -670,6 +718,8 @@ function ProjectPlanning() {
       field: "actions",
       headerName: "Actions",
       minWidth: 200,
+      flex: 2,
+      pinned: "right",
       filter: false,
       sortable: false,
       cellRenderer: (params) => {
@@ -734,8 +784,19 @@ function ProjectPlanning() {
 
   const onGridReady = (params) => {
     setGridApi(params.api);
-    params.api.sizeColumnsToFit();
   };
+
+  const defaultColDef = useMemo(
+    () => ({
+      resizable: true,
+      sortable: true,
+      filter: true,
+      wrapHeaderText: true,
+      autoHeaderHeight: true,
+      minWidth: 110,
+    }),
+    []
+  );
 
   return (
     <Box>
@@ -853,12 +914,13 @@ function ProjectPlanning() {
             <AgGridReact
               rowData={plansList}
               columnDefs={columnDefs}
+              defaultColDef={defaultColDef}
               onGridReady={onGridReady}
               pagination={true}
               paginationPageSize={20}
               animateRows={true}
               rowHeight={60}
-              headerHeight={50}
+              headerHeight={60}
               loading={plansLoading}
             />
           </Box>
@@ -1437,6 +1499,12 @@ function ProjectPlanning() {
           {selectedPlanForLog && (
             <Stack direction="row" spacing={2} sx={{ mt: 1 }} flexWrap="wrap">
               <Chip
+                label={`Total Logs: ${filteredLogDetails.length}`}
+                size="small"
+                color="primary"
+                variant="outlined"
+              />
+              <Chip
                 icon={<AccessTime />}
                 label={`Allotted: ${Number(logDetails.total_allotted_hours ?? selectedPlanForLog.total_allotted_hours ?? 0).toFixed(2)} hrs`}
                 size="small"
@@ -1477,14 +1545,14 @@ function ProjectPlanning() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {(logDetails.log_details || []).length === 0 ? (
+                  {filteredLogDetails.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
-                        <Typography color="text.secondary">No log entries in plan period</Typography>
+                        <Typography color="text.secondary">No log entries for this project</Typography>
                       </TableCell>
                     </TableRow>
                   ) : (
-                    (logDetails.log_details || []).map((row) => (
+                    pagedLogDetails.map((row) => (
                       <TableRow key={row.id} hover>
                         <TableCell>{row.employeeName || row.userName || "—"}</TableCell>
                         <TableCell>{row.sentDate ? new Date(row.sentDate).toLocaleDateString() : "—"}</TableCell>
@@ -1499,6 +1567,26 @@ function ProjectPlanning() {
                   )}
                 </TableBody>
               </Table>
+              {filteredLogDetails.length > 0 && (
+                <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                  <TablePagination
+                    component="div"
+                    count={filteredLogDetails.length}
+                    page={logPage}
+                    onPageChange={(event, newPage) => setLogPage(newPage)}
+                    rowsPerPage={logRowsPerPage}
+                    onRowsPerPageChange={(event) => {
+                      setLogRowsPerPage(parseInt(event.target.value, 10));
+                      setLogPage(0);
+                    }}
+                    rowsPerPageOptions={[10, 25, 50, 100]}
+                    labelRowsPerPage="Rows per page:"
+                    labelDisplayedRows={({ from, to, count }) =>
+                      `${from}-${to} of ${count !== -1 ? count : `more than ${to}`}`
+                    }
+                  />
+                </Box>
+              )}
             </TableContainer>
           )}
         </DialogContent>

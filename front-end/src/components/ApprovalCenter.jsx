@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useApi } from "../hooks/useApi";
 import { useMutation } from "../hooks/useMutation";
 import { apiService } from "../services/api";
@@ -49,6 +49,7 @@ import {
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
+import { startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
 import ErrorMessage from "./ErrorMessage";
 import Loading from "./Loading";
 import { useAuth } from "../context/AuthContext";
@@ -60,7 +61,87 @@ const ApprovalCenter = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [comments, setComments] = useState("");
   const [selectedItems, setSelectedItems] = useState([]);
-  
+  const [timesheetFilters, setTimesheetFilters] = useState({
+    employeeName: "",
+    weekDate: null, // YYYY-MM-DD (any day within the week)
+  });
+  const [leaveFilters, setLeaveFilters] = useState({
+    employeeName: "",
+    startDate: null,
+    endDate: null,
+  });
+  const [overtimeFilters, setOvertimeFilters] = useState({
+    employeeName: "",
+    startDate: null,
+    endDate: null,
+  });
+
+  const [leavePage, setLeavePage] = useState(0);
+  const [leaveRowsPerPage, setLeaveRowsPerPage] = useState(25);
+  const [overtimePage, setOvertimePage] = useState(0);
+  const [overtimeRowsPerPage, setOvertimeRowsPerPage] = useState(25);
+  const [timesheetPage, setTimesheetPage] = useState(0);
+  const [timesheetRowsPerPage, setTimesheetRowsPerPage] = useState(25);
+
+  const getTimesheetHoursCell = (entity) => {
+    const rawHours = entity?.totalHours ?? entity?.totalhours ?? 0;
+    const hours = Number.parseFloat(rawHours);
+
+    if (Number.isFinite(hours) && hours > 0) {
+      return <Chip label={hours} size="small" color="info" variant="outlined" />;
+    }
+
+    const clockInTime = entity?.clockInTime || entity?.sentDate || null;
+    const clockOutTime = entity?.clockOutTime || entity?.approvedDate || null;
+    const normalizedStatus = String(entity?.status || "").toLowerCase();
+
+    const isCheckedOut = Boolean(clockOutTime) || normalizedStatus === "completed";
+    const isCheckedIn = Boolean(clockInTime) || normalizedStatus === "active";
+
+    const label = isCheckedOut ? "Checked Out" : isCheckedIn ? "Checked In" : "Pending";
+    const color = isCheckedOut ? "default" : isCheckedIn ? "success" : "warning";
+
+    const tooltipParts = [];
+    if (clockInTime) {
+      const d = new Date(clockInTime);
+      tooltipParts.push(`In: ${Number.isNaN(d.getTime()) ? String(clockInTime) : d.toLocaleString()}`);
+    }
+    if (clockOutTime) {
+      const d = new Date(clockOutTime);
+      tooltipParts.push(`Out: ${Number.isNaN(d.getTime()) ? String(clockOutTime) : d.toLocaleString()}`);
+    }
+    const tooltip = tooltipParts.length > 0 ? tooltipParts.join(" • ") : "Hours not submitted yet";
+
+    return (
+      <Tooltip title={tooltip}>
+        <Chip label={label} size="small" color={color} variant="outlined" />
+      </Tooltip>
+    );
+  };
+
+  const isTimesheetApprovable = (entity) => {
+    const rawHours = entity?.totalHours ?? entity?.totalhours ?? 0;
+    const hours = Number.parseFloat(rawHours);
+    if (Number.isFinite(hours) && hours > 0) return true;
+
+    const clockOutTime = entity?.clockOutTime || entity?.approvedDate || null;
+    const normalizedStatus = String(entity?.status || "").toLowerCase();
+    return Boolean(clockOutTime) || normalizedStatus === "completed";
+  };
+
+  const getTimesheetEntityDate = (entity) => {
+    const raw =
+      entity?.date ||
+      entity?.sentDate ||
+      entity?.clockInTime ||
+      entity?.created_at ||
+      entity?.createdAt ||
+      null;
+    if (!raw) return null;
+    const d = new Date(raw);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
   // History filters
   const [historyFilters, setHistoryFilters] = useState({
     entityType: "",
@@ -75,20 +156,201 @@ const ApprovalCenter = () => {
   const [historyPage, setHistoryPage] = useState(0);
   const [historyRowsPerPage, setHistoryRowsPerPage] = useState(25);
 
-  const { data: pendingApprovals, loading: pendingLoading, refetch: refetchPending } = useApi(
+  const {
+    data: pendingApprovals,
+    loading: pendingLoading,
+    error: pendingError,
+    refetch: refetchPending,
+  } = useApi(
     () => apiService.getPendingApprovals({ approverId: user?.id }),
     [user?.id]
   );
 
-  const { data: approvalHistoryData, loading: historyLoading, refetch: refetchHistory } = useApi(
+  const { leaves, overtime, timesheets } = useMemo(() => {
+    const list = Array.isArray(pendingApprovals) ? pendingApprovals : [];
+    return {
+      leaves: list.filter((a) => a.entityType === "leave"),
+      overtime: list.filter((a) => a.entityType === "overtime"),
+      timesheets: list.filter((a) => a.entityType === "timesheet"),
+    };
+  }, [pendingApprovals]);
+
+  const filteredLeaves = useMemo(() => {
+    let filtered = leaves;
+
+    if (leaveFilters.employeeName) {
+      filtered = filtered.filter((item) => {
+        const name = String(item?.requestedBy || item?.entity?.employeeName || "").toLowerCase();
+        return name.includes(leaveFilters.employeeName.toLowerCase());
+      });
+    }
+
+    const start = leaveFilters.startDate ? new Date(leaveFilters.startDate) : null;
+    const end = leaveFilters.endDate ? new Date(leaveFilters.endDate) : null;
+    if (start && end && !Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime())) {
+      filtered = filtered.filter((item) => {
+        const raw = item?.entity?.leaveFrom || item?.requestedDate || null;
+        if (!raw) return false;
+        const d = new Date(raw);
+        if (Number.isNaN(d.getTime())) return false;
+        return isWithinInterval(d, { start, end });
+      });
+    }
+
+    return filtered;
+  }, [leaves, leaveFilters.employeeName, leaveFilters.startDate, leaveFilters.endDate]);
+
+  const filteredOvertime = useMemo(() => {
+    let filtered = overtime;
+
+    if (overtimeFilters.employeeName) {
+      filtered = filtered.filter((item) => {
+        const name = String(item?.requestedBy || item?.entity?.employeeName || "").toLowerCase();
+        return name.includes(overtimeFilters.employeeName.toLowerCase());
+      });
+    }
+
+    const start = overtimeFilters.startDate ? new Date(overtimeFilters.startDate) : null;
+    const end = overtimeFilters.endDate ? new Date(overtimeFilters.endDate) : null;
+    if (start && end && !Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime())) {
+      filtered = filtered.filter((item) => {
+        const raw = item?.entity?.attendance_date || item?.entity?.attendanceDate || item?.requestedDate || null;
+        if (!raw) return false;
+        const d = new Date(raw);
+        if (Number.isNaN(d.getTime())) return false;
+        return isWithinInterval(d, { start, end });
+      });
+    }
+
+    return filtered;
+  }, [overtime, overtimeFilters.employeeName, overtimeFilters.startDate, overtimeFilters.endDate]);
+
+  const filteredTimesheets = useMemo(() => {
+    let filtered = timesheets;
+
+    if (timesheetFilters.employeeName) {
+      filtered = filtered.filter((item) => {
+        const name = String(item?.requestedBy || item?.entity?.employeeName || "").toLowerCase();
+        return name.includes(timesheetFilters.employeeName.toLowerCase());
+      });
+    }
+
+    if (timesheetFilters.weekDate) {
+      const anchor = new Date(timesheetFilters.weekDate);
+      if (!Number.isNaN(anchor.getTime())) {
+        const start = startOfWeek(anchor, { weekStartsOn: 1 }); // Monday
+        const end = endOfWeek(anchor, { weekStartsOn: 1 }); // Sunday
+        filtered = filtered.filter((item) => {
+          const d = getTimesheetEntityDate(item?.entity);
+          if (!d) return false;
+          return isWithinInterval(d, { start, end });
+        });
+      }
+    }
+
+    return filtered;
+  }, [timesheets, timesheetFilters.employeeName, timesheetFilters.weekDate]);
+
+  const pagedLeaves = useMemo(() => {
+    return filteredLeaves.slice(leavePage * leaveRowsPerPage, leavePage * leaveRowsPerPage + leaveRowsPerPage);
+  }, [filteredLeaves, leavePage, leaveRowsPerPage]);
+
+  const pagedOvertime = useMemo(() => {
+    return filteredOvertime.slice(
+      overtimePage * overtimeRowsPerPage,
+      overtimePage * overtimeRowsPerPage + overtimeRowsPerPage
+    );
+  }, [filteredOvertime, overtimePage, overtimeRowsPerPage]);
+
+  const pagedTimesheets = useMemo(() => {
+    return filteredTimesheets.slice(
+      timesheetPage * timesheetRowsPerPage,
+      timesheetPage * timesheetRowsPerPage + timesheetRowsPerPage
+    );
+  }, [filteredTimesheets, timesheetPage, timesheetRowsPerPage]);
+
+  const timesheetSelectableIds = useMemo(() => {
+    return filteredTimesheets
+      .filter((item) => isTimesheetApprovable(item?.entity))
+      .map((item) => item.entityId);
+  }, [filteredTimesheets]);
+
+  const selectedTimesheetIdsSet = useMemo(() => {
+    return new Set(
+      selectedItems
+        .filter((i) => i.entityType === "timesheet")
+        .map((i) => i.entityId)
+    );
+  }, [selectedItems]);
+
+  const timesheetAllSelected =
+    timesheetSelectableIds.length > 0 &&
+    timesheetSelectableIds.every((id) => selectedTimesheetIdsSet.has(id));
+
+  const timesheetSomeSelected =
+    timesheetSelectableIds.some((id) => selectedTimesheetIdsSet.has(id)) && !timesheetAllSelected;
+
+  const toggleSelectAllTimesheets = (checked) => {
+    if (timesheetSelectableIds.length === 0) return;
+
+    if (checked) {
+      const next = [...selectedItems];
+      timesheetSelectableIds.forEach((entityId) => {
+        const exists = next.some((i) => i.entityType === "timesheet" && i.entityId === entityId);
+        if (!exists) next.push({ entityType: "timesheet", entityId });
+      });
+      setSelectedItems(next);
+      return;
+    }
+
+    // Remove only the currently-filtered selectable timesheets
+    setSelectedItems(
+      selectedItems.filter(
+        (i) => !(i.entityType === "timesheet" && timesheetSelectableIds.includes(i.entityId))
+      )
+    );
+  };
+
+  const {
+    data: approvalHistoryData,
+    loading: historyLoading,
+    error: historyError,
+    refetch: refetchHistory,
+  } = useApi(
     () => apiService.getApprovalHistory({
       entityType: historyFilters.entityType,
       status: historyFilters.status,
       startDate: historyFilters.startDate,
       endDate: historyFilters.endDate,
+      employeeName: historyFilters.employeeName || undefined,
+      projectName: historyFilters.projectName || undefined,
     }),
-    [historyFilters.entityType, historyFilters.status, historyFilters.startDate, historyFilters.endDate]
+    [
+      tabValue === 3,
+      historyFilters.entityType,
+      historyFilters.status,
+      historyFilters.startDate,
+      historyFilters.endDate,
+      historyFilters.employeeName,
+      historyFilters.projectName,
+    ],
+    tabValue === 3
   );
+
+  // Ensure History always refreshes after filter changes (after state commit).
+  useEffect(() => {
+    if (tabValue !== 3) return;
+    refetchHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    tabValue,
+    historyFilters.entityType,
+    historyFilters.status,
+    historyFilters.startDate,
+    historyFilters.endDate,
+    historyFilters.employeeName,
+    historyFilters.projectName,
+  ]);
 
   // Fetch employees and projects for filter dropdowns
   const { data: employeesData } = useApi(() => apiService.getEmployees(), []);
@@ -117,8 +379,46 @@ const ApprovalCenter = () => {
       parsedData = approvalHistoryData?.Result || approvalHistoryData?.data?.Result || approvalHistoryData?.data || [];
     }
     
-    // Filter by employee name and project name if filters are set
+    // Apply client-side filters (in addition to backend) for consistency
     let filtered = parsedData;
+
+    // Entity type filter
+    if (historyFilters.entityType) {
+      if (historyFilters.entityType === "timesheet") {
+        filtered = filtered.filter((record) => {
+          const t = String(record.entity_type || "").toLowerCase();
+          return t === "timesheet" || t === "workdetails";
+        });
+      } else {
+        filtered = filtered.filter(
+          (record) => String(record.entity_type || "").toLowerCase() === historyFilters.entityType
+        );
+      }
+    }
+
+    // Status filter
+    if (historyFilters.status) {
+      filtered = filtered.filter((record) => String(record.status || "").toLowerCase() === historyFilters.status);
+    }
+
+    // Date range filter (created_at)
+    if (historyFilters.startDate || historyFilters.endDate) {
+      const start = historyFilters.startDate ? new Date(historyFilters.startDate) : null;
+      const end = historyFilters.endDate ? new Date(historyFilters.endDate) : null;
+      if ((start && Number.isNaN(start.getTime())) || (end && Number.isNaN(end.getTime()))) {
+        // ignore invalid dates
+      } else {
+        filtered = filtered.filter((record) => {
+          if (!record.created_at) return false;
+          const d = new Date(record.created_at);
+          if (Number.isNaN(d.getTime())) return false;
+          if (start && end) return isWithinInterval(d, { start, end });
+          if (start) return d >= start;
+          if (end) return d <= end;
+          return true;
+        });
+      }
+    }
     
     if (historyFilters.employeeName) {
       filtered = filtered.filter(record => {
@@ -134,9 +434,16 @@ const ApprovalCenter = () => {
       });
     }
     
-    console.log(`Approval history parsed: ${parsedData.length} records, filtered: ${filtered.length} records`);
     return filtered;
-  }, [approvalHistoryData, historyFilters.employeeName, historyFilters.projectName]);
+  }, [
+    approvalHistoryData,
+    historyFilters.entityType,
+    historyFilters.status,
+    historyFilters.startDate,
+    historyFilters.endDate,
+    historyFilters.employeeName,
+    historyFilters.projectName,
+  ]);
 
   const { mutate: approveEntity, loading: approving } = useMutation((data) =>
     apiService.approveEntity(data.entityType, data.entityId, {
@@ -244,13 +551,17 @@ const ApprovalCenter = () => {
     }
   };
 
-  if (pendingLoading || historyLoading) {
+  if (pendingLoading || (tabValue === 3 && historyLoading)) {
     return <Loading message="Loading approvals..." />;
   }
 
-  const leaves = pendingApprovals?.filter((a) => a.entityType === "leave") || [];
-  const overtime = pendingApprovals?.filter((a) => a.entityType === "overtime") || [];
-  const timesheets = pendingApprovals?.filter((a) => a.entityType === "timesheet") || [];
+  if (pendingError) {
+    return <ErrorMessage message={pendingError?.message || pendingError} />;
+  }
+
+  if (tabValue === 3 && historyError) {
+    return <ErrorMessage message={historyError?.message || historyError} />;
+  }
 
   return (
     <Box sx={{ p: 3 }}>
@@ -365,6 +676,75 @@ const ApprovalCenter = () => {
       {tabValue === 0 && (
         <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
           <CardContent>
+            {/* Leave Filters */}
+            <Box sx={{ mb: 2 }}>
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} md={4}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Employee</InputLabel>
+                    <Select
+                      value={leaveFilters.employeeName}
+                      label="Employee"
+                      onChange={(e) => {
+                        setLeavePage(0);
+                        setLeaveFilters({ ...leaveFilters, employeeName: e.target.value });
+                      }}
+                    >
+                      <MenuItem value="">All Employees</MenuItem>
+                      {employees.map((emp) => (
+                        <MenuItem key={emp} value={emp}>
+                          {emp}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} md={3}>
+                  <LocalizationProvider dateAdapter={AdapterDayjs}>
+                    <DatePicker
+                      label="From"
+                      value={leaveFilters.startDate ? dayjs(leaveFilters.startDate) : null}
+                      onChange={(newValue) => {
+                        setLeavePage(0);
+                        setLeaveFilters({
+                          ...leaveFilters,
+                          startDate: newValue ? newValue.format("YYYY-MM-DD") : null,
+                        });
+                      }}
+                      slotProps={{ textField: { size: "small", fullWidth: true } }}
+                    />
+                  </LocalizationProvider>
+                </Grid>
+                <Grid item xs={12} md={3}>
+                  <LocalizationProvider dateAdapter={AdapterDayjs}>
+                    <DatePicker
+                      label="To"
+                      value={leaveFilters.endDate ? dayjs(leaveFilters.endDate) : null}
+                      onChange={(newValue) => {
+                        setLeavePage(0);
+                        setLeaveFilters({
+                          ...leaveFilters,
+                          endDate: newValue ? newValue.format("YYYY-MM-DD") : null,
+                        });
+                      }}
+                      slotProps={{ textField: { size: "small", fullWidth: true } }}
+                    />
+                  </LocalizationProvider>
+                </Grid>
+                <Grid item xs={12} md={2}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => {
+                      setLeavePage(0);
+                      setLeaveFilters({ employeeName: "", startDate: null, endDate: null });
+                    }}
+                  >
+                    Clear
+                  </Button>
+                </Grid>
+              </Grid>
+            </Box>
             <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
               <Table>
                 <TableHead>
@@ -380,8 +760,8 @@ const ApprovalCenter = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {leaves.length > 0 ? (
-                    leaves.map((item) => (
+                  {pagedLeaves.length > 0 ? (
+                    pagedLeaves.map((item) => (
                       <TableRow key={item.entityId} hover>
                         <TableCell padding="checkbox">
                           <Checkbox
@@ -455,13 +835,33 @@ const ApprovalCenter = () => {
                   ) : (
                     <TableRow>
                       <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
-                        <Typography color="text.secondary">No pending leave requests</Typography>
+                        <Typography color="text.secondary">
+                          {leaves.length > 0 ? "No leave requests match your filters" : "No pending leave requests"}
+                        </Typography>
                       </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
               </Table>
             </TableContainer>
+            {filteredLeaves.length > 0 && (
+              <TablePagination
+                component="div"
+                count={filteredLeaves.length}
+                page={leavePage}
+                onPageChange={(event, newPage) => setLeavePage(newPage)}
+                rowsPerPage={leaveRowsPerPage}
+                onRowsPerPageChange={(event) => {
+                  setLeaveRowsPerPage(parseInt(event.target.value, 10));
+                  setLeavePage(0);
+                }}
+                rowsPerPageOptions={[10, 25, 50, 100]}
+                labelRowsPerPage="Rows per page:"
+                labelDisplayedRows={({ from, to, count }) =>
+                  `${from}-${to} of ${count !== -1 ? count : `more than ${to}`}`
+                }
+              />
+            )}
           </CardContent>
         </Card>
       )}
@@ -470,6 +870,75 @@ const ApprovalCenter = () => {
       {tabValue === 1 && (
         <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
           <CardContent>
+            {/* Overtime Filters */}
+            <Box sx={{ mb: 2 }}>
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} md={4}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Employee</InputLabel>
+                    <Select
+                      value={overtimeFilters.employeeName}
+                      label="Employee"
+                      onChange={(e) => {
+                        setOvertimePage(0);
+                        setOvertimeFilters({ ...overtimeFilters, employeeName: e.target.value });
+                      }}
+                    >
+                      <MenuItem value="">All Employees</MenuItem>
+                      {employees.map((emp) => (
+                        <MenuItem key={emp} value={emp}>
+                          {emp}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} md={3}>
+                  <LocalizationProvider dateAdapter={AdapterDayjs}>
+                    <DatePicker
+                      label="From"
+                      value={overtimeFilters.startDate ? dayjs(overtimeFilters.startDate) : null}
+                      onChange={(newValue) => {
+                        setOvertimePage(0);
+                        setOvertimeFilters({
+                          ...overtimeFilters,
+                          startDate: newValue ? newValue.format("YYYY-MM-DD") : null,
+                        });
+                      }}
+                      slotProps={{ textField: { size: "small", fullWidth: true } }}
+                    />
+                  </LocalizationProvider>
+                </Grid>
+                <Grid item xs={12} md={3}>
+                  <LocalizationProvider dateAdapter={AdapterDayjs}>
+                    <DatePicker
+                      label="To"
+                      value={overtimeFilters.endDate ? dayjs(overtimeFilters.endDate) : null}
+                      onChange={(newValue) => {
+                        setOvertimePage(0);
+                        setOvertimeFilters({
+                          ...overtimeFilters,
+                          endDate: newValue ? newValue.format("YYYY-MM-DD") : null,
+                        });
+                      }}
+                      slotProps={{ textField: { size: "small", fullWidth: true } }}
+                    />
+                  </LocalizationProvider>
+                </Grid>
+                <Grid item xs={12} md={2}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => {
+                      setOvertimePage(0);
+                      setOvertimeFilters({ employeeName: "", startDate: null, endDate: null });
+                    }}
+                  >
+                    Clear
+                  </Button>
+                </Grid>
+              </Grid>
+            </Box>
             <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
               <Table>
                 <TableHead>
@@ -483,8 +952,8 @@ const ApprovalCenter = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {overtime.length > 0 ? (
-                    overtime.map((item) => (
+                  {pagedOvertime.length > 0 ? (
+                    pagedOvertime.map((item) => (
                       <TableRow key={item.entityId} hover>
                         <TableCell padding="checkbox">
                           <Checkbox
@@ -548,13 +1017,35 @@ const ApprovalCenter = () => {
                   ) : (
                     <TableRow>
                       <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
-                        <Typography color="text.secondary">No pending overtime requests</Typography>
+                        <Typography color="text.secondary">
+                          {overtime.length > 0
+                            ? "No overtime requests match your filters"
+                            : "No pending overtime requests"}
+                        </Typography>
                       </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
               </Table>
             </TableContainer>
+            {filteredOvertime.length > 0 && (
+              <TablePagination
+                component="div"
+                count={filteredOvertime.length}
+                page={overtimePage}
+                onPageChange={(event, newPage) => setOvertimePage(newPage)}
+                rowsPerPage={overtimeRowsPerPage}
+                onRowsPerPageChange={(event) => {
+                  setOvertimeRowsPerPage(parseInt(event.target.value, 10));
+                  setOvertimePage(0);
+                }}
+                rowsPerPageOptions={[10, 25, 50, 100]}
+                labelRowsPerPage="Rows per page:"
+                labelDisplayedRows={({ from, to, count }) =>
+                  `${from}-${to} of ${count !== -1 ? count : `more than ${to}`}`
+                }
+              />
+            )}
           </CardContent>
         </Card>
       )}
@@ -563,11 +1054,84 @@ const ApprovalCenter = () => {
       {tabValue === 2 && (
         <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
           <CardContent>
+            {/* Timesheet Filters */}
+            <Box sx={{ mb: 2 }}>
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} md={4}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Employee</InputLabel>
+                    <Select
+                      value={timesheetFilters.employeeName}
+                      label="Employee"
+                      onChange={(e) => {
+                        setTimesheetPage(0);
+                        setTimesheetFilters({ ...timesheetFilters, employeeName: e.target.value });
+                      }}
+                    >
+                      <MenuItem value="">All Employees</MenuItem>
+                      {employees.map((emp) => (
+                        <MenuItem key={emp} value={emp}>
+                          {emp}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <LocalizationProvider dateAdapter={AdapterDayjs}>
+                    <DatePicker
+                      label="Week"
+                      value={timesheetFilters.weekDate ? dayjs(timesheetFilters.weekDate) : null}
+                      onChange={(newValue) =>
+                        (setTimesheetPage(0),
+                        setTimesheetFilters({
+                          ...timesheetFilters,
+                          weekDate: newValue ? newValue.format("YYYY-MM-DD") : null,
+                        }))
+                      }
+                      slotProps={{
+                        textField: {
+                          size: "small",
+                          fullWidth: true,
+                        },
+                      }}
+                    />
+                  </LocalizationProvider>
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() =>
+                      (setTimesheetPage(0),
+                      setTimesheetFilters({
+                        employeeName: "",
+                        weekDate: null,
+                      }))
+                    }
+                  >
+                    Clear Filters
+                  </Button>
+                </Grid>
+              </Grid>
+            </Box>
             <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
               <Table>
                 <TableHead>
                   <TableRow sx={{ bgcolor: "primary.main" }}>
-                    <TableCell padding="checkbox" sx={{ color: "white" }}>Select</TableCell>
+                    <TableCell padding="checkbox" sx={{ color: "white" }}>
+                      <Checkbox
+                        indeterminate={timesheetSomeSelected}
+                        checked={timesheetAllSelected}
+                        disabled={timesheetSelectableIds.length === 0}
+                        onChange={(e) => toggleSelectAllTimesheets(e.target.checked)}
+                        sx={{
+                          color: "white",
+                          "&.Mui-checked": { color: "white" },
+                          "&.MuiCheckbox-indeterminate": { color: "white" },
+                        }}
+                      />
+                    </TableCell>
                     <TableCell sx={{ color: "white", fontWeight: "bold" }}>Employee</TableCell>
                     <TableCell sx={{ color: "white", fontWeight: "bold" }}>Project</TableCell>
                     <TableCell sx={{ color: "white", fontWeight: "bold" }}>Date</TableCell>
@@ -576,15 +1140,19 @@ const ApprovalCenter = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {timesheets.length > 0 ? (
-                    timesheets.map((item) => (
+                  {pagedTimesheets.length > 0 ? (
+                    pagedTimesheets.map((item) => (
                       <TableRow key={item.entityId} hover>
                         <TableCell padding="checkbox">
                           <Checkbox
                             checked={selectedItems.some(
                               (i) => i.entityType === item.entityType && i.entityId === item.entityId
                             )}
-                            onChange={() => toggleSelectItem(item)}
+                            disabled={!isTimesheetApprovable(item.entity)}
+                            onChange={() => {
+                              if (!isTimesheetApprovable(item.entity)) return;
+                              toggleSelectItem(item);
+                            }}
                           />
                         </TableCell>
                         <TableCell>
@@ -596,15 +1164,25 @@ const ApprovalCenter = () => {
                         <TableCell>{item.entity.projectName}</TableCell>
                         <TableCell>{item.entity.sentDate}</TableCell>
                         <TableCell>
-                          <Chip label={item.entity.totalHours} size="small" color="info" variant="outlined" />
+                          {getTimesheetHoursCell(item.entity)}
                         </TableCell>
                         <TableCell>
                           <Box sx={{ display: "flex", gap: 1 }}>
-                            <Tooltip title="Approve">
+                            <Tooltip
+                              title={
+                                isTimesheetApprovable(item.entity)
+                                  ? "Approve"
+                                  : "Only checked-out timesheets can be approved"
+                              }
+                            >
                               <IconButton
                                 size="small"
                                 color="success"
-                                onClick={() => handleApprove(item, "approved")}
+                                disabled={!isTimesheetApprovable(item.entity)}
+                                onClick={() => {
+                                  if (!isTimesheetApprovable(item.entity)) return;
+                                  handleApprove(item, "approved");
+                                }}
                                 sx={{
                                   "&:hover": {
                                     bgcolor: "success.light",
@@ -615,11 +1193,21 @@ const ApprovalCenter = () => {
                                 <CheckCircle fontSize="small" />
                               </IconButton>
                             </Tooltip>
-                            <Tooltip title="Reject">
+                            <Tooltip
+                              title={
+                                isTimesheetApprovable(item.entity)
+                                  ? "Reject"
+                                  : "Only checked-out timesheets can be rejected"
+                              }
+                            >
                               <IconButton
                                 size="small"
                                 color="error"
-                                onClick={() => handleApprove(item, "rejected")}
+                                disabled={!isTimesheetApprovable(item.entity)}
+                                onClick={() => {
+                                  if (!isTimesheetApprovable(item.entity)) return;
+                                  handleApprove(item, "rejected");
+                                }}
                                 sx={{
                                   "&:hover": {
                                     bgcolor: "error.light",
@@ -637,13 +1225,33 @@ const ApprovalCenter = () => {
                   ) : (
                     <TableRow>
                       <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
-                        <Typography color="text.secondary">No pending timesheet requests</Typography>
+                        <Typography color="text.secondary">
+                          {timesheets.length > 0 ? "No timesheets match your filters" : "No pending timesheet requests"}
+                        </Typography>
                       </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
               </Table>
             </TableContainer>
+            {filteredTimesheets.length > 0 && (
+              <TablePagination
+                component="div"
+                count={filteredTimesheets.length}
+                page={timesheetPage}
+                onPageChange={(event, newPage) => setTimesheetPage(newPage)}
+                rowsPerPage={timesheetRowsPerPage}
+                onRowsPerPageChange={(event) => {
+                  setTimesheetRowsPerPage(parseInt(event.target.value, 10));
+                  setTimesheetPage(0);
+                }}
+                rowsPerPageOptions={[10, 25, 50, 100]}
+                labelRowsPerPage="Rows per page:"
+                labelDisplayedRows={({ from, to, count }) =>
+                  `${from}-${to} of ${count !== -1 ? count : `more than ${to}`}`
+                }
+              />
+            )}
           </CardContent>
         </Card>
       )}
@@ -677,9 +1285,11 @@ const ApprovalCenter = () => {
                     <Select
                       value={historyFilters.entityType}
                       label="Entity Type"
-                      onChange={(e) =>
-                        setHistoryFilters({ ...historyFilters, entityType: e.target.value })
-                      }
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setHistoryPage(0);
+                        setHistoryFilters((prev) => ({ ...prev, entityType: value }));
+                      }}
                     >
                       <MenuItem value="">All Types</MenuItem>
                       <MenuItem value="leave">Leave</MenuItem>
@@ -696,9 +1306,11 @@ const ApprovalCenter = () => {
                     <Select
                       value={historyFilters.status}
                       label="Status"
-                      onChange={(e) =>
-                        setHistoryFilters({ ...historyFilters, status: e.target.value })
-                      }
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setHistoryPage(0);
+                        setHistoryFilters((prev) => ({ ...prev, status: value }));
+                      }}
                     >
                       <MenuItem value="">All Status</MenuItem>
                       <MenuItem value="approved">Approved</MenuItem>
@@ -712,12 +1324,13 @@ const ApprovalCenter = () => {
                     <DatePicker
                       label="Start Date"
                       value={historyFilters.startDate ? dayjs(historyFilters.startDate) : null}
-                      onChange={(newValue) =>
-                        setHistoryFilters({
-                          ...historyFilters,
+                      onChange={(newValue) => {
+                        setHistoryPage(0);
+                        setHistoryFilters((prev) => ({
+                          ...prev,
                           startDate: newValue ? newValue.format("YYYY-MM-DD") : null,
-                        })
-                      }
+                        }));
+                      }}
                       slotProps={{
                         textField: {
                           size: "small",
@@ -732,12 +1345,13 @@ const ApprovalCenter = () => {
                     <DatePicker
                       label="End Date"
                       value={historyFilters.endDate ? dayjs(historyFilters.endDate) : null}
-                      onChange={(newValue) =>
-                        setHistoryFilters({
-                          ...historyFilters,
+                      onChange={(newValue) => {
+                        setHistoryPage(0);
+                        setHistoryFilters((prev) => ({
+                          ...prev,
                           endDate: newValue ? newValue.format("YYYY-MM-DD") : null,
-                        })
-                      }
+                        }));
+                      }}
                       slotProps={{
                         textField: {
                           size: "small",
@@ -753,9 +1367,11 @@ const ApprovalCenter = () => {
                     <Select
                       value={historyFilters.employeeName}
                       label="Employee"
-                      onChange={(e) =>
-                        setHistoryFilters({ ...historyFilters, employeeName: e.target.value })
-                      }
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setHistoryPage(0);
+                        setHistoryFilters((prev) => ({ ...prev, employeeName: value }));
+                      }}
                     >
                       <MenuItem value="">All Employees</MenuItem>
                       {employees.map((emp) => (
@@ -772,9 +1388,11 @@ const ApprovalCenter = () => {
                     <Select
                       value={historyFilters.projectName}
                       label="Project"
-                      onChange={(e) =>
-                        setHistoryFilters({ ...historyFilters, projectName: e.target.value })
-                      }
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setHistoryPage(0);
+                        setHistoryFilters((prev) => ({ ...prev, projectName: value }));
+                      }}
                     >
                       <MenuItem value="">All Projects</MenuItem>
                       {projects.map((proj) => (
@@ -789,14 +1407,15 @@ const ApprovalCenter = () => {
                   <Button
                     variant="outlined"
                     onClick={() => {
-                      setHistoryFilters({
+                      setHistoryFilters((prev) => ({
+                        ...prev,
                         entityType: "",
                         status: "",
                         startDate: null,
                         endDate: null,
                         employeeName: "",
                         projectName: "",
-                      });
+                      }));
                       setHistoryPage(0);
                     }}
                     size="small"
