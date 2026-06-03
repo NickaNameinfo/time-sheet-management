@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:timesheet_mobile/providers/auth_provider.dart';
 import 'package:timesheet_mobile/screens/login_screen.dart';
+import 'package:timesheet_mobile/screens/employee_my_payslips_screen.dart';
 import 'package:timesheet_mobile/screens/investment/update_kyc_status_screen.dart';
 import 'package:timesheet_mobile/utils/app_config.dart';
 
@@ -104,20 +105,39 @@ class EmployeeProfileScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                if ((user['role']?.toString().toLowerCase() ?? '') == 'admin') ...[
-                  const SizedBox(height: 16),
-                  Card(
-                    child: ListTile(
-                      leading: Icon(Icons.verified_user, color: Theme.of(context).colorScheme.primary),
-                      title: const Text('Update KYC Status'),
-                      subtitle: const Text('Admin: set KYC status for investment users'),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const UpdateKycStatusScreen()),
+                const SizedBox(height: 16),
+                Card(
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: Icon(
+                          Icons.account_balance_wallet,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        title: const Text('My Payslips & Salary'),
+                        subtitle: const Text(
+                          'View pay period details and download paid salary slips',
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const EmployeeMyPayslipsScreen()),
+                        ),
                       ),
-                    ),
+                      if ((user['role']?.toString().toLowerCase() ?? '') == 'admin') ...[
+                        const Divider(height: 1),
+                        ListTile(
+                          leading: Icon(Icons.verified_user, color: Theme.of(context).colorScheme.primary),
+                          title: const Text('Update KYC Status'),
+                          subtitle: const Text('Admin: set KYC status for investment users'),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const UpdateKycStatusScreen()),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                ],
+                ),
                 const SizedBox(height: 24),
                 // Logout Button
                 Card(

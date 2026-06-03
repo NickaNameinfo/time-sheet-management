@@ -48,6 +48,7 @@ import config from "../config/index.js";
 import logoImage from "../assets/logo.png";
 import { useAppTheme } from "../context/AppThemeContext";
 import { useGuidanceTourOptional } from "../context/GuidanceTourContext";
+import { useTranslation } from "react-i18next";
 
 import {
   Dashboard as DashboardIcon,
@@ -222,6 +223,7 @@ const CommonSidebar = ({
   dashboardTitle = "Dashboard",
   basePath = "/Dashboard" 
 }) => {
+  const { t } = useTranslation();
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -315,18 +317,18 @@ const CommonSidebar = ({
     }
     if (user?.isCompanyUser && user?.company_role) {
       const cr = String(user.company_role).toLowerCase();
-      if (cr === "company_admin") return "Company admin";
-      if (cr === "company_user") return "Company user";
+      if (cr === "company_admin") return t("role.companyAdmin", { defaultValue: "Company admin" });
+      if (cr === "company_user") return t("role.companyUser", { defaultValue: "Company user" });
       return user.company_role;
     }
     const r = normalizedRoles?.[0];
-    if (!r) return "User";
+    if (!r) return t("role.user", { defaultValue: "User" });
     const map = {
-      admin: "Admin",
-      hr: "HR",
-      tl: "TL",
-      teamlead: "TL",
-      employee: "Employee",
+      admin: t("role.admin", { defaultValue: "Admin" }),
+      hr: t("role.hr", { defaultValue: "HR" }),
+      tl: t("role.tl", { defaultValue: "TL" }),
+      teamlead: t("role.tl", { defaultValue: "TL" }),
+      employee: t("role.employee", { defaultValue: "Employee" }),
     };
     const key = String(r).toLowerCase();
     return map[key] || (String(r).charAt(0).toUpperCase() + String(r).slice(1));
@@ -475,6 +477,12 @@ const CommonSidebar = ({
         '/Dashboard/Overtime': basePath === '/Hr' ? '/Dashboard/Overtime' : basePath === '/TeamLead' ? '/TeamLead/OvertimeManagement' : originalPath,
         '/Dashboard/Shifts': basePath === '/Hr' ? '/Dashboard/Shifts' : originalPath,
         '/Dashboard/Payroll': basePath === '/Hr' ? '/Dashboard/Payroll' : originalPath,
+        '/Dashboard/SalaryPayslip':
+          basePath === '/Employee'
+            ? '/Employee/MyPayslips'
+            : basePath === '/Hr'
+              ? '/Dashboard/SalaryPayslip'
+              : originalPath,
         '/Dashboard/Billing': basePath === '/Hr' ? '/Dashboard/Billing' : originalPath,
         '/Dashboard/Budget': basePath === '/Hr' ? '/Dashboard/Budget' : originalPath,
         '/Dashboard/Productivity': basePath === '/Hr' ? '/Dashboard/Productivity' : originalPath,
@@ -495,6 +503,8 @@ const CommonSidebar = ({
         if (item.menu_key === "leave_details") return false;
         // Hide Employee Productivity shortcut menu item
         if (item.menu_key === "employee_productivity") return false;
+        // Admin payroll screen — employees use My Payslips only
+        if (basePath === "/Employee" && item.menu_key === "salary_payslip") return false;
         // Time Management removed from Productivity Tracking (still available under Workforce if enabled)
         if (item.menu_key === "time_management") return false;
         
@@ -507,7 +517,7 @@ const CommonSidebar = ({
           'add_crm_date', 'crm_list', 'crm_summary', 'lead_list', 'investment_kyc', 'investment_kyc_submit', 'investment_update_kyc_status',
           'investment_reports', 'investment_admin_user_reports', 'investment_myself_reports', 'investment_withdrawal_requests',
           'investment_referral_earnings', 'investment_referral_reports', 'time_tracking', 'shift_management', 'overtime_management',
-          'leave_balance', 'apply_leave', 'compoff', 'payroll_export', 'billing_invoicing', 'budget_tracking',
+          'leave_balance', 'apply_leave', 'compoff', 'payroll_export', 'salary_payslip', 'billing_invoicing', 'budget_tracking',
           'leave_details', 'compoff_details', 'employee_report', 'project_report', 'weekly_report', 'monthly_report', 'yearly_report',
           'leave_report', 'discipline_report', 'consolidated_report', 'employee_productivity', 'employee_dashboard', 'teamlead_dashboard', 'productivity',
           'automated_reports', 'settings_updates', 'settings_discipline', 'settings_designation', 'settings_roles', 'settings_areaofwork',
@@ -531,6 +541,7 @@ const CommonSidebar = ({
         // This handles features that don't have role-specific routes but user has permission
         // Only allow if user is not on Admin dashboard (basePath !== '/Dashboard')
         if (basePath !== '/Dashboard' && item.menu_path.startsWith('/Dashboard/')) {
+          if (basePath === '/Employee' && item.menu_key === 'salary_payslip') return false;
           // Check if it's a feature menu item by menu_key first
           if (featureMenuKeys.includes(item.menu_key)) {
             // Check permission - if user has permission, include it
@@ -780,6 +791,16 @@ const CommonSidebar = ({
     [sidebarText]
   );
 
+  const getMenuTitle = useCallback(
+    (item) => {
+      const key = String(item?.menu_key || "").trim();
+      const fallback = String(item?.menu_title || "").trim();
+      if (!key) return fallback;
+      return t(`menu.${key}`, { defaultValue: fallback });
+    },
+    [t]
+  );
+
   const renderFlyoutItem = (child, depth = 0) => {
     const subs = menuItems.grouped[child.menu_key] || [];
     if (!subs.length) {
@@ -796,7 +817,7 @@ const CommonSidebar = ({
             {resolveMenuIcon(child)}
           </ListItemIcon>
           <ListItemText
-            primary={child.menu_title}
+            primary={getMenuTitle(child)}
             primaryTypographyProps={{ variant: "body2" }}
           />
         </MenuItem>
@@ -813,7 +834,7 @@ const CommonSidebar = ({
             color: "text.secondary",
           }}
         >
-          {child.menu_title}
+          {getMenuTitle(child)}
         </ListSubheader>
         {subs.map((s) => renderFlyoutItem(s, depth + 1))}
       </React.Fragment>
@@ -872,7 +893,7 @@ const CommonSidebar = ({
             >
               {iconWrap}
               <Typography variant="caption" sx={railLabelSx}>
-                {item.menu_title}
+                {getMenuTitle(item)}
               </Typography>
             </ListItemButton>
           </ListItem>
@@ -930,7 +951,7 @@ const CommonSidebar = ({
           >
             {iconWrap}
             <Typography variant="caption" sx={railLabelSx}>
-              {item.menu_title}
+              {getMenuTitle(item)}
             </Typography>
           </ListItemButton>
         </Link>
@@ -964,7 +985,7 @@ const CommonSidebar = ({
       <React.Fragment key={RAIL_OVERFLOW_POPOVER_KEY}>
         <ListItem disablePadding sx={{ mb: 0.25, justifyContent: "center", width: "100%" }}>
           <ListItemButton
-            aria-label="More navigation"
+            aria-label={t("layout.moreNavigation", { defaultValue: "More navigation" })}
             onClick={(e) => {
               setRailPopover((p) =>
                 p.key === RAIL_OVERFLOW_POPOVER_KEY
@@ -985,7 +1006,7 @@ const CommonSidebar = ({
           >
             {iconWrap}
             <Typography variant="caption" sx={railLabelSx}>
-              More
+              {t("layout.more", { defaultValue: "More" })}
             </Typography>
           </ListItemButton>
         </ListItem>
@@ -1024,7 +1045,7 @@ const CommonSidebar = ({
                   >
                     <ListItemIcon sx={{ minWidth: 36 }}>{resolveMenuIcon(item)}</ListItemIcon>
                     <ListItemText
-                      primary={item.menu_title}
+                      primary={getMenuTitle(item)}
                       primaryTypographyProps={{ variant: "body2" }}
                     />
                   </MenuItem>
@@ -1041,7 +1062,7 @@ const CommonSidebar = ({
                       color: "text.secondary",
                     }}
                   >
-                    {item.menu_title}
+                    {getMenuTitle(item)}
                   </ListSubheader>
                   {children.map((c) => renderFlyoutItem(c, 0))}
                 </React.Fragment>
@@ -1147,7 +1168,7 @@ const CommonSidebar = ({
                 color: textColor,
               }}
             >
-              {item.menu_title}
+              {getMenuTitle(item)}
             </Typography>
           }
         />
@@ -1240,7 +1261,7 @@ const CommonSidebar = ({
         <Box
           component="img"
           src={logoSrc}
-          alt="Logo"
+          alt={t("layout.logoAlt", { defaultValue: "Logo" })}
           onError={(e) => {
             e.target.onerror = null;
             e.target.src = logoImage;
@@ -1455,7 +1476,9 @@ const CommonSidebar = ({
                   "&:hover": { bgcolor: alpha(railActive, 0.9) },
                 }}
               >
-                {tour.completed ? "Replay" : "Tour"}
+                {tour.completed
+                  ? t("layout.replay", { defaultValue: "Replay" })
+                  : t("layout.tour", { defaultValue: "Tour" })}
               </Button>
               <Button
                 fullWidth
@@ -1474,7 +1497,7 @@ const CommonSidebar = ({
                   color: sidebarText,
                 }}
               >
-                Guide
+                {t("layout.guide", { defaultValue: "Guide" })}
               </Button>
             </Stack>
           ) : (
@@ -1489,7 +1512,11 @@ const CommonSidebar = ({
             >
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.25, flexWrap: "wrap" }}>
                 <Chip
-                  label={tour.showTourButtons ? "Setup" : "Help"}
+                  label={
+                    tour.showTourButtons
+                      ? t("layout.setup", { defaultValue: "Setup" })
+                      : t("layout.help", { defaultValue: "Help" })
+                  }
                   size="small"
                   sx={{
                     fontWeight: 700,
@@ -1500,7 +1527,7 @@ const CommonSidebar = ({
                   }}
                 />
                 <Typography variant="body2" sx={{ color: alpha(sidebarText, 0.9), fontWeight: 600 }}>
-                  Help & onboarding
+                  {t("layout.helpOnboarding", { defaultValue: "Help & onboarding" })}
                 </Typography>
               </Box>
               <Stack spacing={1}>
@@ -1512,7 +1539,9 @@ const CommonSidebar = ({
                   onClick={() => tour.startTour()}
                   sx={{ textTransform: "none", fontWeight: 700, bgcolor: railActive }}
                 >
-                  {tour.completed ? "Replay guided tour" : "Start guided tour"}
+                  {tour.completed
+                    ? t("layout.replayGuidedTour", { defaultValue: "Replay guided tour" })
+                    : t("layout.startGuidedTour", { defaultValue: "Start guided tour" })}
                 </Button>
                 <Button
                   fullWidth
@@ -1529,7 +1558,7 @@ const CommonSidebar = ({
                     color: sidebarText,
                   }}
                 >
-                  Open full guide
+                  {t("layout.openFullGuide", { defaultValue: "Open full guide" })}
                 </Button>
               </Stack>
             </Paper>
@@ -1564,13 +1593,13 @@ const CommonSidebar = ({
           </Box>
           {isRailLayout ? (
             <Typography variant="caption" sx={{ mt: 0.25, fontSize: "0.65rem", fontWeight: 600 }}>
-              Logout
+              {t("layout.logout")}
             </Typography>
           ) : (
             <ListItemText
               primary={
                 <Typography variant="body2" fontWeight={600} sx={{ fontSize: "0.875rem" }}>
-                  Logout
+                  {t("layout.logout")}
                 </Typography>
               }
             />
@@ -1608,7 +1637,7 @@ const CommonSidebar = ({
                 edge="start"
                 onClick={handleDrawerToggle}
                 sx={{ mr: 1 }}
-                aria-label="open menu"
+                aria-label={t("layout.openMenu", { defaultValue: "open menu" })}
               >
                 <Menu />
               </IconButton>
@@ -1636,7 +1665,7 @@ const CommonSidebar = ({
                   startIcon={<PendingActions sx={{ fontSize: 18 }} />}
                   sx={{ textTransform: "none", fontWeight: 700, whiteSpace: "nowrap" }}
                 >
-                  Approvals
+                  {t("layout.approvals")}
                 </Button>
               )}
             </Stack>
@@ -1691,7 +1720,7 @@ const CommonSidebar = ({
                     display: { xs: "none", sm: "inline-flex" },
                   }}
                 >
-                  Approvals
+                  {t("layout.approvals")}
                 </Button>
               )}
               {isCompanyAdmin() && (
@@ -1702,12 +1731,16 @@ const CommonSidebar = ({
                   variant="outlined"
                   sx={{ textTransform: "none", fontWeight: 600, display: { xs: "none", sm: "inline-flex" } }}
                 >
-                  Request login
+                  {t("layout.requestLogin")}
                 </Button>
               )}
               {isTrailVersion && (
                 <Chip
-                  label={trailResult.expired ? "Trial ended" : "Trial"}
+                  label={
+                    trailResult.expired
+                      ? t("layout.trialEnded", { defaultValue: "Trial ended" })
+                      : t("layout.trial", { defaultValue: "Trial" })
+                  }
                   size="small"
                   sx={{
                     height: 24,
@@ -1722,7 +1755,7 @@ const CommonSidebar = ({
               {user && (
                 <Stack direction="row" alignItems="center" spacing={1}>
                   <Typography variant="body2" noWrap sx={{ maxWidth: 160, display: { xs: "none", sm: "block" } }}>
-                    {user.employeeName || user.name || user.userName || "User"}
+                    {user.employeeName || user.name || user.userName || t("role.user", { defaultValue: "User" })}
                   </Typography>
                   <Avatar
                     sx={{

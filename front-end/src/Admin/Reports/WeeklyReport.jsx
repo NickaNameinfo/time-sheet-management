@@ -1,273 +1,228 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Box,
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  Stack,
+  Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Alert,
+  Chip,
 } from "@mui/material";
-import {
-  CalendarToday,
-  FileDownload,
-  Refresh,
-} from "@mui/icons-material";
-import api from "../../services/api";
+import { CalendarToday, Assessment, Schedule, TrendingUp, AccountBalance } from "@mui/icons-material";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
+import dayjs from "dayjs";
+import {
+  ReportPageHeader,
+  ReportFilterCard,
+  ReportGridCard,
+  ReportStatsGrid,
+  StatCard,
+  useProjectsAndWorkDetails,
+  useReportSnackbar,
+  hoursFromEntry,
+  entryYear,
+  projectNamesFromData,
+  gridStyle,
+  defaultReportColDef,
+} from "../../components/reports/reportPageUi";
 
 const WeeklyReport = () => {
-  const containerStyle = { width: "100%", height: "100%" };
-  const gridStyle = { height: "100%", width: "100%" };
-  const [projectDetails, setProjectDetails] = useState([]);
-  const [workDetails, setWorkDetails] = useState([]);
-  const [projectWorkHours, setProjectWorkHours] = React.useState(null);
-  const [exportApi, setExportApi] = React.useState(null);
+  const { projectDetails, workDetails, loading, error, loadData } = useProjectsAndWorkDetails();
+  const { notify, SnackbarAlert } = useReportSnackbar();
+  const [exportApi, setExportApi] = useState(null);
+  const [selectedYear, setSelectedYear] = useState(dayjs().year());
+  const [projectFilter, setProjectFilter] = useState("");
 
-  console.log(workDetails, "workDetailsworkDetails", projectDetails);
-  React.useEffect(() => {
-    onGetWorkDetails();
-    onGridReady();
-  }, []);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-  React.useEffect(() => {
-    const projectData = workDetails.reduce((acc, entry) => {
-      const projectName = entry.projectName;
-      if (!acc[projectName]) {
-        acc[projectName] = [];
-      }
-      acc[projectName].push(Number(entry.totalHours));
-      return acc;
-    }, {});
+  const yearWork = useMemo(
+    () => workDetails.filter((w) => entryYear(w) === selectedYear),
+    [workDetails, selectedYear]
+  );
 
-    const projectTotalHours = Object.keys(projectData).map((projectName) => {
-      const totalHours = projectData[projectName].reduce(
-        (sum, hours) => sum + hours,
-        0
-      );
-      return { projectName, totalHours };
+  const filteredProjects = useMemo(() => {
+    if (!projectFilter) return projectDetails;
+    return projectDetails.filter((p) => p.projectName === projectFilter);
+  }, [projectDetails, projectFilter]);
+
+  const yearOptions = useMemo(() => {
+    const years = new Set([dayjs().year()]);
+    workDetails.forEach((w) => {
+      const y = entryYear(w);
+      if (y) years.add(y);
     });
-    setProjectWorkHours(projectTotalHours);
-    console.log(projectTotalHours, "projectTotalHours");
+    return [...years].sort((a, b) => b - a);
   }, [workDetails]);
 
-  const onGridReady = (params) => {
-    setExportApi(params?.api);
+  const projectOptions = useMemo(
+    () => projectNamesFromData(projectDetails, workDetails),
+    [projectDetails, workDetails]
+  );
 
-    api
-      .get("/getProject")
-      .then((res) => {
-        if (res.data.Status === "Success") {
-          setProjectDetails(res.data.Result);
-        } else {
-          alert("Error");
-        }
-      })
-      .catch((err) => console.log(err));
-  };
+  const consumedByProject = useMemo(() => {
+    const map = new Map();
+    yearWork.forEach((w) => {
+      if (!w.projectName) return;
+      map.set(w.projectName, (map.get(w.projectName) || 0) + hoursFromEntry(w));
+    });
+    return map;
+  }, [yearWork]);
 
-  const onGetWorkDetails = (params) => {
-    api
-      .get("/getWorkDetails")
-      .then((res) => {
-        if (res.data.Status === "Success") {
-          let resultData = res.data.Result?.filter(
-            (item) => item.status === "approved"
-          );
-          setWorkDetails(resultData);
-        } else {
-          alert("Error");
-        }
-      })
-      .catch((err) => console.log(err));
-  };
+  const summary = useMemo(() => {
+    let allotted = 0;
+    filteredProjects.forEach((p) => {
+      allotted += parseFloat(p.allotatedHours) || 0;
+    });
+    const consumed = [...consumedByProject.values()].reduce((s, h) => s + h, 0);
+    const filteredConsumed = projectFilter
+      ? consumedByProject.get(projectFilter) || 0
+      : consumed;
+    return {
+      projects: filteredProjects.length,
+      allotted: allotted.toFixed(2),
+      consumed: filteredConsumed.toFixed(2),
+      entries: projectFilter
+        ? yearWork.filter((w) => w.projectName === projectFilter).length
+        : yearWork.length,
+    };
+  }, [filteredProjects, consumedByProject, yearWork, projectFilter]);
 
-  const getTotalHoursForWeek = (data) => {
-    const totalHours = data.reduce(
-      (acc, item) => acc + Number(item.totalHours),
-      0
-    );
-    console.log(totalHours, "totalHours");
-    return totalHours;
-  };
+  const getWeekHours = (projectName, weekNumber) =>
+    yearWork
+      .filter(
+        (item) =>
+          String(item.weekNumber) === String(weekNumber) && item.projectName === projectName
+      )
+      .reduce((acc, item) => acc + hoursFromEntry(item), 0);
 
   const columnDefs = useMemo(() => {
     const weekFields = [];
-
-    // Generate fields for weeks 1 to 52
-    for (let weekNumber = 1; weekNumber <= 52; weekNumber++) {
-      const field = {
-        field: weekNumber.toString(),
-        filter: false,
-        minWidth: 60,
-        valueGetter: (params, index) => {
-          const filteredData = workDetails.filter(
-            (item) =>
-              item.weekNumber === weekNumber.toString() &&
-              item.projectName === String(params.data.projectName)
-          );
-          return getTotalHoursForWeek(filteredData);
-        },
-      };
-      weekFields.push(field);
+    for (let w = 1; w <= 52; w++) {
+      weekFields.push({
+        field: String(w),
+        headerName: `W${w}`,
+        minWidth: 52,
+        maxWidth: 60,
+        valueGetter: (params) => Number(getWeekHours(params.data.projectName, w).toFixed(2)),
+        cellStyle: (p) => (p.value > 0 ? { fontWeight: 600 } : null),
+      });
     }
-
     return [
-      {
-        field: "referenceNo",
-        minWidth: 170,
-      },
+      { field: "projectName", headerName: "Project", minWidth: 180, pinned: "left" },
+      { field: "referenceNo", headerName: "Reference", minWidth: 110 },
+      { field: "desciplineCode", headerName: "Discipline", minWidth: 100 },
       {
         field: "allotatedHours",
-        minWidth: 170,
-        headerName: "Allotted Hours",
+        headerName: "Allotted",
+        minWidth: 90,
+        valueFormatter: (p) => Number(p.value || 0).toFixed(2),
       },
       {
-        field: "Consumed",
-        headerName: "Consumed Hours",
-        minWidth: 170,
-        valueGetter: (params) => {
-          const project = projectWorkHours?.find(
-            (items) => items.projectName === params.data.projectName
-          );
-
-          return project?.totalHours || 0;
-        },
+        headerName: `Consumed (${selectedYear})`,
+        minWidth: 120,
+        valueGetter: (p) =>
+          Number((consumedByProject.get(p.data.projectName) || 0).toFixed(2)),
+        cellStyle: { fontWeight: 600 },
       },
-      // { field: "discipline" },
-      { field: "projectName", minWidth: 170 },
-      { field: "desciplineCode", headerName: "Discipline Code" },
-      ...weekFields, // Include dynamically generated week fields
+      ...weekFields,
     ];
-  }, [projectWorkHours]);
+  }, [yearWork, selectedYear, consumedByProject]);
 
-  const autoGroupColumnDef = useMemo(
-    () => ({
-      headerName: "Group",
-      minWidth: 170,
-      field: "athlete",
-      valueGetter: (params) => {
-        if (params.node.group) {
-          return params.node.key;
-        } else {
-          return params.data[params.colDef.field];
-        }
-      },
-      headerCheckboxSelection: false,
-      valueGetter: "agGroupvalueGetter",
-      valueGetterParams: {
-        checkbox: false,
-      },
-    }),
-    []
-  );
-
-  const defaultColDef = useMemo(
-    () => ({
-      editable: false,
-      enableRowGroup: true,
-      enablePivot: true,
-      enableValue: true,
-      sortable: true,
-      resizable: true,
-      filter: true,
-      floatingFilter: true,
-      flex: 1,
-      minWidth: 100,
-    }),
-    []
-  );
-
-  const onClickExport = () => {
+  const onExport = () => {
     if (exportApi) {
-      exportApi.exportDataAsCsv();
-      alert("Report exported successfully");
-    } else {
-      alert("Please wait for the grid to load");
-    }
-  };
-
-  const onSelectionChanged = (event) => {
-    // Handle selection if needed
+      exportApi.exportDataAsCsv({ fileName: `weekly-report-${selectedYear}.csv` });
+      notify("Report exported successfully");
+    } else notify("Please wait for the grid to load", "warning");
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 2,
-          }}
-        >
-          <Box>
-            <Typography variant="h4" fontWeight="bold" gutterBottom>
-              Project Weekly Report
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              View project hours breakdown by week (1-52)
-            </Typography>
-          </Box>
-          <Stack direction="row" spacing={2}>
-            <Button
-              variant="outlined"
-              startIcon={<Refresh />}
-              onClick={() => {
-                onGridReady();
-                onGetWorkDetails();
-              }}
-            >
-              Refresh
-            </Button>
-            <Button
-              onClick={onClickExport}
-              variant="contained"
-              startIcon={<FileDownload />}
-              sx={{
-                background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
-                "&:hover": {
-                  background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
-                },
-              }}
-            >
-              Export CSV
-            </Button>
-          </Stack>
-        </Box>
-      </Box>
+    <Box sx={{ maxWidth: 1800, mx: "auto" }}>
+      <ReportPageHeader
+        icon={CalendarToday}
+        title="Project Weekly Report"
+        subtitle="Approved hours by project and week number (1–52) for the selected year."
+        onRefresh={loadData}
+        loading={loading}
+        onExport={onExport}
+        exportDisabled={!filteredProjects.length}
+      />
 
-      {/* Grid Card */}
-      <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
-        <CardContent>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
-            <CalendarToday color="primary" />
-            <Typography variant="h6" fontWeight="bold">
-              Weekly Project Hours
-            </Typography>
-          </Box>
-          <Box sx={{ width: "100%", height: "600px" }}>
-            <div style={gridStyle} className="ag-theme-alpine">
-              <AgGridReact
-                rowData={projectDetails}
-                columnDefs={columnDefs}
-                autoGroupColumnDef={autoGroupColumnDef}
-                defaultColDef={defaultColDef}
-                suppressRowClickSelection={true}
-                groupSelectsChildren={true}
-                rowSelection={"single"}
-                rowGroupPanelShow={"always"}
-                pivotPanelShow={"always"}
-                pagination={true}
-                onGridReady={onGridReady}
-                onSelectionChanged={onSelectionChanged}
-              />
-            </div>
-          </Box>
-        </CardContent>
-      </Card>
+      <ReportFilterCard
+        chips={
+          <>
+            <Chip label={`Year ${selectedYear}`} size="small" color="primary" variant="outlined" />
+            {projectFilter && (
+              <Chip label={projectFilter} size="small" color="primary" onDelete={() => setProjectFilter("")} />
+            )}
+          </>
+        }
+      >
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={4} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Year</InputLabel>
+              <Select value={selectedYear} label="Year" onChange={(e) => setSelectedYear(Number(e.target.value))}>
+                {yearOptions.map((y) => (
+                  <MenuItem key={y} value={y}>
+                    {y}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={8} md={5}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Project</InputLabel>
+              <Select value={projectFilter} label="Project" onChange={(e) => setProjectFilter(e.target.value)}>
+                <MenuItem value="">All projects</MenuItem>
+                {projectOptions.map((name) => (
+                  <MenuItem key={name} value={name}>
+                    {name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
+      </ReportFilterCard>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      {!loading && !error && (
+        <ReportStatsGrid>
+          <StatCard icon={Assessment} label="Projects" value={summary.projects} accent="primary" />
+          <StatCard icon={AccountBalance} label="Allotted hrs" value={summary.allotted} accent="info" />
+          <StatCard icon={Schedule} label={`Consumed (${selectedYear})`} value={summary.consumed} accent="warning" valueColor="warning.dark" />
+          <StatCard icon={TrendingUp} label="Approved entries" value={summary.entries} accent="secondary" />
+        </ReportStatsGrid>
+      )}
+
+      <ReportGridCard
+        icon={CalendarToday}
+        title="Weekly project hours"
+        rowCount={filteredProjects.length}
+        loading={loading}
+      >
+        <div style={gridStyle} className="ag-theme-alpine">
+          <AgGridReact
+            rowData={filteredProjects}
+            columnDefs={columnDefs}
+            defaultColDef={defaultReportColDef}
+            pagination
+            paginationPageSize={25}
+            onGridReady={(p) => setExportApi(p?.api)}
+          />
+        </div>
+      </ReportGridCard>
+      {SnackbarAlert}
     </Box>
   );
 };

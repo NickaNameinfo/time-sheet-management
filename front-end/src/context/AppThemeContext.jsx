@@ -3,6 +3,13 @@ import { createTheme, ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import { apiService } from "../services/api";
 import { registerAppThemeRefetch } from "./appThemeRefetch";
+import dayjs from "dayjs";
+import i18n from "../i18n";
+import "dayjs/locale/ar";
+import "dayjs/locale/hi";
+import "dayjs/locale/ur";
+import "dayjs/locale/fr";
+import "dayjs/locale/es";
 
 const DEFAULT_PRIMARY = "#4C86F9";
 const DEFAULT_SUCCESS = "#49A84C";
@@ -53,11 +60,17 @@ function darkenHex(hex, percent = 0.15) {
   return rgbToHex(r * (1 - percent), g * (1 - percent), b * (1 - percent));
 }
 
-function buildThemeFromColors(primary, success, accent) {
+function isRtlLanguage(lang) {
+  const code = String(lang || "en").trim().toLowerCase();
+  return code === "ar" || code === "ur";
+}
+
+function buildThemeFromColors(primary, success, accent, direction = "ltr") {
   const p = primary || DEFAULT_PRIMARY;
   const s = success || DEFAULT_SUCCESS;
   const a = accent || DEFAULT_ACCENT;
   return createTheme({
+    direction,
     palette: {
       primary: { main: p, dark: darkenHex(p) },
       success: { main: s, dark: darkenHex(s) },
@@ -66,6 +79,14 @@ function buildThemeFromColors(primary, success, accent) {
     },
     shape: { borderRadius: 12 },
   });
+}
+
+function applyLanguageToDocument(lang) {
+  if (typeof document === "undefined") return;
+  const code = String(lang || "en").trim().toLowerCase();
+  document.documentElement.lang = code || "en";
+  const rtl = isRtlLanguage(code);
+  document.documentElement.dir = rtl ? "rtl" : "ltr";
 }
 
 const AppThemeContext = createContext({
@@ -83,7 +104,9 @@ const AppThemeContext = createContext({
 });
 
 export function AppThemeProvider({ children }) {
-  const [theme, setTheme] = useState(() => buildThemeFromColors(DEFAULT_PRIMARY, DEFAULT_SUCCESS, DEFAULT_ACCENT));
+  const [theme, setTheme] = useState(() =>
+    buildThemeFromColors(DEFAULT_PRIMARY, DEFAULT_SUCCESS, DEFAULT_ACCENT, "ltr")
+  );
   const [colors, setColors] = useState({
     primary: DEFAULT_PRIMARY,
     success: DEFAULT_SUCCESS,
@@ -105,7 +128,7 @@ export function AppThemeProvider({ children }) {
           sidebarBg: DEFAULT_SIDEBAR_BG,
           sidebarText: DEFAULT_SIDEBAR_TEXT,
         });
-        setTheme(buildThemeFromColors(DEFAULT_PRIMARY, DEFAULT_SUCCESS, DEFAULT_ACCENT));
+        setTheme(buildThemeFromColors(DEFAULT_PRIMARY, DEFAULT_SUCCESS, DEFAULT_ACCENT, "ltr"));
         setLogoUrl("");
         setLocalePrefs(DEFAULT_LOCALE_PREFS);
         return;
@@ -119,15 +142,28 @@ export function AppThemeProvider({ children }) {
       const sidebarBg = normalizeSidebarColor(data.theme_sidebar_bg, DEFAULT_SIDEBAR_BG);
       const sidebarText = normalizeSidebarTextColor(data.theme_sidebar_text, DEFAULT_SIDEBAR_TEXT);
       setColors({ primary, success, accent, sidebarBg, sidebarText });
-      setTheme(buildThemeFromColors(primary, success, accent));
+      const lang = data.language || DEFAULT_LOCALE_PREFS.language;
+      const direction = isRtlLanguage(lang) ? "rtl" : "ltr";
+      setTheme(buildThemeFromColors(primary, success, accent, direction));
       setLogoUrl((data.logo_url && String(data.logo_url).trim()) || "");
       setLocalePrefs({
         time_format: data.time_format || DEFAULT_LOCALE_PREFS.time_format,
         date_format: data.date_format || DEFAULT_LOCALE_PREFS.date_format,
-        language: data.language || DEFAULT_LOCALE_PREFS.language,
+        language: lang,
       });
+      applyLanguageToDocument(lang);
+      try {
+        await i18n.changeLanguage(String(lang || "en").toLowerCase());
+      } catch {
+        // ignore; i18n falls back to "en"
+      }
+      try {
+        dayjs.locale(String(lang || "en").toLowerCase());
+      } catch {
+        dayjs.locale("en");
+      }
     } catch (err) {
-      setTheme(buildThemeFromColors(DEFAULT_PRIMARY, DEFAULT_SUCCESS, DEFAULT_ACCENT));
+      setTheme(buildThemeFromColors(DEFAULT_PRIMARY, DEFAULT_SUCCESS, DEFAULT_ACCENT, "ltr"));
       setColors({
         primary: DEFAULT_PRIMARY,
         success: DEFAULT_SUCCESS,
@@ -137,8 +173,40 @@ export function AppThemeProvider({ children }) {
       });
       setLogoUrl("");
       setLocalePrefs(DEFAULT_LOCALE_PREFS);
+      applyLanguageToDocument(DEFAULT_LOCALE_PREFS.language);
+      try {
+        await i18n.changeLanguage(String(DEFAULT_LOCALE_PREFS.language || "en").toLowerCase());
+      } catch {
+        // ignore
+      }
+      dayjs.locale("en");
     }
   }, []);
+
+  // Apply lang/dir whenever localePrefs.language changes.
+  useEffect(() => {
+    const lang = localePrefs?.language || DEFAULT_LOCALE_PREFS.language;
+    applyLanguageToDocument(lang);
+    const direction = isRtlLanguage(lang) ? "rtl" : "ltr";
+    setTheme((prev) =>
+      buildThemeFromColors(
+        prev?.palette?.primary?.main || colors.primary,
+        prev?.palette?.success?.main || colors.success,
+        prev?.palette?.warning?.main || colors.accent,
+        direction
+      )
+    );
+    try {
+      i18n.changeLanguage(String(lang || "en").toLowerCase());
+    } catch {
+      // ignore
+    }
+    try {
+      dayjs.locale(String(lang || "en").toLowerCase());
+    } catch {
+      dayjs.locale("en");
+    }
+  }, [localePrefs?.language, colors.primary, colors.success, colors.accent]);
 
   useEffect(() => {
     fetchAndApply();

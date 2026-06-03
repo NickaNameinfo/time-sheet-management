@@ -821,10 +821,16 @@ class ApiService {
   }
 
   // Get Work Details
-  Future<List<dynamic>> getWorkDetails({String? employeeId}) async {
+  Future<List<dynamic>> getWorkDetails({
+    String? employeeId,
+    String? startDate,
+    String? endDate,
+  }) async {
     try {
       final queryParams = <String, dynamic>{};
       if (employeeId != null) queryParams['employeeId'] = employeeId;
+      if (startDate != null && startDate.isNotEmpty) queryParams['startDate'] = startDate;
+      if (endDate != null && endDate.isNotEmpty) queryParams['endDate'] = endDate;
       final response = await _dio.get('/getWorkDetails', queryParameters: queryParams);
       if (response.data['Status'] == 'Success') {
         return response.data['Result'] ?? [];
@@ -1483,6 +1489,68 @@ class ApiService {
       rethrow;
     } catch (e) {
       _logger.e('Unexpected error in getEmployeeAssignedProjects: $e');
+      rethrow;
+    }
+  }
+
+  dynamic _unwrapResult(dynamic data) {
+    if (data is Map && data['Status'] == 'Success') {
+      return data['Result'];
+    }
+    if (data is Map && data.containsKey('Result')) {
+      return data['Result'];
+    }
+    return data;
+  }
+
+  /// Paid payslips for logged-in employee.
+  Future<List<dynamic>> getMyPaidPayslips() async {
+    try {
+      final response = await _dio.get(AppConfig.myPaidPayslipsEndpoint);
+      final result = _unwrapResult(response.data);
+      if (result is List) return result;
+      return [];
+    } catch (e) {
+      _logger.e('Get my paid payslips error: $e');
+      rethrow;
+    }
+  }
+
+  /// Own attendance + pay breakdown for a date range.
+  Future<Map<String, dynamic>> getMyPayslipPeriodSummary({
+    required String startDate,
+    required String endDate,
+  }) async {
+    try {
+      final response = await _dio.get(
+        AppConfig.myPayslipPeriodSummaryEndpoint,
+        queryParameters: {'startDate': startDate, 'endDate': endDate},
+      );
+      final result = _unwrapResult(response.data);
+      if (result is Map) return Map<String, dynamic>.from(result);
+      return {};
+    } catch (e) {
+      _logger.e('Get my payslip period summary error: $e');
+      rethrow;
+    }
+  }
+
+  /// Payslip detail (employee may only view own paid slip).
+  Future<Map<String, dynamic>> getSalaryPayslipDetail({
+    required String employeeId,
+    required String startDate,
+    required String endDate,
+  }) async {
+    try {
+      final response = await _dio.get(
+        AppConfig.salaryPayslipDetailEndpoint(employeeId),
+        queryParameters: {'startDate': startDate, 'endDate': endDate},
+      );
+      final result = _unwrapResult(response.data);
+      if (result is Map) return Map<String, dynamic>.from(result);
+      return {};
+    } catch (e) {
+      _logger.e('Get salary payslip detail error: $e');
       rethrow;
     }
   }

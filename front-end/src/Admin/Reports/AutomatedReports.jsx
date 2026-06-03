@@ -31,7 +31,13 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  Divider,
 } from "@mui/material";
+import {
+  ReportPageHeader,
+  pageCardSx,
+  useReportSnackbar,
+} from "../../components/reports/reportPageUi";
 import {
   Email,
   Add,
@@ -49,6 +55,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
 
 const AutomatedReports = () => {
+  const { notify, SnackbarAlert } = useReportSnackbar();
   const [scheduleDialog, setScheduleDialog] = useState(false);
   const [sendDialog, setSendDialog] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(null);
@@ -104,7 +111,7 @@ const AutomatedReports = () => {
       setScheduleDialog(false);
       resetScheduleForm();
       refetchSchedules();
-      alert("Report schedule created successfully");
+      notify("Report schedule created successfully");
     }
   };
 
@@ -115,7 +122,7 @@ const AutomatedReports = () => {
       setEditingSchedule(null);
       resetScheduleForm();
       refetchSchedules();
-      alert("Report schedule updated successfully");
+      notify("Report schedule updated successfully");
     }
   };
 
@@ -125,7 +132,7 @@ const AutomatedReports = () => {
       if (result.success) {
         setEditingSchedule(null);
         refetchSchedules();
-        alert("Schedule deleted successfully");
+        notify("Schedule deleted successfully");
       }
     }
   };
@@ -135,7 +142,7 @@ const AutomatedReports = () => {
     if (result.success) {
       setSendDialog(false);
       resetSendForm();
-      alert("Report sent successfully");
+      notify("Report sent successfully");
     }
   };
 
@@ -217,65 +224,42 @@ const AutomatedReports = () => {
   const schedulesList = schedules?.Result || schedules || [];
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 2,
+    <Box sx={{ maxWidth: 1200, mx: "auto" }}>
+      <ReportPageHeader
+        icon={Email}
+        title="Automated Reports"
+        subtitle="Schedule or send email summaries of approved timesheet totals (entries + hours) for daily, weekly, or monthly periods."
+        onRefresh={refetchSchedules}
+        loading={schedulesLoading}
+      />
+      <Stack direction="row" spacing={1.5} sx={{ mb: 3, justifyContent: "flex-end", mt: -1 }}>
+        <Button variant="outlined" startIcon={<Send />} onClick={() => setSendDialog(true)} sx={{ borderRadius: 2, textTransform: "none" }}>
+          Send now
+        </Button>
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={() => {
+            setEditingSchedule(null);
+            resetScheduleForm();
+            setScheduleDialog(true);
           }}
+          sx={{ borderRadius: 2, textTransform: "none", fontWeight: 600 }}
         >
-          <Box>
-            <Typography variant="h4" fontWeight="bold" gutterBottom>
-              Automated Reports
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 720 }}>
-              Each schedule emails one <strong>timesheet summary</strong>: total approved work entries and total hours
-              from the database for the chosen period (daily / weekly / monthly). &quot;Report name&quot; is only the
-              title in the email—not a separate report type (e.g. it is not the Employee or Project PDF reports).
-            </Typography>
-          </Box>
-          <Stack direction="row" spacing={2}>
-            <Button
-              variant="outlined"
-              startIcon={<Send />}
-              onClick={() => setSendDialog(true)}
-            >
-              Send Report Now
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={() => {
-                setEditingSchedule(null);
-                resetScheduleForm();
-                setScheduleDialog(true);
-              }}
-              sx={{
-                background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
-                "&:hover": {
-                  background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
-                },
-              }}
-            >
-              Create Schedule
-            </Button>
-          </Stack>
-        </Box>
-      </Box>
+          Create schedule
+        </Button>
+      </Stack>
 
-      {/* Schedules List */}
-      <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
+      <Card sx={pageCardSx}>
         <CardContent>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
+          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
             <Schedule color="primary" />
-            <Typography variant="h6" fontWeight="bold">
-              Report Schedules
+            <Typography variant="h6" fontWeight={700}>
+              Report schedules
             </Typography>
-          </Box>
+            <Chip label={`${schedulesList.length} active`} size="small" variant="outlined" />
+          </Stack>
+          <Divider sx={{ mb: 2 }} />
           {schedulesList.length > 0 ? (
             <TableContainer component={Paper} variant="outlined">
               <Table>
@@ -624,6 +608,7 @@ const AutomatedReports = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      {SnackbarAlert}
     </Box>
   );
 };

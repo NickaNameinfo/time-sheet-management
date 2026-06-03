@@ -442,6 +442,43 @@ export const getMenuPermissionsByRole = asyncHandler(async (req, res) => {
 });
 
 // Get menu permissions for logged-in employee (considers both role and employee-specific permissions)
+const PAYROLL_ADMIN_MENU_KEYS = new Set(["salary_payslip", "payroll_export"]);
+
+function isPayrollAdminRoleForMenus(req) {
+  const role = String(req.role || "").toLowerCase();
+  const companyRole = String(req.company_role || "").toLowerCase();
+  const menuRole = String(req.company_menu_role || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+  if (["admin", "hr", "company_admin"].includes(role)) return true;
+  if (["admin", "hr"].includes(companyRole)) return true;
+  if (["admin", "hr"].includes(menuRole)) return true;
+  return false;
+}
+
+/** Employees may only open My Payslips (view/print paid slips), not admin payroll screens. */
+function applyEmployeePayrollMenuPolicy(menus, req) {
+  if (isPayrollAdminRoleForMenus(req)) return menus;
+  return menus
+    .filter((item) => !PAYROLL_ADMIN_MENU_KEYS.has(item.menu_key))
+    .map((item) => {
+      if (item.menu_key !== "my_payslips") return item;
+      return {
+        ...item,
+        menu_path: "/Employee/MyPayslips",
+        add_permission: [],
+        edit_permission: [],
+        delete_permission: [],
+        all_permission: [],
+        emp_add_permission: false,
+        emp_edit_permission: false,
+        emp_delete_permission: false,
+        emp_all_permission: false,
+      };
+    });
+}
+
 export const getMenuPermissionsByEmployee = asyncHandler(async (req, res) => {
   // IMPORTANT: req.id is the employee.id from database (used in menu_employee_permissions.employee_id)
   // req.employeeId is the EMPID (employee number), NOT the database ID
@@ -775,6 +812,22 @@ export const getMenuPermissionsByEmployee = asyncHandler(async (req, res) => {
               .map((m) => m.menu_key)
           );
 
+          // Opt-in company menus: if Payroll & Finance items are enabled but salary_payslip
+          // was added after company permissions were saved, still expose it for that company.
+          const payrollFinanceKeys = new Set([
+            "payroll_finance",
+            "payroll_export",
+            "billing_invoicing",
+            "budget_tracking",
+          ]);
+          const hasPayrollFinanceAccess = [...payrollFinanceKeys].some((k) => allowedKeys.has(k));
+          if (
+            hasPayrollFinanceAccess &&
+            (allMenus || []).some((m) => m.menu_key === "salary_payslip")
+          ) {
+            allowedKeys.add("salary_payslip");
+          }
+
           const parseJsonField = (field) => {
             if (!field) return [];
             try {
@@ -831,12 +884,10 @@ export const getMenuPermissionsByEmployee = asyncHandler(async (req, res) => {
            * If not set: legacy — any non-admin staff tag in the matrix (backward compatible).
            */
           const isCompanyRoleAllowedForMenu = (row) => {
-            const combined = [
+            // Sidebar access: View / Access / All only — Edit/Add/Delete must not expose menus.
+            const accessRoles = [
               ...parseJsonField(row.allowed_roles),
               ...parseJsonField(row.view_permission),
-              ...parseJsonField(row.add_permission),
-              ...parseJsonField(row.edit_permission),
-              ...parseJsonField(row.delete_permission),
               ...parseJsonField(row.all_permission),
             ].filter((r) => r != null && String(r).trim() !== "");
 
@@ -844,7 +895,7 @@ export const getMenuPermissionsByEmployee = asyncHandler(async (req, res) => {
 
             const portalKey = normalizeRoleKey(portalMenuRole);
             if (portalKey) {
-              return combined.some((roleIn) => norm(roleIn) === portalKey);
+              return accessRoles.some((roleIn) => norm(roleIn) === portalKey);
             }
 
             const isAdminOnlyTag = (roleIn) => {
@@ -852,7 +903,7 @@ export const getMenuPermissionsByEmployee = asyncHandler(async (req, res) => {
               return n === "admin" || n === "company_admin";
             };
 
-            const hasStaffTag = combined.some((roleIn) => {
+            const hasStaffTag = accessRoles.some((roleIn) => {
               const n = norm(roleIn);
               if (!n) return false;
               if (n === "company_user" || n === "employee" || n === "hr") return true;
@@ -916,7 +967,7 @@ export const getMenuPermissionsByEmployee = asyncHandler(async (req, res) => {
               emp_delete_permission: false,
               emp_all_permission: false,
             }));
-          return sendSuccess(res, formatted);
+          return sendSuccess(res, applyEmployeePayrollMenuPolicy(formatted, req));
         } catch (err) {
           if (err.code === "ER_NO_SUCH_TABLE") {
             return sendSuccess(res, []);
@@ -1081,9 +1132,12 @@ export const getMenuPermissionsByEmployee = asyncHandler(async (req, res) => {
       })
       .filter(item => item !== null); // Remove null items (menus without permission)
     
-    console.log(`Returning ${formattedResults.length} menus for role: ${role} (normalized: ${normalizedRole})`);
-    
-    return sendSuccess(res, formattedResults);
+    const policyMenus = applyEmployeePayrollMenuPolicy(formattedResults, req);
+    console.log(
+      `Returning ${policyMenus.length} menus for role: ${role} (normalized: ${normalizedRole})`
+    );
+
+    return sendSuccess(res, policyMenus);
   } catch (error) {
     if (error.code === 'ER_NO_SUCH_TABLE') {
       console.warn("Menu permissions table does not exist. Returning empty array.");

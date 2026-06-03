@@ -13,6 +13,7 @@ import {
   useTheme,
 } from "@mui/material";
 import { Assignment, CalendarMonth } from "@mui/icons-material";
+import { useTranslation } from "react-i18next";
 
 export default function EmployeeAssignedProjectPlansCard({
   assignedProjectsList = [],
@@ -21,6 +22,7 @@ export default function EmployeeAssignedProjectPlansCard({
   assignedPlansWithProgress = [],
 }) {
   const theme = useTheme();
+  const { t } = useTranslation();
 
   return (
     <Card sx={{ mb: 3, borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
@@ -29,11 +31,13 @@ export default function EmployeeAssignedProjectPlansCard({
           <Assignment color="primary" />
           <Box sx={{ flex: 1 }}>
             <Typography variant="h6" fontWeight="bold">
-              Your project plans
+              {t("plans.yourProjectPlans", { defaultValue: "Your project plans" })}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Plans you are assigned to on Project Planning, and your logged hours in the plan period vs allotted
-              hours.
+              {t("plans.subtitle", {
+                defaultValue:
+                  "Plans you are assigned to on Project Planning, and your logged hours in the plan period vs allotted hours.",
+              })}
             </Typography>
           </Box>
         </Box>
@@ -43,8 +47,10 @@ export default function EmployeeAssignedProjectPlansCard({
           </Box>
         ) : assignedPlansWithProgress.length === 0 ? (
           <Typography variant="body2" color="text.secondary">
-            You have no active assignments from project plans. When a manager assigns you on Project Planning, it will
-            appear here with progress.
+            {t("plans.noActiveAssignments", {
+              defaultValue:
+                "You have no active assignments from project plans. When a manager assigns you on Project Planning, it will appear here with progress.",
+            })}
           </Typography>
         ) : (
           <Grid container spacing={2}>
@@ -62,10 +68,10 @@ export default function EmployeeAssignedProjectPlansCard({
                   <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1} sx={{ mb: 1 }}>
                     <Box sx={{ minWidth: 0 }}>
                       <Typography variant="subtitle1" fontWeight={800} noWrap title={row.plan_name}>
-                        {row.plan_name || "Plan"}
+                        {row.plan_name || t("plans.plan", { defaultValue: "Plan" })}
                       </Typography>
                       <Typography variant="body2" color="text.secondary" noWrap title={row.projectName}>
-                        {row.projectName || "Project"}
+                        {row.projectName || t("plans.project", { defaultValue: "Project" })}
                         {row.projectNo ? ` · #${row.projectNo}` : ""}
                       </Typography>
                     </Box>
@@ -108,12 +114,12 @@ export default function EmployeeAssignedProjectPlansCard({
                     </Typography>
                   </Box>
                   <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
-                    Logged {row.usedHours}h
+                    {t("plans.logged", { defaultValue: "Logged" })} {row.usedHours}h
                     {row.progressCap > 0 ? ` / ${row.progressCap}h` : ""}
                     {row.allotted_hours != null && parseFloat(row.allotted_hours) > 0
-                      ? ` (your allotment)`
+                      ? ` (${t("plans.yourAllotment", { defaultValue: "your allotment" })})`
                       : row.plan_total_hours != null
-                        ? ` (plan total)`
+                        ? ` (${t("plans.planTotal", { defaultValue: "plan total" })})`
                         : ""}
                   </Typography>
                 </Box>

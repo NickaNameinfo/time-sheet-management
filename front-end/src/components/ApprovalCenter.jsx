@@ -3,6 +3,12 @@ import { useApi } from "../hooks/useApi";
 import { useMutation } from "../hooks/useMutation";
 import { apiService } from "../services/api";
 import {
+  formatClockDateTime,
+  clockFieldsFromHistory,
+  isTimesheetEntityType,
+  workDetailHours,
+} from "../utils/formatWorkDetailClock";
+import {
   Box,
   Button,
   Card,
@@ -53,9 +59,38 @@ import { startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
 import ErrorMessage from "./ErrorMessage";
 import Loading from "./Loading";
 import { useAuth } from "../context/AuthContext";
+import { useTranslation } from "react-i18next";
+
+function isApprovedWorkdetail(entity) {
+  if (entity?.approvedInHistory === true) return true;
+  const s = String(entity?.status || entity?.workStatus || "")
+    .toLowerCase()
+    .trim();
+  if (s === "approved") return true;
+  const ad = entity?.approvedDate;
+  return Boolean(ad && String(ad) !== "0000-00-00 00:00:00");
+}
+
+function isRejectedWorkdetail(entity) {
+  return String(entity?.status || "").toLowerCase().trim() === "rejected";
+}
+
+function isPendingTimesheetEntity(entity) {
+  return !isApprovedWorkdetail(entity) && !isRejectedWorkdetail(entity);
+}
+
+const DEFAULT_HISTORY_FILTERS = {
+  entityType: "timesheet",
+  status: "approved",
+  startDate: null,
+  endDate: null,
+  employeeName: "",
+  projectName: "",
+};
 
 const ApprovalCenter = () => {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [tabValue, setTabValue] = useState(0);
   const [approvalDialog, setApprovalDialog] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -98,7 +133,11 @@ const ApprovalCenter = () => {
     const isCheckedOut = Boolean(clockOutTime) || normalizedStatus === "completed";
     const isCheckedIn = Boolean(clockInTime) || normalizedStatus === "active";
 
-    const label = isCheckedOut ? "Checked Out" : isCheckedIn ? "Checked In" : "Pending";
+    const label = isCheckedOut
+      ? t("approvals.checkedOut", { defaultValue: "Checked Out" })
+      : isCheckedIn
+        ? t("approvals.checkedIn", { defaultValue: "Checked In" })
+        : t("approvals.pending", { defaultValue: "Pending" });
     const color = isCheckedOut ? "default" : isCheckedIn ? "success" : "warning";
 
     const tooltipParts = [];
@@ -110,7 +149,10 @@ const ApprovalCenter = () => {
       const d = new Date(clockOutTime);
       tooltipParts.push(`Out: ${Number.isNaN(d.getTime()) ? String(clockOutTime) : d.toLocaleString()}`);
     }
-    const tooltip = tooltipParts.length > 0 ? tooltipParts.join(" • ") : "Hours not submitted yet";
+    const tooltip =
+      tooltipParts.length > 0
+        ? tooltipParts.join(" • ")
+        : t("approvals.hoursNotSubmittedYet", { defaultValue: "Hours not submitted yet" });
 
     return (
       <Tooltip title={tooltip}>
@@ -142,10 +184,10 @@ const ApprovalCenter = () => {
     return Number.isNaN(d.getTime()) ? null : d;
   };
 
-  // History filters
+  // History: default to approved timesheets / workdetails only
   const [historyFilters, setHistoryFilters] = useState({
-    entityType: "",
-    status: "",
+    entityType: "timesheet",
+    status: "approved",
     startDate: null,
     endDate: null,
     employeeName: "",
@@ -171,7 +213,11 @@ const ApprovalCenter = () => {
     return {
       leaves: list.filter((a) => a.entityType === "leave"),
       overtime: list.filter((a) => a.entityType === "overtime"),
-      timesheets: list.filter((a) => a.entityType === "timesheet"),
+      timesheets: list.filter(
+        (a) =>
+          (a.entityType === "timesheet" || a.entityType === "workdetails") &&
+          isPendingTimesheetEntity(a.entity)
+      ),
     };
   }, [pendingApprovals]);
 
@@ -226,7 +272,7 @@ const ApprovalCenter = () => {
   }, [overtime, overtimeFilters.employeeName, overtimeFilters.startDate, overtimeFilters.endDate]);
 
   const filteredTimesheets = useMemo(() => {
-    let filtered = timesheets;
+    let filtered = timesheets.filter((item) => isPendingTimesheetEntity(item?.entity));
 
     if (timesheetFilters.employeeName) {
       filtered = filtered.filter((item) => {
@@ -396,9 +442,11 @@ const ApprovalCenter = () => {
       }
     }
 
-    // Status filter
+    // Status filter (History tab defaults to approved only)
     if (historyFilters.status) {
-      filtered = filtered.filter((record) => String(record.status || "").toLowerCase() === historyFilters.status);
+      filtered = filtered.filter(
+        (record) => String(record.status || "").toLowerCase() === historyFilters.status
+      );
     }
 
     // Date range filter (created_at)
@@ -577,10 +625,10 @@ const ApprovalCenter = () => {
         >
           <Box>
             <Typography variant="h4" fontWeight="bold" gutterBottom>
-              Approval Center
+              {t("approvals.title", { defaultValue: "Approval Center" })}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Review and approve pending requests
+              {t("approvals.subtitle", { defaultValue: "Review and approve pending requests" })}
             </Typography>
           </Box>
           <Stack direction="row" spacing={2}>
@@ -594,7 +642,7 @@ const ApprovalCenter = () => {
                 }
               }}
             >
-              Refresh
+              {t("common.refresh", { defaultValue: "Refresh" })}
             </Button>
             {selectedItems.length > 0 && (
               <Stack direction="row" spacing={1}>
@@ -610,7 +658,10 @@ const ApprovalCenter = () => {
                     },
                   }}
                 >
-                  Bulk Approve ({selectedItems.length})
+                  {t("approvals.bulkApprove", {
+                    defaultValue: "Bulk Approve ({{count}})",
+                    count: selectedItems.length,
+                  })}
                 </Button>
                 <Button
                   variant="contained"
@@ -624,7 +675,10 @@ const ApprovalCenter = () => {
                     },
                   }}
                 >
-                  Bulk Reject ({selectedItems.length})
+                  {t("approvals.bulkReject", {
+                    defaultValue: "Bulk Reject ({{count}})",
+                    count: selectedItems.length,
+                  })}
                 </Button>
               </Stack>
             )}
@@ -653,22 +707,22 @@ const ApprovalCenter = () => {
         <Tab
           icon={<Description />}
           iconPosition="start"
-          label={`Leaves (${leaves.length})`}
+          label={t("approvals.tabs.leavesCount", { defaultValue: "Leaves ({{count}})", count: leaves.length })}
         />
         <Tab
           icon={<AccessTime />}
           iconPosition="start"
-          label={`Overtime (${overtime.length})`}
+          label={t("approvals.tabs.overtimeCount", { defaultValue: "Overtime ({{count}})", count: overtime.length })}
         />
         <Tab
           icon={<Assignment />}
           iconPosition="start"
-          label={`Timesheets (${timesheets.length})`}
+          label={t("approvals.tabs.timesheetsCount", { defaultValue: "Timesheets ({{count}})", count: filteredTimesheets.length })}
         />
         <Tab
           icon={<History />}
           iconPosition="start"
-          label="History"
+          label={t("approvals.tabs.history", { defaultValue: "History" })}
         />
       </Tabs>
 
@@ -681,16 +735,16 @@ const ApprovalCenter = () => {
               <Grid container spacing={2} alignItems="center">
                 <Grid item xs={12} md={4}>
                   <FormControl fullWidth size="small">
-                    <InputLabel>Employee</InputLabel>
+                    <InputLabel>{t("common.employee", { defaultValue: "Employee" })}</InputLabel>
                     <Select
                       value={leaveFilters.employeeName}
-                      label="Employee"
+                      label={t("common.employee", { defaultValue: "Employee" })}
                       onChange={(e) => {
                         setLeavePage(0);
                         setLeaveFilters({ ...leaveFilters, employeeName: e.target.value });
                       }}
                     >
-                      <MenuItem value="">All Employees</MenuItem>
+                      <MenuItem value="">{t("common.allEmployees", { defaultValue: "All Employees" })}</MenuItem>
                       {employees.map((emp) => (
                         <MenuItem key={emp} value={emp}>
                           {emp}
@@ -702,7 +756,7 @@ const ApprovalCenter = () => {
                 <Grid item xs={12} md={3}>
                   <LocalizationProvider dateAdapter={AdapterDayjs}>
                     <DatePicker
-                      label="From"
+                      label={t("common.from", { defaultValue: "From" })}
                       value={leaveFilters.startDate ? dayjs(leaveFilters.startDate) : null}
                       onChange={(newValue) => {
                         setLeavePage(0);
@@ -718,7 +772,7 @@ const ApprovalCenter = () => {
                 <Grid item xs={12} md={3}>
                   <LocalizationProvider dateAdapter={AdapterDayjs}>
                     <DatePicker
-                      label="To"
+                      label={t("common.to", { defaultValue: "To" })}
                       value={leaveFilters.endDate ? dayjs(leaveFilters.endDate) : null}
                       onChange={(newValue) => {
                         setLeavePage(0);
@@ -740,7 +794,7 @@ const ApprovalCenter = () => {
                       setLeaveFilters({ employeeName: "", startDate: null, endDate: null });
                     }}
                   >
-                    Clear
+                    {t("common.clear", { defaultValue: "Clear" })}
                   </Button>
                 </Grid>
               </Grid>
@@ -749,14 +803,30 @@ const ApprovalCenter = () => {
               <Table>
                 <TableHead>
                   <TableRow sx={{ bgcolor: "primary.main" }}>
-                    <TableCell padding="checkbox" sx={{ color: "white" }}>Select</TableCell>
-                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Employee</TableCell>
-                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Leave Type</TableCell>
-                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>From</TableCell>
-                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>To</TableCell>
-                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Days</TableCell>
-                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Reason</TableCell>
-                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Action</TableCell>
+                    <TableCell padding="checkbox" sx={{ color: "white" }}>
+                      {t("common.select", { defaultValue: "Select" })}
+                    </TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                      {t("common.employee", { defaultValue: "Employee" })}
+                    </TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                      {t("approvals.leaveType", { defaultValue: "Leave Type" })}
+                    </TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                      {t("common.from", { defaultValue: "From" })}
+                    </TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                      {t("common.to", { defaultValue: "To" })}
+                    </TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                      {t("approvals.days", { defaultValue: "Days" })}
+                    </TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                      {t("approvals.reason", { defaultValue: "Reason" })}
+                    </TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                      {t("approvals.action", { defaultValue: "Action" })}
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -798,7 +868,7 @@ const ApprovalCenter = () => {
                         </TableCell>
                         <TableCell>
                           <Box sx={{ display: "flex", gap: 1 }}>
-                            <Tooltip title="Approve">
+                            <Tooltip title={t("approvals.approve", { defaultValue: "Approve" })}>
                               <IconButton
                                 size="small"
                                 color="success"
@@ -813,7 +883,7 @@ const ApprovalCenter = () => {
                                 <CheckCircle fontSize="small" />
                               </IconButton>
                             </Tooltip>
-                            <Tooltip title="Reject">
+                            <Tooltip title={t("approvals.reject", { defaultValue: "Reject" })}>
                               <IconButton
                                 size="small"
                                 color="error"
@@ -836,7 +906,9 @@ const ApprovalCenter = () => {
                     <TableRow>
                       <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
                         <Typography color="text.secondary">
-                          {leaves.length > 0 ? "No leave requests match your filters" : "No pending leave requests"}
+                          {leaves.length > 0
+                            ? t("approvals.noLeaveMatchFilters", { defaultValue: "No leave requests match your filters" })
+                            : t("approvals.noPendingLeaves", { defaultValue: "No pending leave requests" })}
                         </Typography>
                       </TableCell>
                     </TableRow>
@@ -856,9 +928,14 @@ const ApprovalCenter = () => {
                   setLeavePage(0);
                 }}
                 rowsPerPageOptions={[10, 25, 50, 100]}
-                labelRowsPerPage="Rows per page:"
+                labelRowsPerPage={t("common.rowsPerPage", { defaultValue: "Rows per page:" })}
                 labelDisplayedRows={({ from, to, count }) =>
-                  `${from}-${to} of ${count !== -1 ? count : `more than ${to}`}`
+                  t("common.paginationDisplayedRows", {
+                    defaultValue: "{{from}}-{{to}} of {{count}}",
+                    from,
+                    to,
+                    count: count !== -1 ? count : `${t("common.moreThan", { defaultValue: "more than" })} ${to}`,
+                  })
                 }
               />
             )}
@@ -1135,6 +1212,8 @@ const ApprovalCenter = () => {
                     <TableCell sx={{ color: "white", fontWeight: "bold" }}>Employee</TableCell>
                     <TableCell sx={{ color: "white", fontWeight: "bold" }}>Project</TableCell>
                     <TableCell sx={{ color: "white", fontWeight: "bold" }}>Date</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Clock In</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Clock Out</TableCell>
                     <TableCell sx={{ color: "white", fontWeight: "bold" }}>Hours</TableCell>
                     <TableCell sx={{ color: "white", fontWeight: "bold" }}>Action</TableCell>
                   </TableRow>
@@ -1163,6 +1242,8 @@ const ApprovalCenter = () => {
                         </TableCell>
                         <TableCell>{item.entity.projectName}</TableCell>
                         <TableCell>{item.entity.sentDate}</TableCell>
+                        <TableCell>{formatClockDateTime(item.entity.clockInTime || item.entity.sentDate)}</TableCell>
+                        <TableCell>{formatClockDateTime(item.entity.clockOutTime)}</TableCell>
                         <TableCell>
                           {getTimesheetHoursCell(item.entity)}
                         </TableCell>
@@ -1224,7 +1305,7 @@ const ApprovalCenter = () => {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                      <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
                         <Typography color="text.secondary">
                           {timesheets.length > 0 ? "No timesheets match your filters" : "No pending timesheet requests"}
                         </Typography>
@@ -1407,15 +1488,7 @@ const ApprovalCenter = () => {
                   <Button
                     variant="outlined"
                     onClick={() => {
-                      setHistoryFilters((prev) => ({
-                        ...prev,
-                        entityType: "",
-                        status: "",
-                        startDate: null,
-                        endDate: null,
-                        employeeName: "",
-                        projectName: "",
-                      }));
+                      setHistoryFilters({ ...DEFAULT_HISTORY_FILTERS });
                       setHistoryPage(0);
                     }}
                     size="small"
@@ -1434,6 +1507,9 @@ const ApprovalCenter = () => {
                     <TableCell sx={{ color: "white", fontWeight: "bold" }}>Entity ID</TableCell>
                     <TableCell sx={{ color: "white", fontWeight: "bold" }}>Employee</TableCell>
                     <TableCell sx={{ color: "white", fontWeight: "bold" }}>Project</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Clock In</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Clock Out</TableCell>
+                    <TableCell sx={{ color: "white", fontWeight: "bold" }}>Hours</TableCell>
                     <TableCell sx={{ color: "white", fontWeight: "bold" }}>Approver</TableCell>
                     <TableCell sx={{ color: "white", fontWeight: "bold" }}>Level</TableCell>
                     <TableCell sx={{ color: "white", fontWeight: "bold" }}>Status</TableCell>
@@ -1445,7 +1521,10 @@ const ApprovalCenter = () => {
                   {approvalHistory?.length > 0 ? (
                     approvalHistory
                       .slice(historyPage * historyRowsPerPage, historyPage * historyRowsPerPage + historyRowsPerPage)
-                      .map((history) => (
+                      .map((history) => {
+                        const clock = clockFieldsFromHistory(history);
+                        const showClock = isTimesheetEntityType(history.entity_type);
+                        return (
                         <TableRow key={history.id} hover>
                           <TableCell>
                             <Chip label={history.entity_type} size="small" variant="outlined" />
@@ -1466,6 +1545,32 @@ const ApprovalCenter = () => {
                               <Chip label={history.entityProjectName} size="small" color="info" variant="outlined" />
                             ) : (
                               <Typography variant="body2" color="text.secondary">N/A</Typography>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {showClock ? (
+                              <Typography variant="body2">{formatClockDateTime(clock.clockInTime)}</Typography>
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">—</Typography>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {showClock ? (
+                              <Typography variant="body2">{formatClockDateTime(clock.clockOutTime)}</Typography>
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">—</Typography>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {showClock ? (
+                              <Chip
+                                label={workDetailHours(clock).toFixed(2)}
+                                size="small"
+                                color="info"
+                                variant="outlined"
+                              />
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">—</Typography>
                             )}
                           </TableCell>
                           <TableCell>
@@ -1508,10 +1613,11 @@ const ApprovalCenter = () => {
                             </Typography>
                           </TableCell>
                         </TableRow>
-                      ))
+                      );
+                      })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={9} align="center" sx={{ py: 4 }}>
+                      <TableCell colSpan={12} align="center" sx={{ py: 4 }}>
                         <Typography color="text.secondary">
                           {historyLoading ? "Loading..." : "No approval history found"}
                         </Typography>

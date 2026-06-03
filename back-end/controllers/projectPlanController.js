@@ -1,6 +1,74 @@
 import { getTenantQuery } from "../config/database.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
+import { hoursFromWorkRow } from "../utils/workdetailsClock.js";
+
+function parsePlanHours(val) {
+  if (val == null || val === "") return null;
+  const n = parseFloat(val);
+  return Number.isFinite(n) ? n : null;
+}
+
+function planDateOnly(val) {
+  if (val == null) return null;
+  const s = String(val).trim();
+  if (!s) return null;
+  if (s.length >= 10 && s[4] === "-") return s.slice(0, 10);
+  const d = new Date(s);
+  if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+  return s.length >= 10 ? s.slice(0, 10) : s;
+}
+
+function planProgressCap(a) {
+  const allotted = parsePlanHours(a.allotted_hours);
+  const planTotal = parsePlanHours(a.plan_total_hours) || 0;
+  return allotted > 0 ? allotted : planTotal;
+}
+
+function workMatchesPlanAssignment(w, a) {
+  const wNo = w.projectNo != null ? String(w.projectNo).trim() : "";
+  const aNo = a.projectNo != null ? String(a.projectNo).trim() : "";
+  const wName = (w.projectName || "").trim().toLowerCase();
+  const aName = (a.projectName || "").trim().toLowerCase();
+  const wRef = w.referenceNo != null ? String(w.referenceNo).trim() : "";
+  const aRef = a.referenceNo != null ? String(a.referenceNo).trim() : "";
+  const projectMatch =
+    (wNo && aNo && wNo === aNo) ||
+    (wName && aName && wName === aName) ||
+    (wRef && aRef && wRef === aRef);
+  if (!projectMatch) return false;
+
+  let s0 = planDateOnly(a.start_date);
+  let e0 = planDateOnly(a.end_date);
+  if (s0 && e0 && s0 > e0) {
+    const tmp = s0;
+    s0 = e0;
+    e0 = tmp;
+  }
+  const sd = planDateOnly(w.sentDate);
+  if (!s0 || !e0 || !sd) return true;
+  return sd >= s0 && sd <= e0;
+}
+
+function attachPlanProgress(assignedProjects, workRows) {
+  return assignedProjects.map((a) => {
+    const rows = (workRows || []).filter((w) => workMatchesPlanAssignment(w, a));
+    const usedHours = rows.reduce((sum, w) => sum + hoursFromWorkRow(w), 0);
+    const cap = planProgressCap(a);
+    const pct = cap > 0 ? Math.min(100, Math.round((usedHours / cap) * 1000) / 10) : 0;
+    const allotted = parsePlanHours(a.allotted_hours);
+    const hasPersonalCap = allotted != null && allotted > 0;
+    return {
+      ...a,
+      usedHours: Math.round(usedHours * 100) / 100,
+      progressCap: cap,
+      progressPercent: pct,
+      progressLabel: hasPersonalCap
+        ? "Your hours vs plan allotment"
+        : "Your hours vs plan total (no per-person allotment)",
+    };
+  });
+}
 
 // Helper function to calculate end date based on time period
 const calculateEndDate = (startDate, timePeriod) => {
@@ -595,8 +663,94 @@ export const getEmployeeAssignedProjects = asyncHandler(async (req, res) => {
   `;
   
   const assignedProjects = await q(sql, [employeeDbId]);
-  
-  return sendSuccess(res, assignedProjects);
+  if (!assignedProjects.length) {
+    return sendSuccess(res, []);
+  }
+
+  const empRows = await q(
+    "SELECT id, userName, EMPID, employeeEmail, employeeName FROM employee WHERE id = ? LIMIT 1",
+    [employeeDbId]
+  );
+  if (!empRows.length) {
+    return sendSuccess(res, attachPlanProgress(assignedProjects, []));
+  }
+  const emp = empRows[0];
+
+  let minDate = null;
+  let maxDate = null;
+  for (const a of assignedProjects) {
+    let s = planDateOnly(a.start_date);
+    let e = planDateOnly(a.end_date);
+    if (s && e && s > e) {
+      const tmp = s;
+      s = e;
+      e = tmp;
+    }
+    if (s) minDate = !minDate || s < minDate ? s : minDate;
+    if (e) maxDate = !maxDate || e > maxDate ? e : maxDate;
+  }
+
+  const workOr = [];
+  const workParams = [];
+  const pushMatch = (sqlCol, val) => {
+    const v = val != null ? String(val).trim() : "";
+    if (!v) return;
+    workOr.push(`(${sqlCol} = ? OR LOWER(TRIM(${sqlCol})) = LOWER(TRIM(?)))`);
+    workParams.push(v, v);
+  };
+  pushMatch("wd.userName", emp.userName);
+  pushMatch("wd.employeeNo", emp.EMPID);
+  pushMatch("wd.userName", emp.employeeEmail);
+  pushMatch("wd.employeeName", emp.employeeName);
+
+  let workRows = [];
+  if (workOr.length) {
+    let workSql = `
+      SELECT wd.projectNo, wd.referenceNo, wd.projectName, wd.sentDate,
+             CAST(wd.totalHours AS DECIMAL(10,2)) as totalHours,
+             wd.clockInTime, wd.clockOutTime
+      FROM workdetails wd
+      WHERE (${workOr.join(" OR ")})
+    `;
+    if (minDate && maxDate) {
+      workSql += `
+        AND (
+          DATE(STR_TO_DATE(SUBSTRING(wd.sentDate, 1, 10), '%Y-%m-%d')) >= ?
+          OR DATE(STR_TO_DATE(wd.sentDate, '%Y-%m-%d')) >= ?
+        )
+        AND (
+          DATE(STR_TO_DATE(SUBSTRING(wd.sentDate, 1, 10), '%Y-%m-%d')) <= ?
+          OR DATE(STR_TO_DATE(wd.sentDate, '%Y-%m-%d')) <= ?
+        )
+      `;
+      workParams.push(minDate, minDate, maxDate, maxDate);
+    }
+    workSql += " ORDER BY wd.sentDate DESC, wd.id DESC";
+    try {
+      workRows = await q(workSql, workParams);
+    } catch (err) {
+      console.warn("[getEmployeeAssignedProjects] workdetails fetch failed:", err?.message);
+    }
+    if (!workRows.length && minDate && maxDate) {
+      try {
+        workRows = await q(
+          `
+          SELECT wd.projectNo, wd.referenceNo, wd.projectName, wd.sentDate,
+                 CAST(wd.totalHours AS DECIMAL(10,2)) as totalHours,
+                 wd.clockInTime, wd.clockOutTime
+          FROM workdetails wd
+          WHERE (${workOr.join(" OR ")})
+          ORDER BY wd.sentDate DESC, wd.id DESC
+        `,
+          workParams.slice(0, workOr.length * 2)
+        );
+      } catch (err) {
+        console.warn("[getEmployeeAssignedProjects] workdetails fallback failed:", err?.message);
+      }
+    }
+  }
+
+  return sendSuccess(res, attachPlanProgress(assignedProjects, workRows));
 });
 
 // Delete project plan

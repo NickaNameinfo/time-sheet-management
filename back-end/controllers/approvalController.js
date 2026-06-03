@@ -2,6 +2,13 @@ import { getTenantQuery, query as primaryQuery } from "../config/database.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 import { calculateProductivityForEmployee } from "./productivityController.js";
+import {
+  attachWorkDetailToRecord,
+  fetchApprovedWorkDetailsForHistory,
+  fetchPendingWorkDetailsForRequest,
+  fetchWorkDetailsByIdsForRequest,
+  getWorkDetailsQuery,
+} from "../utils/workdetailsClock.js";
 
 // Get Approval Workflows
 export const getApprovalWorkflows = asyncHandler(async (req, res) => {
@@ -46,6 +53,7 @@ export const createApprovalWorkflow = asyncHandler(async (req, res) => {
 // Approve/Reject Entity
 export const approveEntity = asyncHandler(async (req, res) => {
   const q = getTenantQuery(req);
+  const workQ = getWorkDetailsQuery(req);
   const { entityType, entityId } = req.params;
   const { approverId, status, comments, approvalLevel } = req.body;
 
@@ -80,7 +88,10 @@ export const approveEntity = asyncHandler(async (req, res) => {
         LEFT JOIN employee e ON wd.userName = e.userName
         WHERE wd.id = ?
       `;
-      const workDetails = await q(workDetailsSql, [entityId]);
+      let workDetails = await workQ(workDetailsSql, [entityId]);
+      if (!workDetails.length) {
+        workDetails = await primaryQuery(workDetailsSql, [entityId]);
+      }
       if (workDetails.length > 0) {
         entityEmployeeId = workDetails[0].employeeId;
         entityEmployeeName = workDetails[0].empName || workDetails[0].employeeName;
@@ -271,13 +282,24 @@ export const approveEntity = asyncHandler(async (req, res) => {
   }
 
   if (updateSql) {
-    const updateResult = await q(updateSql, updateParams);
+    let updateResult = await (entityType === "timesheet" || entityType === "workdetails"
+      ? workQ(updateSql, updateParams)
+      : q(updateSql, updateParams));
+    if (
+      (entityType === "timesheet" || entityType === "workdetails") &&
+      (!updateResult?.affectedRows && !updateResult?.changedRows)
+    ) {
+      updateResult = await primaryQuery(updateSql, updateParams);
+    }
     
     // Verify timesheet/workdetails update and trigger productivity calculation
     if (entityType === "timesheet" || entityType === "workdetails") {
       try {
         const verifySql = "SELECT id, status, approverId, approvedDate, employeeNo, userName, sentDate FROM workdetails WHERE id = ?";
-        const verifyResult = await q(verifySql, [entityId]);
+        let verifyResult = await workQ(verifySql, [entityId]);
+        if (!verifyResult.length) {
+          verifyResult = await primaryQuery(verifySql, [entityId]);
+        }
         if (verifyResult.length > 0) {
           const updated = verifyResult[0];
           console.log(
@@ -477,12 +499,8 @@ export const approveEntity = asyncHandler(async (req, res) => {
 
 // Get Approval History
 export const getApprovalHistory = asyncHandler(async (req, res) => {
-  // Most entities are tenant-scoped (company DB). However, timesheet approvals have historically
-  // been written to the primary DB in some deployments.
-  //
-  // Behavior:
-  // - Company login + entityType=timesheet/workdetails: read from primary DB (timesheet inclusive).
-  // - Company login + entityType empty (All Types): merge tenant (non-timesheet) + primary (timesheet/workdetails).
+  // Company logins: all approval data (including timesheets) lives in the company DB only.
+  // Super-admin logins use the primary (tenant) database.
   const requestedType = String(req.query?.entityType || "").toLowerCase();
   const isCompanyUser = req.isCompanyUser === true;
   const wantsTimesheets = requestedType === "timesheet" || requestedType === "workdetails";
@@ -553,8 +571,7 @@ export const getApprovalHistory = asyncHandler(async (req, res) => {
     return { sql, params };
   };
 
-  const usingDb =
-    isCompanyUser && wantsAllTypes ? "mixed" : isCompanyUser && wantsTimesheets ? "primary" : "tenant";
+  const usingDb = isCompanyUser ? "company" : "tenant";
 
   console.log("[approvals/history] filters", {
     isCompanyUser,
@@ -568,53 +585,25 @@ export const getApprovalHistory = asyncHandler(async (req, res) => {
   });
 
   const tenantQ = getTenantQuery(req);
-  const primaryQ = primaryQuery;
 
   try {
     let results = [];
-
-    if (isCompanyUser && wantsAllTypes) {
-      // Merge: tenant (exclude timesheets) + primary (timesheets)
-      const tenantQueryBuilt = buildHistoryQuery({ typeMode: "all", excludeTimesheets: true });
-      const primaryQueryBuilt = buildHistoryQuery({ typeMode: "timesheetInclusive", excludeTimesheets: false });
-
-      const [tenantResults, primaryResults] = await Promise.all([
-        tenantQ(tenantQueryBuilt.sql, tenantQueryBuilt.params),
-        primaryQ(primaryQueryBuilt.sql, primaryQueryBuilt.params),
-      ]);
-
-      // Deduplicate by stable composite key
-      const seen = new Set();
-      const merged = [];
-      for (const r of [...primaryResults, ...tenantResults]) {
-        const key = `${r.entity_type}:${r.id}:${r.entity_id}:${r.created_at}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        merged.push(r);
-      }
-
-      // Sort by created_at desc
-      merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      results = merged;
-    } else if (isCompanyUser && wantsTimesheets) {
-      // Company timesheet history always from primary DB (timesheet inclusive)
-      const qb = buildHistoryQuery({ typeMode: "timesheetInclusive", excludeTimesheets: false });
-      results = await primaryQ(qb.sql, qb.params);
-    } else {
-      // Default behavior: tenant DB (or primary for super admin) with exact/all type filtering
-      const q = getTenantQuery(req);
-      const qb = buildHistoryQuery({
-        typeMode: requestedType ? "exact" : "all",
-        excludeTimesheets: false,
-      });
-      results = await q(qb.sql, qb.params);
-    }
+    const typeMode = wantsTimesheets
+      ? "timesheetInclusive"
+      : requestedType
+        ? "exact"
+        : "all";
+    const qb = buildHistoryQuery({ typeMode, excludeTimesheets: false });
+    results = await tenantQ(qb.sql, qb.params);
     
     // Use stored employee_name and project_name if available, otherwise enrich (for backward compatibility with old records)
     const enrichedResults = await Promise.all(results.map(async (record) => {
       const recordType = String(record.entity_type || "").toLowerCase();
+      // workdetails live in company DB for company logins (clock-in/out data)
       const recordQuery =
-        isCompanyUser && (recordType === "timesheet" || recordType === "workdetails") ? primaryQ : tenantQ;
+        recordType === "timesheet" || recordType === "workdetails"
+          ? getWorkDetailsQuery(req)
+          : tenantQ;
 
       // Use stored values if available
       let entityEmployeeName = record.entityEmployeeName || null;
@@ -636,14 +625,19 @@ export const getApprovalHistory = asyncHandler(async (req, res) => {
               entityEmployeeName = entityEmployeeName || ots[0].employeeName;
             }
           } else if (record.entity_type === 'timesheet' || record.entity_type === 'workdetails') {
-            const tsSql = `SELECT wd.employeeName, wd.projectName, e.employeeName as empName 
-                           FROM workdetails wd 
-                           LEFT JOIN employee e ON wd.userName = e.userName 
-                           WHERE wd.id = ?`;
-            const timesheets = await recordQuery(tsSql, [record.entity_id]);
-            if (timesheets.length > 0) {
-              entityEmployeeName = entityEmployeeName || (timesheets[0].empName || timesheets[0].employeeName);
-              entityProjectName = entityProjectName || timesheets[0].projectName;
+            const wdMap = await fetchWorkDetailsByIdsForRequest(req, [record.entity_id]);
+            const wd = wdMap.get(Number(record.entity_id));
+            if (wd) {
+              entityEmployeeName = entityEmployeeName || wd.employeeName;
+              entityProjectName = entityProjectName || wd.projectName;
+              return attachWorkDetailToRecord(
+                {
+                  ...record,
+                  entityEmployeeName,
+                  entityProjectName,
+                },
+                wd
+              );
             }
           } else if (record.entity_type === 'compoff') {
             const compoffSql = `SELECT employeeName FROM compoffdetails WHERE id = ?`;
@@ -664,6 +658,95 @@ export const getApprovalHistory = asyncHandler(async (req, res) => {
         entityProjectName: entityProjectName,
       };
     }));
+
+    // Batch-load full workdetails (clock-in/out) for timesheet history rows still missing workDetail
+    const timesheetRecords = enrichedResults.filter(
+      (r) =>
+        (r.entity_type === "timesheet" || r.entity_type === "workdetails") &&
+        !r.workDetail
+    );
+    if (timesheetRecords.length > 0) {
+      const entityIds = timesheetRecords
+        .map((r) => Number(r.entity_id))
+        .filter((id) => id > 0);
+      const mergedWd = await fetchWorkDetailsByIdsForRequest(req, entityIds);
+
+      for (let i = 0; i < enrichedResults.length; i++) {
+        const r = enrichedResults[i];
+        if (r.entity_type !== "timesheet" && r.entity_type !== "workdetails") continue;
+        if (r.workDetail) continue;
+        const wd = mergedWd.get(Number(r.entity_id));
+        if (wd) {
+          enrichedResults[i] = attachWorkDetailToRecord(
+            {
+              ...r,
+              entityEmployeeName: r.entityEmployeeName || wd.employeeName,
+              entityProjectName: r.entityProjectName || wd.projectName,
+            },
+            wd
+          );
+        }
+      }
+    }
+
+    // Include approved workdetails that may lack approval_history (legacy) or only exist on company DB
+    const statusFilter = String(status || "").toLowerCase();
+    if (statusFilter === "approved" && (wantsTimesheets || wantsAllTypes)) {
+      try {
+        const approvedWdRows = await fetchApprovedWorkDetailsForHistory(req);
+        const existingIds = new Set(
+          enrichedResults
+            .filter(
+              (r) =>
+                r.entity_type === "timesheet" || r.entity_type === "workdetails"
+            )
+            .map((r) => Number(r.entity_id))
+        );
+
+        for (const wd of approvedWdRows) {
+          const wdId = Number(wd.id);
+          if (!wdId || existingIds.has(wdId)) continue;
+          if (entityId && Number(entityId) !== wdId) continue;
+          if (employeeName) {
+            const name = String(wd.employeeName || "").toLowerCase();
+            if (!name.includes(String(employeeName).toLowerCase())) continue;
+          }
+          if (projectName) {
+            const proj = String(wd.projectName || "").toLowerCase();
+            if (!proj.includes(String(projectName).toLowerCase())) continue;
+          }
+
+          enrichedResults.push(
+            attachWorkDetailToRecord(
+              {
+                id: `wd-${wdId}`,
+                entity_type: "timesheet",
+                entity_id: wdId,
+                status: "approved",
+                approver_id: wd.approverId,
+                employee_name: wd.employeeName,
+                project_name: wd.projectName,
+                entityEmployeeName: wd.employeeName,
+                entityProjectName: wd.projectName,
+                created_at: wd.approvedDate || wd.sentDate,
+                approval_level: 1,
+                comments: null,
+              },
+              wd
+            )
+          );
+          existingIds.add(wdId);
+        }
+
+        enrichedResults.sort(
+          (a, b) =>
+            new Date(b.created_at || 0).getTime() -
+            new Date(a.created_at || 0).getTime()
+        );
+      } catch (mergeErr) {
+        console.warn("[approvals/history] approved workdetails merge:", mergeErr.message);
+      }
+    }
     
     console.log(`✓ Approval history query returned ${enrichedResults.length} records`);
     // (Filters already logged above)
@@ -747,31 +830,22 @@ export const getPendingApprovals = asyncHandler(async (req, res) => {
     });
   }
 
-  // Get pending timesheets
-  if (!entityType || entityType === "timesheet") {
-    const timesheetSql = `
-      SELECT wd.*, 
-             COALESCE(e.employeeName, wd.employeeName) as employeeName, 
-             e.EMPID,
-             wd.totalHours
-      FROM workdetails wd
-      LEFT JOIN employee e ON wd.userName = e.userName
-      WHERE COALESCE(wd.status, '') NOT IN ('approved', 'rejected')
-      ORDER BY wd.sentDate DESC, wd.id DESC
-    `;
-    const timesheets = await q(timesheetSql);
-    timesheets.forEach((ts) => {
-      pendingApprovals.push({
-        entityType: "timesheet",
-        entityId: ts.id,
-        entity: {
-          ...ts,
-          totalHours: ts.totalHours || ts.totalhours || 0, // Ensure totalHours is included
-        },
-        requestedBy: ts.employeeName || 'Unknown',
-        requestedDate: ts.sentDate,
+  // Get pending timesheets / workdetails (check-in / check-out)
+  if (!entityType || entityType === "timesheet" || entityType === "workdetails") {
+    try {
+      const timesheets = await fetchPendingWorkDetailsForRequest(req);
+      timesheets.forEach((ts) => {
+        pendingApprovals.push({
+          entityType: "timesheet",
+          entityId: ts.id,
+          entity: ts,
+          requestedBy: ts.employeeName || "Unknown",
+          requestedDate: ts.sentDate,
+        });
       });
-    });
+    } catch (err) {
+      console.error("❌ Pending workdetails load failed:", err.message);
+    }
   }
 
   return sendSuccess(res, pendingApprovals);
@@ -808,6 +882,7 @@ export const bulkApprove = asyncHandler(async (req, res) => {
       // Call the approval logic directly by extracting the core logic
       // We'll use a helper function to avoid duplicating code
       const approvalResult = await processApproval(
+        req,
         q,
         entityType,
         entityId,
@@ -840,7 +915,8 @@ export const bulkApprove = asyncHandler(async (req, res) => {
 });
 
 // Helper function to process approval/rejection (extracted from approveEntity logic)
-const processApproval = async (q, entityType, entityId, approverId, status, comments) => {
+const processApproval = async (req, q, entityType, entityId, approverId, status, comments) => {
+  const workQ = getWorkDetailsQuery(req);
   try {
     // Fetch entity details (employee and project) before creating approval history
     let entityEmployeeId = null;
@@ -854,7 +930,10 @@ const processApproval = async (q, entityType, entityId, approverId, status, comm
         LEFT JOIN employee e ON wd.userName = e.userName
         WHERE wd.id = ?
       `;
-      const workDetails = await q(workDetailsSql, [entityId]);
+      let workDetails = await workQ(workDetailsSql, [entityId]);
+      if (!workDetails.length) {
+        workDetails = await primaryQuery(workDetailsSql, [entityId]);
+      }
       if (workDetails.length > 0) {
         entityEmployeeId = workDetails[0].employeeId;
         entityEmployeeName = workDetails[0].empName || workDetails[0].employeeName;
@@ -984,7 +1063,17 @@ const processApproval = async (q, entityType, entityId, approverId, status, comm
     }
 
     if (updateSql) {
-      await q(updateSql, updateParams);
+      let updateResult = await (
+        entityType === "timesheet" || entityType === "workdetails"
+          ? workQ(updateSql, updateParams)
+          : q(updateSql, updateParams)
+      );
+      if (
+        (entityType === "timesheet" || entityType === "workdetails") &&
+        (!updateResult?.affectedRows && !updateResult?.changedRows)
+      ) {
+        updateResult = await primaryQuery(updateSql, updateParams);
+      }
       return { success: true };
     }
 

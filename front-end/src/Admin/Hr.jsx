@@ -32,8 +32,10 @@ import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 import { commonData } from "../config";
+import { useTranslation } from "react-i18next";
 
 function Hr() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [rowData, setRowData] = useState([]);
   const [selectedRows, setSelectedRows] = useState([]);
@@ -47,7 +49,7 @@ function Hr() {
     () => [
       {
         field: "hrName",
-        headerName: "HR Name",
+        headerName: t("hrMgmt.hrName", { defaultValue: "HR Name" }),
         minWidth: 200,
         checkboxSelection: true,
         cellRenderer: (params) => {
@@ -63,7 +65,7 @@ function Hr() {
       },
       {
         field: "userName",
-        headerName: "Username",
+        headerName: t("hrMgmt.username", { defaultValue: "Username" }),
         minWidth: 150,
         cellRenderer: (params) => (
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
@@ -73,7 +75,7 @@ function Hr() {
         ),
       },
     ],
-    []
+    [t]
   );
 
   const defaultColDef = useMemo(
@@ -103,15 +105,15 @@ function Hr() {
         if (res.data.Status === "Success") {
           setRowData(res.data.Result);
         } else {
-          alert("Error loading HR data");
+          alert(t("hrMgmt.errorLoading", { defaultValue: "Error loading HR data" }));
         }
       })
       .catch((err) => {
         console.log(err);
-        alert("Error loading HR data");
+        alert(t("hrMgmt.errorLoading", { defaultValue: "Error loading HR data" }));
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -143,12 +145,12 @@ function Hr() {
             setSelectedRows([]);
             fetchHrData();
           } else {
-            alert("Error deleting HR");
+            alert(t("hrMgmt.errorDeleting", { defaultValue: "Error deleting HR" }));
           }
         })
         .catch((err) => {
           console.log(err);
-          alert("Error deleting HR");
+          alert(t("hrMgmt.errorDeleting", { defaultValue: "Error deleting HR" }));
         });
     }
   };
@@ -179,10 +181,10 @@ function Hr() {
         >
           <Box>
             <Typography variant="h4" fontWeight="bold" gutterBottom>
-              HR Management
+              {t("hrMgmt.title", { defaultValue: "HR Management" })}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Manage and view all HR personnel in your organization
+              {t("hrMgmt.subtitle", { defaultValue: "Manage and view all HR personnel in your organization" })}
             </Typography>
           </Box>
           <Stack direction="row" spacing={2}>
@@ -192,7 +194,7 @@ function Hr() {
               onClick={fetchHrData}
               disabled={loading}
             >
-              Refresh
+              {t("common.refresh", { defaultValue: "Refresh" })}
             </Button>
             <Button
               variant="contained"
@@ -205,7 +207,7 @@ function Hr() {
                 },
               }}
             >
-              Add HR
+              {t("hrMgmt.addHr", { defaultValue: "Add HR" })}
             </Button>
           </Stack>
         </Box>
@@ -223,7 +225,7 @@ function Hr() {
           }}
         >
           <TextField
-            placeholder="Search HR..."
+            placeholder={t("hrMgmt.searchPlaceholder", { defaultValue: "Search HR..." })}
             variant="outlined"
             size="small"
             value={searchText}
@@ -240,7 +242,7 @@ function Hr() {
           {selectedRows.length > 0 && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Chip
-                label={`${selectedRows.length} selected`}
+                label={t("common.selectedCount", { defaultValue: "{{count}} selected", count: selectedRows.length })}
                 color="primary"
                 size="small"
               />
@@ -251,7 +253,7 @@ function Hr() {
                 onClick={handleBulkDelete}
                 size="small"
               >
-                Delete Selected
+                {t("hrMgmt.deleteSelected", { defaultValue: "Delete Selected" })}
               </Button>
             </Box>
           )}
@@ -300,27 +302,35 @@ function Hr() {
         <DialogTitle>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Delete color="error" />
-            <Typography variant="h6">Confirm Delete</Typography>
+            <Typography variant="h6">
+              {t("hrMgmt.confirmDelete", { defaultValue: "Confirm Delete" })}
+            </Typography>
           </Box>
         </DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to delete HR{" "}
-            <strong>{hrToDelete?.hrName}</strong> (Username: {hrToDelete?.userName})?
+            {t("hrMgmt.deleteConfirmText", {
+              defaultValue:
+                "Are you sure you want to delete HR {{name}} (Username: {{username}})? This action cannot be undone.",
+              name: hrToDelete?.hrName || "",
+              username: hrToDelete?.userName || "",
+            })}
             <br />
             <br />
-            This action cannot be undone.
+            {t("common.thisActionCannotBeUndone", { defaultValue: "This action cannot be undone." })}
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setDeleteDialogOpen(false)}>
+            {t("common.cancel", { defaultValue: "Cancel" })}
+          </Button>
           <Button
             onClick={handleDeleteConfirm}
             variant="contained"
             color="error"
             startIcon={<Delete />}
           >
-            Delete
+            {t("hrMgmt.delete", { defaultValue: "Delete" })}
           </Button>
         </DialogActions>
       </Dialog>

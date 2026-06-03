@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useApi } from "./useApi";
 import { apiService } from "../services/api";
+import { isPayrollAdminUser, PAYROLL_ADMIN_MENU_KEYS } from "../utils/payrollAccess";
 
 /**
  * Custom hook to check menu permissions
@@ -10,6 +11,14 @@ import { apiService } from "../services/api";
  * @param {string} permissionType - Type of permission: 'view', 'add', 'edit', 'delete', 'all'
  * @returns {Object} - { hasPermission: boolean, loading: boolean, error: any }
  */
+function isEmployeePayrollMenu(menuPath, menuKey) {
+  const key = String(menuKey || "").toLowerCase();
+  const path = String(menuPath || "").toLowerCase();
+  if (PAYROLL_ADMIN_MENU_KEYS.includes(key)) return true;
+  if (key === "my_payslips" || path.includes("mypayslips")) return true;
+  return path.includes("salarypayslip");
+}
+
 export const useMenuPermission = (menuPath, menuKey, permissionType = 'view') => {
   const { roles, user } = useAuth();
   
@@ -92,6 +101,21 @@ export const useMenuPermission = (menuPath, menuKey, permissionType = 'view') =>
 
   // Check permission
   const hasPermission = useMemo(() => {
+    if (
+      isEmployeePayrollMenu(menuPath, menuKey) &&
+      !isPayrollAdminUser(roles, user) &&
+      permissionType !== "view"
+    ) {
+      return false;
+    }
+    if (
+      isEmployeePayrollMenu(menuPath, menuKey) &&
+      !isPayrollAdminUser(roles, user) &&
+      (menuKey === "salary_payslip" || PAYROLL_ADMIN_MENU_KEYS.includes(String(menuKey || "")))
+    ) {
+      return false;
+    }
+
     const perm = permissionMap[menuPath] || permissionMap[menuKey];
     if (!perm || !perm.is_active) return false;
 
@@ -201,6 +225,18 @@ export const useMenuPermissions = (menuPath, menuKey) => {
     };
 
     const checkPermission = (permissionField) => {
+      if (
+        isEmployeePayrollMenu(menuPath, menuKey) &&
+        !isPayrollAdminUser(roles, user)
+      ) {
+        if (menuKey === "salary_payslip" || PAYROLL_ADMIN_MENU_KEYS.includes(String(menuKey || ""))) {
+          return false;
+        }
+        if (menuKey === "my_payslips" && permissionField !== "view_permission") {
+          return false;
+        }
+      }
+
       // Check role-based permissions
       const allowedRoles = parseJsonField(item[permissionField]) || [];
       const allRoles = parseJsonField(item.all_permission) || [];

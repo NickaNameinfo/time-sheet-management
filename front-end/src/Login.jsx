@@ -5,8 +5,10 @@ import { Box, Button, TextField } from "@mui/material";
 import { Controller, useForm } from "react-hook-form";
 import { useAuth } from "./context/AuthContext";
 import ErrorMessage from "./components/ErrorMessage";
+import { useTranslation } from "react-i18next";
 
 function Login() {
+  const { t } = useTranslation();
   const {
     handleSubmit,
     control,
@@ -43,7 +45,7 @@ function Login() {
     setLoading(false);
 
     if (!result.success) {
-      setError(result.error || "Login failed. Please try again.");
+      setError(result.error || t("auth.loginFailedTryAgain", { defaultValue: "Login failed. Please try again." }));
     }
   };
 
@@ -72,12 +74,12 @@ function Login() {
           <Controller
             control={control}
             name="userName"
-            rules={{ required: "User Name is required" }}
+            rules={{ required: t("auth.userNameRequired", { defaultValue: "User Name is required" }) }}
             render={({ field }) => (
               <TextField
                 fullWidth
-                label="User Name"
-                placeholder="Enter your user name"
+                label={t("auth.userName", { defaultValue: "User Name" })}
+                placeholder={t("auth.enterUserName", { defaultValue: "Enter your user name" })}
                 variant="outlined"
                 type="text"
                 {...field}
@@ -98,12 +100,12 @@ function Login() {
           <Controller
             control={control}
             name="password"
-            rules={{ required: "Password is required" }}
+            rules={{ required: t("auth.passwordRequired", { defaultValue: "Password is required" }) }}
             render={({ field }) => (
               <TextField
                 fullWidth
-                label="Password"
-                placeholder="Enter your password"
+                label={t("auth.password", { defaultValue: "Password" })}
+                placeholder={t("auth.enterPassword", { defaultValue: "Enter your password" })}
                 variant="outlined"
                 type="password"
                 {...field}
@@ -145,7 +147,9 @@ function Login() {
               transition: "all 0.3s ease",
             }}
           >
-            {loading ? "Logging in..." : "Sign In"}
+            {loading
+              ? t("auth.loggingIn", { defaultValue: "Logging in..." })
+              : t("auth.signIn", { defaultValue: "Sign In" })}
           </Button>
         </Box>
       </form>

@@ -47,8 +47,10 @@ import Loading from "../components/Loading";
 import PageHeaderBreadcrumbs from "../components/PageHeaderBreadcrumbs";
 import { getImageUrl } from "../utils/helpers";
 import { getDisplayEmployeeId } from "../utils/employeeId";
+import { useTranslation } from "react-i18next";
 
 function AddEmployee({ from }) {
+  const { t } = useTranslation();
   const {
     handleSubmit,
     control,
@@ -250,10 +252,13 @@ function AddEmployee({ from }) {
           navigate("/Dashboard/employee");
         }
       } else {
-        setError(result.error || "Failed to save employee");
+        setError(
+          result.error ||
+            t("employeeForm.failedToSaveEmployee", { defaultValue: "Failed to save employee" })
+        );
       }
     } catch (err) {
-      setError(err.message || "An error occurred");
+      setError(err.message || t("common.anErrorOccurred", { defaultValue: "An error occurred" }));
     }
   };
 
@@ -262,7 +267,11 @@ function AddEmployee({ from }) {
   };
 
   if (employeeLoading) {
-    return <Loading message="Loading employee data..." />;
+    return (
+      <Loading
+        message={t("employeeForm.loadingEmployeeData", { defaultValue: "Loading employee data..." })}
+      />
+    );
   }
 
   return (
@@ -272,16 +281,24 @@ function AddEmployee({ from }) {
         items={
           from === "hr"
             ? [
-                { label: "HR", to: "/Hr" },
-                { label: "Employees", to: "/Hr/employee" },
+                { label: t("breadcrumbs.hr", { defaultValue: "HR" }), to: "/Hr" },
+                { label: t("breadcrumbs.employees", { defaultValue: "Employees" }), to: "/Hr/employee" },
               ]
             : [
-                { label: "Dashboard", to: "/Dashboard" },
-                { label: "Employees", to: "/Dashboard/employee" },
+                { label: t("breadcrumbs.dashboard", { defaultValue: "Dashboard" }), to: "/Dashboard" },
+                { label: t("breadcrumbs.employees", { defaultValue: "Employees" }), to: "/Dashboard/employee" },
               ]
         }
-        title={id ? "Edit Employee" : "Add New Employee"}
-        subtitle={id ? "Update employee information" : "Create a new employee profile"}
+        title={
+          id
+            ? t("employeeForm.editTitle", { defaultValue: "Edit Employee" })
+            : t("employeeForm.addTitle", { defaultValue: "Add New Employee" })
+        }
+        subtitle={
+          id
+            ? t("employeeForm.editSubtitle", { defaultValue: "Update employee information" })
+            : t("employeeForm.addSubtitle", { defaultValue: "Create a new employee profile" })
+        }
       />
 
       <ErrorMessage error={error} onClose={() => setError("")} />
@@ -293,7 +310,7 @@ function AddEmployee({ from }) {
             <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
               <CardContent sx={{ p: 3 }}>
                 <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 3 }}>
-                  Basic Information
+                  {t("employeeForm.basicInformation", { defaultValue: "Basic Information" })}
                 </Typography>
 
                 <Grid container spacing={2}>
@@ -301,13 +318,17 @@ function AddEmployee({ from }) {
                     <Controller
                       name="employeeName"
                       control={control}
-                      rules={{ required: "Employee name is required" }}
+                      rules={{
+                        required: t("employeeForm.employeeNameRequired", {
+                          defaultValue: "Employee name is required",
+                        }),
+                      }}
                       render={({ field }) => (
                         <TextField
                           {...field}
                           fullWidth
-                          label="Employee Name"
-                          placeholder="Enter full name"
+                          label={t("employeeForm.employeeName", { defaultValue: "Employee Name" })}
+                          placeholder={t("employeeForm.enterFullName", { defaultValue: "Enter full name" })}
                           error={Boolean(errors.employeeName)}
                           helperText={errors.employeeName?.message}
                           InputProps={{
@@ -322,13 +343,17 @@ function AddEmployee({ from }) {
                     <Controller
                       name="EMPID"
                       control={control}
-                      rules={{ required: "Employee ID is required" }}
+                      rules={{
+                        required: t("employeeForm.employeeIdRequired", {
+                          defaultValue: "Employee ID is required",
+                        }),
+                      }}
                       render={({ field }) => (
                         <TextField
                           {...field}
                           fullWidth
-                          label="Employee ID"
-                          placeholder="Enter employee ID"
+                          label={t("employeeForm.employeeId", { defaultValue: "Employee ID" })}
+                          placeholder={t("employeeForm.enterEmployeeId", { defaultValue: "Enter employee ID" })}
                           error={Boolean(errors.EMPID)}
                           helperText={errors.EMPID?.message}
                           InputProps={{
@@ -344,10 +369,10 @@ function AddEmployee({ from }) {
                       name="employeeEmail"
                       control={control}
                       rules={{
-                        required: "Email is required",
+                        required: t("employeeForm.emailRequired", { defaultValue: "Email is required" }),
                         pattern: {
                           value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                          message: "Invalid email address",
+                          message: t("employeeForm.invalidEmail", { defaultValue: "Invalid email address" }),
                         },
                       }}
                       render={({ field }) => (
@@ -371,9 +396,9 @@ function AddEmployee({ from }) {
                             <TextField
                               {...params}
                               fullWidth
-                              label="Email Address"
+                              label={t("employeeForm.emailAddress", { defaultValue: "Email Address" })}
                               type="email"
-                              placeholder="employee@example.com"
+                              placeholder={t("employeeForm.emailPlaceholder", { defaultValue: "employee@example.com" })}
                               error={Boolean(errors.employeeEmail)}
                               helperText={errors.employeeEmail?.message}
                               InputProps={{
@@ -391,13 +416,15 @@ function AddEmployee({ from }) {
                     <Controller
                       name="userName"
                       control={control}
-                      rules={{ required: "Username is required" }}
+                      rules={{
+                        required: t("employeeForm.usernameRequired", { defaultValue: "Username is required" }),
+                      }}
                       render={({ field }) => (
                         <TextField
                           {...field}
                           fullWidth
-                          label="Username"
-                          placeholder="Enter username"
+                          label={t("employeeForm.username", { defaultValue: "Username" })}
+                          placeholder={t("employeeForm.enterUsername", { defaultValue: "Enter username" })}
                           error={Boolean(errors.userName)}
                           helperText={errors.userName?.message}
                         />
@@ -411,19 +438,21 @@ function AddEmployee({ from }) {
                         name="password"
                         control={control}
                         rules={{
-                          required: !id ? "Password is required" : false,
+                          required: !id ? t("employeeForm.passwordRequired", { defaultValue: "Password is required" }) : false,
                           minLength: {
                             value: 6,
-                            message: "Password must be at least 6 characters",
+                            message: t("employeeForm.passwordMinLength", {
+                              defaultValue: "Password must be at least 6 characters",
+                            }),
                           },
                         }}
                         render={({ field }) => (
                           <TextField
                             {...field}
                             fullWidth
-                            label="Password"
+                            label={t("employeeForm.password", { defaultValue: "Password" })}
                             type="password"
-                            placeholder="Enter password"
+                            placeholder={t("employeeForm.enterPassword", { defaultValue: "Enter password" })}
                             error={Boolean(errors.password)}
                             helperText={errors.password?.message}
                           />
@@ -436,7 +465,9 @@ function AddEmployee({ from }) {
                     <>
                       <Grid item xs={12}>
                         <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1, mb: 0.5 }}>
-                          Update password (optional)
+                          {t("employeeForm.updatePasswordOptional", {
+                            defaultValue: "Update password (optional)",
+                          })}
                         </Typography>
                       </Grid>
                       <Grid item xs={12} sm={6}>
@@ -446,12 +477,18 @@ function AddEmployee({ from }) {
                           rules={{
                             minLength: {
                               value: 6,
-                              message: "Password must be at least 6 characters",
+                              message: t("employeeForm.passwordMinLength", {
+                                defaultValue: "Password must be at least 6 characters",
+                              }),
                             },
                             validate: (val) => {
                               const confirm = watch("confirmPassword");
-                              if (confirm && !val) return "Enter new password";
-                              if (val && val.length < 6) return "Password must be at least 6 characters";
+                              if (confirm && !val)
+                                return t("employeeForm.enterNewPassword", { defaultValue: "Enter new password" });
+                              if (val && val.length < 6)
+                                return t("employeeForm.passwordMinLength", {
+                                  defaultValue: "Password must be at least 6 characters",
+                                });
                               return true;
                             },
                           }}
@@ -459,9 +496,11 @@ function AddEmployee({ from }) {
                             <TextField
                               {...field}
                               fullWidth
-                              label="New password"
+                              label={t("employeeForm.newPassword", { defaultValue: "New password" })}
                               type="password"
-                              placeholder="Leave blank to keep current"
+                              placeholder={t("employeeForm.leaveBlankToKeepCurrent", {
+                                defaultValue: "Leave blank to keep current",
+                              })}
                               error={Boolean(errors.newPassword)}
                               helperText={errors.newPassword?.message}
                               InputProps={{
@@ -478,8 +517,14 @@ function AddEmployee({ from }) {
                           rules={{
                             validate: (val) => {
                               const newPwd = watch("newPassword");
-                              if (newPwd && !val) return "Confirm the new password";
-                              if (newPwd && val !== newPwd) return "Passwords do not match";
+                              if (newPwd && !val)
+                                return t("employeeForm.confirmNewPassword", {
+                                  defaultValue: "Confirm the new password",
+                                });
+                              if (newPwd && val !== newPwd)
+                                return t("employeeForm.passwordsDoNotMatch", {
+                                  defaultValue: "Passwords do not match",
+                                });
                               return true;
                             },
                           }}
@@ -487,9 +532,9 @@ function AddEmployee({ from }) {
                             <TextField
                               {...field}
                               fullWidth
-                              label="Confirm new password"
+                              label={t("employeeForm.confirmNewPasswordLabel", { defaultValue: "Confirm new password" })}
                               type="password"
-                              placeholder="Re-enter new password"
+                              placeholder={t("employeeForm.reenterNewPassword", { defaultValue: "Re-enter new password" })}
                               error={Boolean(errors.confirmPassword)}
                               helperText={errors.confirmPassword?.message}
                               InputProps={{
@@ -504,15 +549,23 @@ function AddEmployee({ from }) {
 
                   <Grid item xs={12} sm={6}>
                     <FormControl fullWidth error={Boolean(errors.designation)}>
-                      <InputLabel>Designation</InputLabel>
+                      <InputLabel>{t("employeeForm.designation", { defaultValue: "Designation" })}</InputLabel>
                       <Controller
                         name="designation"
                         control={control}
-                        rules={{ required: "Designation is required" }}
+                        rules={{
+                          required: t("employeeForm.designationRequired", {
+                            defaultValue: "Designation is required",
+                          }),
+                        }}
                         render={({ field }) => (
-                          <Select {...field} label="Designation" disabled={designationsLoading}>
+                          <Select
+                            {...field}
+                            label={t("employeeForm.designation", { defaultValue: "Designation" })}
+                            disabled={designationsLoading}
+                          >
                             {designationsLoading ? (
-                              <MenuItem>Loading...</MenuItem>
+                              <MenuItem>{t("common.loading", { defaultValue: "Loading..." })}</MenuItem>
                             ) : (
                               designations?.map((item) => (
                                 <MenuItem key={item.id} value={item.designation}>
@@ -529,18 +582,33 @@ function AddEmployee({ from }) {
 
                   <Grid item xs={12} sm={6}>
                     <FormControl fullWidth error={Boolean(errors.employeeStatus)}>
-                      <InputLabel>Employee Status</InputLabel>
+                      <InputLabel>{t("employeeForm.employeeStatus", { defaultValue: "Employee Status" })}</InputLabel>
                       <Controller
                         name="employeeStatus"
                         control={control}
-                        rules={{ required: "Status is required" }}
+                        rules={{
+                          required: t("employeeForm.statusRequired", { defaultValue: "Status is required" }),
+                        }}
                         render={({ field }) => (
-                          <Select {...field} label="Employee Status">
-                            <MenuItem value="Probation">Probation</MenuItem>
-                            <MenuItem value="Contract">Contract</MenuItem>
-                            <MenuItem value="Training">Training</MenuItem>
-                            <MenuItem value="Permanent">Permanent</MenuItem>
-                            <MenuItem value="Ex-Employee">Ex-Employee</MenuItem>
+                          <Select
+                            {...field}
+                            label={t("employeeForm.employeeStatus", { defaultValue: "Employee Status" })}
+                          >
+                            <MenuItem value="Probation">
+                              {t("employeeForm.status.probation", { defaultValue: "Probation" })}
+                            </MenuItem>
+                            <MenuItem value="Contract">
+                              {t("employeeForm.status.contract", { defaultValue: "Contract" })}
+                            </MenuItem>
+                            <MenuItem value="Training">
+                              {t("employeeForm.status.training", { defaultValue: "Training" })}
+                            </MenuItem>
+                            <MenuItem value="Permanent">
+                              {t("employeeForm.status.permanent", { defaultValue: "Permanent" })}
+                            </MenuItem>
+                            <MenuItem value="Ex-Employee">
+                              {t("employeeForm.status.exEmployee", { defaultValue: "Ex-Employee" })}
+                            </MenuItem>
                           </Select>
                         )}
                       />
@@ -556,9 +624,9 @@ function AddEmployee({ from }) {
                         <TextField
                           {...field}
                           fullWidth
-                          label="Salary"
+                          label={t("employeeForm.salary", { defaultValue: "Salary" })}
                           type="number"
-                          placeholder="Enter salary amount"
+                          placeholder={t("employeeForm.enterSalaryAmount", { defaultValue: "Enter salary amount" })}
                           InputProps={{
                             startAdornment: (
                               <InputAdornment position="start">
@@ -580,7 +648,7 @@ function AddEmployee({ from }) {
             <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
               <CardContent sx={{ p: 3 }}>
                 <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 2 }}>
-                  Employee Photo
+                  {t("employeeForm.employeePhoto", { defaultValue: "Employee Photo" })}
                 </Typography>
                 <Box
                   sx={{
@@ -594,7 +662,7 @@ function AddEmployee({ from }) {
                     <Box
                       component="img"
                       src={imagePreview}
-                      alt="Employee"
+                      alt={t("employeeForm.employeePhotoAlt", { defaultValue: "Employee" })}
                       onError={(e) => {
                         console.error("Image failed to load:", imagePreview);
                         e.target.style.display = "none";
@@ -632,7 +700,7 @@ function AddEmployee({ from }) {
                     startIcon={<CloudUpload />}
                     fullWidth
                   >
-                    Upload Photo
+                    {t("employeeForm.uploadPhoto", { defaultValue: "Upload Photo" })}
                     <input
                       type="file"
                       hidden
@@ -655,7 +723,7 @@ function AddEmployee({ from }) {
             <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
               <CardContent sx={{ p: 3 }}>
                 <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 2 }}>
-                  ID Proof Document
+                  {t("employeeForm.idProofDocument", { defaultValue: "ID Proof Document" })}
                 </Typography>
                 <Box
                   sx={{
@@ -691,7 +759,7 @@ function AddEmployee({ from }) {
                         <Box
                           component="img"
                           src={idProofPreview}
-                          alt="ID Proof"
+                          alt={t("employeeForm.idProofAlt", { defaultValue: "ID Proof" })}
                           onError={(e) => {
                             console.error("ID Proof failed to load:", idProofPreview);
                             e.target.style.display = "none";
@@ -723,7 +791,7 @@ function AddEmployee({ from }) {
                     >
                       <Description sx={{ fontSize: 60, color: "grey.400" }} />
                       <Typography variant="caption" color="text.secondary">
-                        Upload ID Proof (Image/PDF)
+                        {t("employeeForm.uploadIdProofHint", { defaultValue: "Upload ID Proof (Image/PDF)" })}
                       </Typography>
                     </Box>
                   )}
@@ -733,7 +801,7 @@ function AddEmployee({ from }) {
                     startIcon={<CloudUpload />}
                     fullWidth
                   >
-                    Upload ID Proof
+                    {t("employeeForm.uploadIdProof", { defaultValue: "Upload ID Proof" })}
                     <input
                       type="file"
                       hidden
@@ -756,7 +824,7 @@ function AddEmployee({ from }) {
             <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
               <CardContent sx={{ p: 3 }}>
                 <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 3 }}>
-                  Important Dates
+                  {t("employeeForm.importantDates", { defaultValue: "Important Dates" })}
                 </Typography>
                 <Grid container spacing={2}>
                   <Grid item xs={12} sm={4}>
@@ -764,11 +832,13 @@ function AddEmployee({ from }) {
                       <Controller
                         name="date"
                         control={control}
-                        rules={{ required: "Join date is required" }}
+                        rules={{
+                          required: t("employeeForm.joinDateRequired", { defaultValue: "Join date is required" }),
+                        }}
                         render={({ field }) => (
                           <DatePicker
                             {...field}
-                            label="Join Date"
+                            label={t("employeeForm.joinDate", { defaultValue: "Join Date" })}
                             slotProps={{
                               textField: {
                                 fullWidth: true,
@@ -795,7 +865,7 @@ function AddEmployee({ from }) {
                         render={({ field }) => (
                           <DatePicker
                             {...field}
-                            label="Relieving Date"
+                            label={t("employeeForm.relievingDate", { defaultValue: "Relieving Date" })}
                             slotProps={{
                               textField: {
                                 fullWidth: true,
@@ -815,7 +885,7 @@ function AddEmployee({ from }) {
                         render={({ field }) => (
                           <DatePicker
                             {...field}
-                            label="Permanent Date"
+                            label={t("employeeForm.permanentDate", { defaultValue: "Permanent Date" })}
                             slotProps={{
                               textField: {
                                 fullWidth: true,
@@ -836,7 +906,7 @@ function AddEmployee({ from }) {
             <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
               <CardContent sx={{ p: 3 }}>
                 <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 3 }}>
-                  Parent Details
+                  {t("employeeForm.parentDetails", { defaultValue: "Parent Details" })}
                 </Typography>
                 <Grid container spacing={2}>
                   <Grid item xs={12} sm={6}>
@@ -847,8 +917,8 @@ function AddEmployee({ from }) {
                         <TextField
                           {...field}
                           fullWidth
-                          label="Father's Name"
-                          placeholder="Enter father's name"
+                          label={t("employeeForm.fathersName", { defaultValue: "Father's Name" })}
+                          placeholder={t("employeeForm.enterFathersName", { defaultValue: "Enter father's name" })}
                         />
                       )}
                     />
@@ -861,8 +931,8 @@ function AddEmployee({ from }) {
                         <TextField
                           {...field}
                           fullWidth
-                          label="Mother's Name"
-                          placeholder="Enter mother's name"
+                          label={t("employeeForm.mothersName", { defaultValue: "Mother's Name" })}
+                          placeholder={t("employeeForm.enterMothersName", { defaultValue: "Enter mother's name" })}
                         />
                       )}
                     />
@@ -875,8 +945,8 @@ function AddEmployee({ from }) {
                         <TextField
                           {...field}
                           fullWidth
-                          label="Parent Contact Number"
-                          placeholder="Enter contact number"
+                          label={t("employeeForm.parentContactNumber", { defaultValue: "Parent Contact Number" })}
+                          placeholder={t("employeeForm.enterContactNumber", { defaultValue: "Enter contact number" })}
                         />
                       )}
                     />
@@ -889,8 +959,8 @@ function AddEmployee({ from }) {
                         <TextField
                           {...field}
                           fullWidth
-                          label="Parent Address"
-                          placeholder="Enter parent's address"
+                          label={t("employeeForm.parentAddress", { defaultValue: "Parent Address" })}
+                          placeholder={t("employeeForm.enterParentAddress", { defaultValue: "Enter parent's address" })}
                           multiline
                           rows={3}
                         />
@@ -907,7 +977,7 @@ function AddEmployee({ from }) {
             <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
               <CardContent sx={{ p: 3 }}>
                 <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mb: 2 }}>
-                  Employee Role
+                  {t("employeeForm.employeeRole", { defaultValue: "Employee Role" })}
                 </Typography>
                 {rolesLoading ? (
                   <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
@@ -956,22 +1026,46 @@ function AddEmployee({ from }) {
                               <FormControlLabel
                                 value="Employee"
                                 control={<Radio />}
-                                label={<Chip label="Employee" color="default" sx={{ fontWeight: 600 }} />}
+                                label={
+                                  <Chip
+                                    label={t("role.employee", { defaultValue: "Employee" })}
+                                    color="default"
+                                    sx={{ fontWeight: 600 }}
+                                  />
+                                }
                               />
                               <FormControlLabel
                                 value="TL"
                                 control={<Radio />}
-                                label={<Chip label="Team Lead" color="info" sx={{ fontWeight: 600 }} />}
+                                label={
+                                  <Chip
+                                    label={t("employeeForm.teamLead", { defaultValue: "Team Lead" })}
+                                    color="info"
+                                    sx={{ fontWeight: 600 }}
+                                  />
+                                }
                               />
                               <FormControlLabel
                                 value="HR"
                                 control={<Radio />}
-                                label={<Chip label="HR" color="warning" sx={{ fontWeight: 600 }} />}
+                                label={
+                                  <Chip
+                                    label={t("role.hr", { defaultValue: "HR" })}
+                                    color="warning"
+                                    sx={{ fontWeight: 600 }}
+                                  />
+                                }
                               />
                               <FormControlLabel
                                 value="Admin"
                                 control={<Radio />}
-                                label={<Chip label="Admin" color="error" sx={{ fontWeight: 600 }} />}
+                                label={
+                                  <Chip
+                                    label={t("role.admin", { defaultValue: "Admin" })}
+                                    color="error"
+                                    sx={{ fontWeight: 600 }}
+                                  />
+                                }
                               />
                             </>
                           );
@@ -998,7 +1092,7 @@ function AddEmployee({ from }) {
                 }}
                 disabled={creating || updating}
               >
-                Cancel
+                {t("common.cancel", { defaultValue: "Cancel" })}
               </Button>
               <Button
                 type="submit"
@@ -1012,7 +1106,11 @@ function AddEmployee({ from }) {
                   },
                 }}
               >
-                {creating || updating ? "Saving..." : id ? "Update Employee" : "Create Employee"}
+                {creating || updating
+                  ? t("common.saving", { defaultValue: "Saving..." })
+                  : id
+                    ? t("employeeForm.updateEmployee", { defaultValue: "Update Employee" })
+                    : t("employeeForm.createEmployee", { defaultValue: "Create Employee" })}
               </Button>
             </Box>
           </Grid>

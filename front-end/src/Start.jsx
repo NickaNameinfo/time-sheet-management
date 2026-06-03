@@ -33,9 +33,11 @@ import { useApi } from "./hooks/useApi";
 import ErrorMessage from "./components/ErrorMessage";
 import { useAppTheme } from "./context/AppThemeContext";
 import defaultLogo from "./assets/logo.png";
+import { useTranslation } from "react-i18next";
 
 function Start() {
   const theme = useTheme();
+  const { t } = useTranslation();
   const { logoUrl } = useAppTheme();
   const logoSrc = logoUrl || defaultLogo;
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -97,7 +99,7 @@ function Start() {
                 >
                   <Notifications sx={{ fontSize: 28 }} />
                   <Typography variant="h6" fontWeight="bold">
-                    Updates & News
+                    {t("start.updatesNews", { defaultValue: "Updates & News" })}
                   </Typography>
                 </Box>
                 <CardContent
@@ -157,7 +159,7 @@ function Start() {
                               {res?.UpdateDisc}
                             </Typography>
                             <Chip
-                              label={`Update ${index + 1}`}
+                              label={t("start.updateNumber", { defaultValue: "Update {{num}}", num: index + 1 })}
                               size="small"
                               sx={{ mt: 1 }}
                               color="primary"
@@ -169,7 +171,7 @@ function Start() {
                     </Box>
                   ) : (
                     <Typography variant="body2" color="text.secondary" textAlign="center">
-                      No updates available
+                      {t("start.noUpdatesAvailable", { defaultValue: "No updates available" })}
                     </Typography>
                   )}
                 </CardContent>
@@ -238,7 +240,7 @@ function Start() {
                         textAlign="center"
                         sx={{ textShadow: "2px 2px 4px rgba(0,0,0,0.3)" }}
                       >
-                        Welcome to the Nickname Infotech
+                        {t("start.welcome", { defaultValue: "Welcome to the Nickname Infotech" })}
 
                         {/* Login Section */}
                         <Card
@@ -264,7 +266,7 @@ function Start() {
                             }}
                           >
                             <Typography variant="h6" fontWeight="bold">
-                              Login
+                              {t("auth.login", { defaultValue: "Login" })}
                             </Typography>
                           </Box>
                           <CardContent sx={{ flex: 1, display: "flex", alignItems: "center" }}>
@@ -299,7 +301,7 @@ function Start() {
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
                         <Announcement color="warning" />
                         <Typography variant="subtitle2" fontWeight="bold" color="warning.main">
-                          Important Announcement
+                          {t("start.importantAnnouncement", { defaultValue: "Important Announcement" })}
                         </Typography>
                       </Box>
                       <Typography variant="body2" color="text.secondary">
@@ -330,7 +332,7 @@ function Start() {
                       <Box
                         component="img"
                         src={logoSrc}
-                        alt="Logo"
+                        alt={t("layout.logoAlt", { defaultValue: "Logo" })}
                         sx={{
                           maxWidth: "150px",
                           height: "auto",
@@ -343,7 +345,7 @@ function Start() {
                         }}
                       />
                       <Typography variant="h6" fontWeight="bold" color="primary">
-                        Quick Links
+                        {t("start.quickLinks", { defaultValue: "Quick Links" })}
                       </Typography>
                     </Box>
 
@@ -370,7 +372,7 @@ function Start() {
                         >
                           <Description />
                           <Typography variant="body2" fontWeight="medium">
-                            Circular
+                            {t("start.circular", { defaultValue: "Circular" })}
                           </Typography>
                         </Link>
                       )}
@@ -396,7 +398,7 @@ function Start() {
                         >
                           <PhotoLibrary />
                           <Typography variant="body2" fontWeight="medium">
-                            Photo Gallery
+                            {t("start.photoGallery", { defaultValue: "Photo Gallery" })}
                           </Typography>
                         </Link>
                       )}
@@ -422,7 +424,7 @@ function Start() {
                         >
                           <InsertDriveFile />
                           <Typography variant="body2" fontWeight="medium">
-                            View Excel / Word
+                            {t("start.viewExcelWord", { defaultValue: "View Excel / Word" })}
                           </Typography>
                         </Link>
                       )}
@@ -453,12 +455,15 @@ function Start() {
                   >
                     <PhoneAndroid sx={{ fontSize: 28 }} />
                     <Typography variant="h6" fontWeight="bold">
-                      Mobile App
+                      {t("start.mobileApp", { defaultValue: "Mobile App" })}
                     </Typography>
                   </Box>
                   <CardContent>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      Download our mobile app for Android devices. Access your timesheet, leave requests, and more on the go!
+                      {t("start.mobileAppSubtitle", {
+                        defaultValue:
+                          "Download our mobile app for Android devices. Access your timesheet, leave requests, and more on the go!",
+                      })}
                     </Typography>
                     <Box
                       component="a"
@@ -484,11 +489,11 @@ function Start() {
                     >
                       <GetApp />
                       <Typography variant="body1" fontWeight="bold">
-                        Download APK
+                        {t("start.downloadApk", { defaultValue: "Download APK" })}
                       </Typography>
                     </Box>
                     <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block", textAlign: "center" }}>
-                      Version 1.0.0 • Size: ~51 MB
+                      {t("start.apkMeta", { defaultValue: "Version 1.0.0 • Size: ~51 MB" })}
                     </Typography>
                   </CardContent>
                 </Card>
@@ -518,7 +523,7 @@ function Start() {
                 mr: 2,
               }}
             >
-              Privacy Policy
+              {t("legal.privacyPolicy", { defaultValue: "Privacy Policy" })}
             </Link>
             <Link
               component={RouterLink}
@@ -530,7 +535,7 @@ function Start() {
                 mr: 2,
               }}
             >
-              Terms and Conditions
+              {t("legal.termsAndConditions", { defaultValue: "Terms and Conditions" })}
             </Link>
             <Link
               component={RouterLink}
@@ -541,11 +546,11 @@ function Start() {
                 "&:hover": { textDecoration: "underline" },
               }}
             >
-              Support
+              {t("legal.support", { defaultValue: "Support" })}
             </Link>
           </Typography>
           <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.7)" }}>
-            © Time Sheet Management
+            {t("start.footerCopyright", { defaultValue: "© Time Sheet Management" })}
           </Typography>
         </Box>
       </Container>

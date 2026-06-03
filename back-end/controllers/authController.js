@@ -169,6 +169,34 @@ export const adminLogin = asyncHandler(async (req, res) => {
     tokenPayload.company_role = user.role || "company_user";
     // Matches Settings → Roles role_name in Menu Permissions (e.g. "Video Editor"); optional
     tokenPayload.company_menu_role = user.menu_role_name || null;
+
+    // Link tenant employee row when company login email matches employeeEmail/userName
+    const em = String(user.email || userName || "").trim();
+    if (em) {
+      try {
+        const empRows = await companyQuery(
+          `SELECT id, EMPID, employeeName, designation, date, discipline, employeeStatus
+           FROM employee
+           WHERE LOWER(TRIM(employeeEmail)) = LOWER(TRIM(?))
+              OR LOWER(TRIM(userName)) = LOWER(TRIM(?))
+           ORDER BY id DESC
+           LIMIT 1`,
+          [em, em]
+        );
+        if (empRows?.length) {
+          const emp = empRows[0];
+          tokenPayload.id = emp.id;
+          tokenPayload.employeeId = emp.EMPID;
+          tokenPayload.employeeName = emp.employeeName;
+          tokenPayload.designation = emp.designation;
+          tokenPayload.dateOfJoining = emp.date;
+          tokenPayload.discipline = emp.discipline;
+          tokenPayload.employeeStatus = emp.employeeStatus;
+        }
+      } catch (e) {
+        if (e?.code !== "ER_NO_SUCH_TABLE") throw e;
+      }
+    }
   }
 
   const token = jwt.sign(tokenPayload, config.jwt.secret, {

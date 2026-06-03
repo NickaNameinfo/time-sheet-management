@@ -39,6 +39,7 @@ import { useMutation } from "../../hooks/useMutation";
 import { apiService } from "../../services/api";
 import { useAppTheme, getAppGradient, getAppGradientHover } from "../../context/AppThemeContext";
 import { isCompanyAccount } from "../../utils/authClient";
+import { useTranslation } from "react-i18next";
 
 // Country to Currency mapping
 const COUNTRY_CURRENCIES = {
@@ -82,6 +83,7 @@ const DEFAULT_THEME_SIDEBAR_BG = "#101835";
 const DEFAULT_THEME_SIDEBAR_TEXT = "#FFFFFF";
 
 const AppSettings = () => {
+  const { t } = useTranslation();
   const { refetch: refetchTheme } = useAppTheme();
   const isCompanyLogin = useMemo(() => isCompanyAccount(), []);
   const [formData, setFormData] = useState({
@@ -336,7 +338,9 @@ const AppSettings = () => {
                     >
                       {LANGUAGES.map((lang) => (
                         <MenuItem key={lang.code} value={lang.code}>
-                          {lang.native} ({lang.name})
+                          {t(`languages.${lang.code}.label`, {
+                            defaultValue: `${lang.native} (${lang.name})`,
+                          })}
                         </MenuItem>
                       ))}
                     </Select>

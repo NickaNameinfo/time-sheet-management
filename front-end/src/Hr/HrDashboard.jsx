@@ -2,15 +2,17 @@ import React from "react";
 import { Box } from "@mui/material";
 import { Outlet } from "react-router-dom";
 import CommonSidebar from "../components/CommonSidebar";
+import { useTranslation } from "react-i18next";
 
 const drawerWidth = 104;
 
 function HrDashboard() {
+  const { t } = useTranslation();
   return (
     <Box sx={{ display: "flex", height: "100vh" }}>
       <CommonSidebar 
         drawerWidth={drawerWidth}
-        dashboardTitle="HR Dashboard"
+        dashboardTitle={t("layout.hrDashboard")}
         basePath="/Hr"
       />
       <Box

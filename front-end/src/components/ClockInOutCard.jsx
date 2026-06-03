@@ -33,8 +33,10 @@ import { apiService } from "../services/api";
 import { useApi } from "../hooks/useApi";
 import { useMutation } from "../hooks/useMutation";
 import { useAuth } from "../context/AuthContext";
+import { useTranslation } from "react-i18next";
 
 const ClockInOutCard = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [clockInDialog, setClockInDialog] = useState(false);
   const [clockOutDialog, setClockOutDialog] = useState(false);
@@ -283,7 +285,9 @@ const ClockInOutCard = () => {
     if (!clockInData.projectName && !clockInData.referenceNo) {
       setSnackbar({
         open: true,
-        message: "Please select a project or enter reference number",
+        message: t("clock.pleaseSelectProjectOrReference", {
+          defaultValue: "Please select a project or enter reference number",
+        }),
         severity: "warning",
       });
       return;
@@ -347,7 +351,7 @@ const ClockInOutCard = () => {
       refetchClockStatus();
       setSnackbar({
         open: true,
-        message: "Clocked in successfully",
+        message: t("clock.clockedInSuccess", { defaultValue: "Clocked in successfully" }),
         severity: "success",
       });
       // Trigger event to notify TimeManagement
@@ -355,7 +359,7 @@ const ClockInOutCard = () => {
     } else {
       setSnackbar({
         open: true,
-        message: result.error || "Failed to clock in",
+        message: result.error || t("clock.clockInFailed", { defaultValue: "Failed to clock in" }),
         severity: "error",
       });
     }
@@ -366,7 +370,7 @@ const ClockInOutCard = () => {
     if (!todayClockStatus?.id) {
       setSnackbar({
         open: true,
-        message: "No active clock-in found",
+        message: t("clock.noActiveClockIn", { defaultValue: "No active clock-in found" }),
         severity: "error",
       });
       return;
@@ -384,7 +388,11 @@ const ClockInOutCard = () => {
       refetchClockStatus();
       setSnackbar({
         open: true,
-        message: `Clocked out successfully. Total hours: ${result.data?.totalHours || todayHours.toFixed(2)} hours`,
+        message: t("clock.clockedOutSuccessWithHours", {
+          defaultValue:
+            "Clocked out successfully. Total hours: {{hours}} hours",
+          hours: result.data?.totalHours || todayHours.toFixed(2),
+        }),
         severity: "success",
       });
       // Trigger event to notify TimeManagement
@@ -392,7 +400,7 @@ const ClockInOutCard = () => {
     } else {
       setSnackbar({
         open: true,
-        message: result.error || "Failed to clock out",
+        message: result.error || t("clock.clockOutFailed", { defaultValue: "Failed to clock out" }),
         severity: "error",
       });
     }
@@ -405,28 +413,33 @@ const ClockInOutCard = () => {
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
             <AccessTime color="primary" />
             <Typography variant="h6" fontWeight="bold">
-              Today's Attendance
+              {t("clock.todaysAttendance", { defaultValue: "Today's Attendance" })}
             </Typography>
           </Box>
           <Grid container spacing={3} alignItems="center">
             <Grid item xs={12} md={6}>
               <Box>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Status
+                  {t("clock.status", { defaultValue: "Status" })}
                 </Typography>
                 {todayClockStatus ? (
                   <Chip
-                    label={todayClockStatus.status === 'active' ? 'Clocked In' : 'Clocked Out'}
+                    label={
+                      todayClockStatus.status === "active"
+                        ? t("clock.clockedIn", { defaultValue: "Clocked In" })
+                        : t("clock.clockedOut", { defaultValue: "Clocked Out" })
+                    }
                     color={todayClockStatus.status === 'active' ? 'success' : 'default'}
                     icon={todayClockStatus.status === 'active' ? <Login /> : <Logout />}
                     sx={{ mb: 1 }}
                   />
                 ) : (
-                  <Chip label="Not Clocked In" color="default" />
+                  <Chip label={t("clock.notClockedIn", { defaultValue: "Not Clocked In" })} color="default" />
                 )}
                 {todayClockStatus?.clockInTime && (
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                    Clock In: {new Date(todayClockStatus.clockInTime).toLocaleTimeString('en-US', { 
+                    {t("clock.clockInTime", { defaultValue: "Clock In" })}:{" "}
+                    {new Date(todayClockStatus.clockInTime).toLocaleTimeString('en-US', { 
                       hour: '2-digit', 
                       minute: '2-digit', 
                       second: '2-digit',
@@ -436,7 +449,8 @@ const ClockInOutCard = () => {
                 )}
                 {todayClockStatus?.clockOutTime && (
                   <Typography variant="body2" color="text.secondary">
-                    Clock Out: {new Date(todayClockStatus.clockOutTime).toLocaleTimeString('en-US', { 
+                    {t("clock.clockOutTime", { defaultValue: "Clock Out" })}:{" "}
+                    {new Date(todayClockStatus.clockOutTime).toLocaleTimeString('en-US', { 
                       hour: '2-digit', 
                       minute: '2-digit', 
                       second: '2-digit',
@@ -449,7 +463,7 @@ const ClockInOutCard = () => {
             <Grid item xs={12} md={3}>
               <Box>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Today's Hours
+                  {t("clock.todaysHours", { defaultValue: "Today's Hours" })}
                 </Typography>
                 <Typography variant="h4" fontWeight="bold" color="primary">
                   {todayTimeFormatted}
@@ -474,7 +488,7 @@ const ClockInOutCard = () => {
                       },
                     }}
                   >
-                    {clockingIn ? <CircularProgress size={20} /> : "Clock In"}
+                    {clockingIn ? <CircularProgress size={20} /> : t("clock.clockIn", { defaultValue: "Clock In" })}
                   </Button>
                 ) : (
                   <Button
@@ -490,7 +504,7 @@ const ClockInOutCard = () => {
                       },
                     }}
                   >
-                    {clockingOut ? <CircularProgress size={20} /> : "Clock Out"}
+                    {clockingOut ? <CircularProgress size={20} /> : t("clock.clockOut", { defaultValue: "Clock Out" })}
                   </Button>
                 )}
                 <IconButton onClick={refetchClockStatus} size="small">
@@ -513,7 +527,7 @@ const ClockInOutCard = () => {
         <DialogTitle>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <Typography variant="h6" fontWeight="bold">
-              Clock In
+              {t("clock.clockIn", { defaultValue: "Clock In" })}
             </Typography>
             <IconButton onClick={() => setClockInDialog(false)} size="small">
               <Close />
@@ -523,10 +537,10 @@ const ClockInOutCard = () => {
         <DialogContent>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
             <FormControl fullWidth>
-              <InputLabel>Project Name (Optional)</InputLabel>
+              <InputLabel>{t("clock.projectNameOptional", { defaultValue: "Project Name (Optional)" })}</InputLabel>
               <Select
                 value={clockInData.projectName}
-                label="Project Name (Optional)"
+                label={t("clock.projectNameOptional", { defaultValue: "Project Name (Optional)" })}
                 onChange={(e) => {
                   // Find in assigned projects first, then regular projects
                   const selectedProject = assignedProjectsList.find(p => p.projectName === e.target.value) 
@@ -539,7 +553,7 @@ const ClockInOutCard = () => {
                 }}
                 disabled={assignedProjectsLoading}
               >
-                <MenuItem value="">None</MenuItem>
+                <MenuItem value="">{t("common.none", { defaultValue: "None" })}</MenuItem>
                 {assignedProjectsList.length > 0 ? (
                   // Show only assigned projects from plans with allotted hours
                   assignedProjectsList.map((project) => (
@@ -563,7 +577,7 @@ const ClockInOutCard = () => {
                   !assignedProjectsLoading && (
                     <MenuItem value="" disabled>
                       <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                        No assigned projects from project plans
+                        {t("clock.noAssignedProjectsFromPlans", { defaultValue: "No assigned projects from project plans" })}
                       </Typography>
                     </MenuItem>
                   )
@@ -571,29 +585,31 @@ const ClockInOutCard = () => {
               </Select>
               {assignedProjectsList.length > 0 && (
                 <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
-                  Showing assigned projects from project plans
+                  {t("clock.showingAssignedProjectsFromPlans", { defaultValue: "Showing assigned projects from project plans" })}
                 </Typography>
               )}
               {assignedProjectsList.length === 0 && !assignedProjectsLoading && (
                 <Typography variant="caption" color="warning.main" sx={{ mt: 0.5 }}>
-                  No projects assigned in project plans. Please contact your manager.
+                  {t("clock.noProjectsAssignedContactManager", {
+                    defaultValue: "No projects assigned in project plans. Please contact your manager.",
+                  })}
                 </Typography>
               )}
             </FormControl>
             <TextField
-              label="Reference Number (Optional)"
+              label={t("clock.referenceNumberOptional", { defaultValue: "Reference Number (Optional)" })}
               value={clockInData.referenceNo}
               onChange={(e) => setClockInData({ ...clockInData, referenceNo: e.target.value })}
               fullWidth
             />
             <FormControl fullWidth>
-              <InputLabel>Area of Work (Optional)</InputLabel>
+              <InputLabel>{t("clock.areaOfWorkOptional", { defaultValue: "Area of Work (Optional)" })}</InputLabel>
               <Select
                 value={clockInData.areaOfWork}
-                label="Area of Work (Optional)"
+                label={t("clock.areaOfWorkOptional", { defaultValue: "Area of Work (Optional)" })}
                 onChange={(e) => setClockInData({ ...clockInData, areaOfWork: e.target.value })}
               >
-                <MenuItem value="">None</MenuItem>
+                <MenuItem value="">{t("common.none", { defaultValue: "None" })}</MenuItem>
                 {areaOfWorkList.map((area) => (
                   <MenuItem key={area.id || area.areaofwork} value={area.areaofwork}>
                     {area.areaofwork}
@@ -604,7 +620,7 @@ const ClockInOutCard = () => {
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setClockInDialog(false)}>Cancel</Button>
+          <Button onClick={() => setClockInDialog(false)}>{t("common.cancel", { defaultValue: "Cancel" })}</Button>
           <Button
             onClick={handleClockIn}
             variant="contained"
@@ -617,7 +633,9 @@ const ClockInOutCard = () => {
               },
             }}
           >
-            {clockingIn ? "Clocking In..." : "Clock In"}
+            {clockingIn
+              ? t("clock.clockingIn", { defaultValue: "Clocking In..." })
+              : t("clock.clockIn", { defaultValue: "Clock In" })}
           </Button>
         </DialogActions>
       </Dialog>
@@ -633,7 +651,7 @@ const ClockInOutCard = () => {
         <DialogTitle>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <Typography variant="h6" fontWeight="bold">
-              Clock Out
+              {t("clock.clockOut", { defaultValue: "Clock Out" })}
             </Typography>
             <IconButton onClick={() => setClockOutDialog(false)} size="small">
               <Close />
@@ -643,18 +661,20 @@ const ClockInOutCard = () => {
         <DialogContent>
           <Box sx={{ mt: 2 }}>
             <Typography variant="body1" gutterBottom>
-              Clock In Time: {todayClockStatus?.clockInTime ? new Date(todayClockStatus.clockInTime).toLocaleString() : 'N/A'}
+              {t("clock.clockInTime", { defaultValue: "Clock In" })}:{" "}
+              {todayClockStatus?.clockInTime ? new Date(todayClockStatus.clockInTime).toLocaleString() : t("common.na", { defaultValue: "N/A" })}
             </Typography>
             <Typography variant="body1" gutterBottom>
-              Current Time: {new Date().toLocaleString()}
+              {t("clock.currentTime", { defaultValue: "Current Time" })}: {new Date().toLocaleString()}
             </Typography>
             <Typography variant="h6" color="primary" sx={{ mt: 2 }}>
-              Total Hours: {todayHours.toFixed(2)} hours
+              {t("clock.totalHours", { defaultValue: "Total Hours" })}: {todayHours.toFixed(2)}{" "}
+              {t("common.hours", { defaultValue: "hours" })}
             </Typography>
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setClockOutDialog(false)}>Cancel</Button>
+          <Button onClick={() => setClockOutDialog(false)}>{t("common.cancel", { defaultValue: "Cancel" })}</Button>
           <Button
             onClick={handleClockOut}
             variant="contained"
@@ -668,7 +688,9 @@ const ClockInOutCard = () => {
               },
             }}
           >
-            {clockingOut ? "Clocking Out..." : "Clock Out"}
+            {clockingOut
+              ? t("clock.clockingOut", { defaultValue: "Clocking Out..." })
+              : t("clock.clockOut", { defaultValue: "Clock Out" })}
           </Button>
         </DialogActions>
       </Dialog>
@@ -687,7 +709,7 @@ const ClockInOutCard = () => {
           action={
             <IconButton
               size="small"
-              aria-label="close"
+              aria-label={t("common.close", { defaultValue: "close" })}
               color="inherit"
               onClick={() => setSnackbar({ ...snackbar, open: false })}
             >

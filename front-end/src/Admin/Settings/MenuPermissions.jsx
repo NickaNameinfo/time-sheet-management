@@ -43,6 +43,7 @@ import {
 } from "@mui/icons-material";
 import { apiService } from "../../services/api";
 import { useApi, useMutation } from "../../hooks/useApi";
+import { useTranslation } from "react-i18next";
 import {
   Table,
   TableBody,
@@ -58,12 +59,12 @@ import {
 
 /** Table columns: Access (sidebar) + View / Add / Edit / Delete / All — each cell = one checkbox per role */
 const PERMISSION_COLUMNS = [
-  { key: "allowed_roles", label: "Access" },
-  { key: "view_permission", label: "View" },
-  { key: "add_permission", label: "Add" },
-  { key: "edit_permission", label: "Edit" },
-  { key: "delete_permission", label: "Delete" },
-  { key: "all_permission", label: "All" },
+  { key: "allowed_roles", labelKey: "menuPerms.columns.access", fallback: "Access" },
+  { key: "view_permission", labelKey: "menuPerms.columns.view", fallback: "View" },
+  { key: "add_permission", labelKey: "menuPerms.columns.add", fallback: "Add" },
+  { key: "edit_permission", labelKey: "menuPerms.columns.edit", fallback: "Edit" },
+  { key: "delete_permission", labelKey: "menuPerms.columns.delete", fallback: "Delete" },
+  { key: "all_permission", labelKey: "menuPerms.columns.all", fallback: "All" },
 ];
 
 const ROLE_FILTER_KEYS = PERMISSION_COLUMNS.map((c) => c.key);
@@ -118,9 +119,18 @@ const FALLBACK_SYSTEM_ROLES = [
 
 const MenuPermissions = () => {
   const theme = useTheme();
+  const { t } = useTranslation();
   const [searchText, setSearchText] = useState("");
   const [selectedRole, setSelectedRole] = useState("All");
   const [selectedMenuFilter, setSelectedMenuFilter] = useState("all");
+  const permissionColumns = useMemo(
+    () =>
+      PERMISSION_COLUMNS.map((c) => ({
+        ...c,
+        label: t(c.labelKey, { defaultValue: c.fallback }),
+      })),
+    [t]
+  );
   const [permissions, setPermissions] = useState({});
   const [hasChanges, setHasChanges] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
@@ -464,7 +474,7 @@ const MenuPermissions = () => {
     if (updates.length === 0) {
       setSnackbar({
         open: true,
-        message: "No changes to save",
+        message: t("menuPerms.noChangesToSave", { defaultValue: "No changes to save" }),
         severity: "info",
       });
       return;
@@ -475,7 +485,10 @@ const MenuPermissions = () => {
       if (result.success) {
         setSnackbar({
           open: true,
-          message: `Successfully updated ${updates.length} menu permission(s)`,
+          message: t("menuPerms.updatedCount", {
+            defaultValue: "Successfully updated {{count}} menu permission(s)",
+            count: updates.length,
+          }),
           severity: "success",
         });
         setHasChanges(false);
@@ -483,14 +496,18 @@ const MenuPermissions = () => {
       } else {
         setSnackbar({
           open: true,
-          message: result.error || "Failed to update permissions",
+          message:
+            result.error ||
+            t("menuPerms.failedToUpdate", { defaultValue: "Failed to update permissions" }),
           severity: "error",
         });
       }
     } catch (error) {
       setSnackbar({
         open: true,
-        message: error.message || "Failed to update permissions",
+        message:
+          error.message ||
+          t("menuPerms.failedToUpdate", { defaultValue: "Failed to update permissions" }),
         severity: "error",
       });
     }
@@ -550,7 +567,11 @@ const MenuPermissions = () => {
                 size="small"
                 onClick={() => toggleNode(node.menu_key)}
                 sx={{ mt: -0.25, p: 0.25 }}
-                aria-label={isExpanded ? "Collapse" : "Expand"}
+                aria-label={
+                  isExpanded
+                    ? t("common.collapse", { defaultValue: "Collapse" })
+                    : t("common.expand", { defaultValue: "Expand" })
+                }
               >
                 {isExpanded ? <ExpandLess fontSize="small" /> : <ChevronRight fontSize="small" />}
               </IconButton>
@@ -572,7 +593,7 @@ const MenuPermissions = () => {
             </Box>
           </Box>
         </TableCell>
-        {PERMISSION_COLUMNS.map((col) => (
+        {permissionColumns.map((col) => (
           <TableCell key={col.key} align="center" sx={{ py: 0.75, px: 0.5, minWidth: 112, verticalAlign: "middle" }}>
             <Stack direction="row" spacing={0} justifyContent="center" alignItems="center" flexWrap="wrap" useFlexGap>
               {systemRoles.map((roleRow) => {
@@ -581,8 +602,19 @@ const MenuPermissions = () => {
                 const isChecked = (perm[col.key] || []).includes(role);
                 const tip =
                   col.key === "allowed_roles"
-                    ? `${roleLabel}: show this menu in the sidebar`
-                    : `${roleLabel} — ${col.label}`;
+                    ? t("menuPerms.tooltipSidebar", {
+                        defaultValue: "{{role}}: show this menu in the sidebar",
+                        role: roleLabel,
+                      })
+                    : col.key === "edit_permission" &&
+                        (node.menu_key === "salary_payslip" || node.menu_key === "my_payslips")
+                      ? t("menuPerms.tooltipPayslipEdit", {
+                          defaultValue:
+                            "{{role}} — {{col}}. For employees, use My Payslips with View/Access only (not Edit on Salary & Payslip).",
+                          role: roleLabel,
+                          col: col.label,
+                        })
+                      : `${roleLabel} — ${col.label}`;
                 return (
                   <Tooltip key={role} title={tip} arrow placement="top">
                     <span>
@@ -706,14 +738,17 @@ const MenuPermissions = () => {
                   Menu Permissions
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                  Tree of menus with Access / View / Add / Edit / Delete / All — checkboxes per role (A H T E).
+                  {t("menuPerms.subtitle", {
+                    defaultValue:
+                      "Tree of menus with Access / View / Add / Edit / Delete / All — checkboxes per role (A H T E).",
+                  })}
                 </Typography>
               </Box>
             </Box>
             {hasChanges && (
               <Chip
                 icon={<CheckCircle />}
-                label="Unsaved Changes"
+                label={t("menuPerms.unsavedChanges", { defaultValue: "Unsaved Changes" })}
                 color="warning"
                 size="small"
                 sx={{ mt: 1, fontWeight: 600 }}
@@ -741,13 +776,18 @@ const MenuPermissions = () => {
                 transition: "all 0.2s ease",
               }}
             >
-              {loading && hasMenuData ? "Loading…" : "Refresh"}
+              {loading && hasMenuData
+                ? t("common.loading", { defaultValue: "Loading..." })
+                : t("common.refresh", { defaultValue: "Refresh" })}
             </Button>
             <Button
               variant="outlined"
               onClick={handleReset}
               disabled={loading || !menuPermissionsData}
-              title="Clear all permissions to default (everything unchecked, menus inactive). Save to apply."
+              title={t("menuPerms.resetTooltip", {
+                defaultValue:
+                  "Clear all permissions to default (everything unchecked, menus inactive). Save to apply.",
+              })}
               sx={{
                 borderRadius: 2,
                 px: 2.5,
@@ -762,7 +802,7 @@ const MenuPermissions = () => {
                 transition: "all 0.2s ease",
               }}
             >
-              Reset
+              {t("menuPerms.reset", { defaultValue: "Reset" })}
             </Button>
             <Button
               variant="contained"
@@ -787,7 +827,9 @@ const MenuPermissions = () => {
                 transition: "all 0.3s ease",
               }}
             >
-              {updating ? "Saving..." : "Save Changes"}
+              {updating
+                ? t("common.saving", { defaultValue: "Saving..." })
+                : t("menuPerms.saveChanges", { defaultValue: "Save Changes" })}
             </Button>
           </Stack>
         </Box>
@@ -820,7 +862,7 @@ const MenuPermissions = () => {
                 </InputLabel>
                 <Select
                   value={selectedMenuFilter}
-                  label="Select Menu"
+                  label={t("menuPerms.selectMenu", { defaultValue: "Select Menu" })}
                   onChange={(e) => setSelectedMenuFilter(e.target.value)}
                   sx={{
                     borderRadius: 2,
@@ -837,7 +879,7 @@ const MenuPermissions = () => {
                   }}
                 >
                   <MenuItem value="all">
-                    <em>All Menus</em>
+                    <em>{t("menuPerms.allMenus", { defaultValue: "All Menus" })}</em>
                   </MenuItem>
                   {allMenuItems.map((menu) => (
                     <MenuItem key={menu.id} value={menu.menu_key}>
@@ -851,7 +893,7 @@ const MenuPermissions = () => {
               <TextField
                 fullWidth
                 size="small"
-                placeholder="Search menu items..."
+                placeholder={t("menuPerms.searchPlaceholder", { defaultValue: "Search menu items..." })}
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
                 sx={{
@@ -881,7 +923,7 @@ const MenuPermissions = () => {
             <Grid item xs={12} md={4}>
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                 <Chip
-                  label="All Roles"
+                  label={t("menuPerms.allRoles", { defaultValue: "All Roles" })}
                   onClick={() => setSelectedRole("All")}
                   color={selectedRole === "All" ? "primary" : "default"}
                   variant={selectedRole === "All" ? "filled" : "outlined"}
@@ -955,22 +997,22 @@ const MenuPermissions = () => {
                     minWidth: 240,
                   }}
                 >
-                  Menu
+                  {t("menuPerms.menu", { defaultValue: "Menu" })}
                 </TableCell>
-                {PERMISSION_COLUMNS.map((col) => (
+                {permissionColumns.map((col) => (
                   <TableCell key={col.key} align="center" sx={{ fontWeight: 700, py: 1, borderBottom: 0 }}>
                     {col.label}
                   </TableCell>
                 ))}
                 <TableCell rowSpan={2} align="center" sx={{ fontWeight: 700, verticalAlign: "bottom", whiteSpace: "nowrap" }}>
-                  Active
+                  {t("menuPerms.active", { defaultValue: "Active" })}
                 </TableCell>
                 <TableCell rowSpan={2} align="center" sx={{ fontWeight: 700, verticalAlign: "bottom", whiteSpace: "nowrap" }}>
-                  Staff
+                  {t("menuPerms.staff", { defaultValue: "Staff" })}
                 </TableCell>
               </TableRow>
               <TableRow>
-                {PERMISSION_COLUMNS.map((col) => (
+                {permissionColumns.map((col) => (
                   <TableCell key={`${col.key}-roles`} align="center" sx={{ py: 0.5, pt: 0, borderTop: 0 }}>
                     <Stack direction="row" spacing={0.25} justifyContent="center" alignItems="center" flexWrap="wrap" useFlexGap>
                       {systemRoles.map((roleRow) => {
@@ -1028,7 +1070,7 @@ const MenuPermissions = () => {
               size="small"
               onClick={() => setEmployeePermissionsDialog(false)}
             >
-              Close
+              {t("common.close", { defaultValue: "Close" })}
             </Button>
           </Box>
         </DialogTitle>
@@ -1047,7 +1089,9 @@ const MenuPermissions = () => {
                   if (result.success) {
                     setSnackbar({
                       open: true,
-                      message: "Employee permissions updated successfully",
+                      message: t("menuPerms.employeePermsUpdated", {
+                        defaultValue: "Employee permissions updated successfully",
+                      }),
                       severity: "success",
                     });
                     refetchEmployeePermissions();
@@ -1055,7 +1099,11 @@ const MenuPermissions = () => {
                 } catch (error) {
                   setSnackbar({
                     open: true,
-                    message: error.message || "Failed to update employee permissions",
+                    message:
+                      error.message ||
+                      t("menuPerms.failedToUpdateEmployeePerms", {
+                        defaultValue: "Failed to update employee permissions",
+                      }),
                     severity: "error",
                   });
                 }

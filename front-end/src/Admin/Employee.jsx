@@ -43,8 +43,10 @@ import { useMutation } from "../hooks/useMutation";
 import Loading from "../components/Loading";
 import ErrorMessage from "../components/ErrorMessage";
 import { getDisplayEmployeeId } from "../utils/employeeId";
+import { useTranslation } from "react-i18next";
 
 function Employee({ from }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [selectedRows, setSelectedRows] = useState([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -99,7 +101,7 @@ function Employee({ from }) {
     () => [
       {
         field: "employeeName",
-        headerName: "Employee Name",
+        headerName: t("employeeMgmt.employeeName", { defaultValue: "Employee Name" }),
         minWidth: 200,
         checkboxSelection: true,
         cellRenderer: (params) => {
@@ -115,7 +117,7 @@ function Employee({ from }) {
       },
       {
         field: "EMPID",
-        headerName: "Employee ID",
+        headerName: t("employeeMgmt.employeeId", { defaultValue: "Employee ID" }),
         minWidth: 120,
         valueGetter: (params) => getDisplayEmployeeId(params.data),
         cellRenderer: (params) => (
@@ -124,7 +126,7 @@ function Employee({ from }) {
       },
       {
         field: "employeeEmail",
-        headerName: "Email",
+        headerName: t("employeeMgmt.email", { defaultValue: "Email" }),
         minWidth: 200,
         cellRenderer: (params) => (
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
@@ -135,9 +137,12 @@ function Employee({ from }) {
       },
       {
         field: "company_login_status",
-        headerName: "Company login",
+        headerName: t("employeeMgmt.companyLogin", { defaultValue: "Company login" }),
         headerTooltip:
-          "Matches Super Admin → Company profile logins. Approved = email is on that list; Not registered = not on list.",
+          t("employeeMgmt.companyLoginTooltip", {
+            defaultValue:
+              "Matches Super Admin → Company profile logins. Approved = email is on that list; Not registered = not on list.",
+          }),
         minWidth: 210,
         cellRenderer: (params) => {
           const s = params.data?.company_login_status;
@@ -150,10 +155,14 @@ function Employee({ from }) {
           }
           if (s === "approved_super_admin") {
             return (
-              <Tooltip title="On company login list (first account / Super Admin setup)">
+              <Tooltip
+                title={t("employeeMgmt.companyLoginApprovedSuperAdminTooltip", {
+                  defaultValue: "On company login list (first account / Super Admin setup)",
+                })}
+              >
                 <Chip
                   icon={<CheckCircle sx={{ fontSize: 16 }} />}
-                  label="Approved"
+                  label={t("employeeMgmt.approved", { defaultValue: "Approved" })}
                   size="small"
                   color="success"
                   variant="outlined"
@@ -163,10 +172,14 @@ function Employee({ from }) {
           }
           if (s === "approved_company") {
             return (
-              <Tooltip title="On company login list (added from company admin)">
+              <Tooltip
+                title={t("employeeMgmt.companyLoginApprovedCompanyTooltip", {
+                  defaultValue: "On company login list (added from company admin)",
+                })}
+              >
                 <Chip
                   icon={<Business sx={{ fontSize: 16 }} />}
-                  label="Approved"
+                  label={t("employeeMgmt.approved", { defaultValue: "Approved" })}
                   size="small"
                   color="info"
                   variant="outlined"
@@ -176,26 +189,41 @@ function Employee({ from }) {
           }
           if (s === "inactive") {
             return (
-              <Tooltip title="Email is on the list but company login is disabled">
-                <Chip icon={<Cancel sx={{ fontSize: 16 }} />} label="Login disabled" size="small" color="warning" variant="outlined" />
+              <Tooltip
+                title={t("employeeMgmt.companyLoginInactiveTooltip", {
+                  defaultValue: "Email is on the list but company login is disabled",
+                })}
+              >
+                <Chip
+                  icon={<Cancel sx={{ fontSize: 16 }} />}
+                  label={t("employeeMgmt.loginDisabled", { defaultValue: "Login disabled" })}
+                  size="small"
+                  color="warning"
+                  variant="outlined"
+                />
               </Tooltip>
             );
           }
           return (
-            <Tooltip title="Employee email is not in Super Admin company profile logins for this company">
-              <Chip label="Not registered" size="small" variant="outlined" />
+            <Tooltip
+              title={t("employeeMgmt.companyLoginNotRegisteredTooltip", {
+                defaultValue:
+                  "Employee email is not in Super Admin company profile logins for this company",
+              })}
+            >
+              <Chip label={t("employeeMgmt.notRegistered", { defaultValue: "Not registered" })} size="small" variant="outlined" />
             </Tooltip>
           );
         },
       },
       {
         field: "userName",
-        headerName: "Username",
+        headerName: t("employeeMgmt.username", { defaultValue: "Username" }),
         minWidth: 120,
       },
       {
         field: "role",
-        headerName: "Role",
+        headerName: t("employeeMgmt.role", { defaultValue: "Role" }),
         minWidth: 120,
         cellRenderer: (params) => {
           const roleColors = {
@@ -216,58 +244,58 @@ function Employee({ from }) {
       },
       {
         field: "designation",
-        headerName: "Designation",
+        headerName: t("employeeMgmt.designation", { defaultValue: "Designation" }),
         minWidth: 150,
         cellRenderer: (params) => (
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
             <Work sx={{ fontSize: 16, color: "text.secondary" }} />
-            <Typography variant="body2">{params.value || "N/A"}</Typography>
+            <Typography variant="body2">{params.value || t("common.na", { defaultValue: "N/A" })}</Typography>
           </Box>
         ),
       },
       {
         field: "date",
-        headerName: "Join Date",
+        headerName: t("employeeMgmt.joinDate", { defaultValue: "Join Date" }),
         minWidth: 120,
         cellRenderer: (params) => (
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
             <CalendarToday sx={{ fontSize: 14, color: "text.secondary" }} />
             <Typography variant="body2">
-              {params.value ? new Date(params.value).toLocaleDateString() : "N/A"}
+              {params.value ? new Date(params.value).toLocaleDateString() : t("common.na", { defaultValue: "N/A" })}
             </Typography>
           </Box>
         ),
       },
       {
         field: "relievingDate",
-        headerName: "Relieving Date",
+        headerName: t("employeeMgmt.relievingDate", { defaultValue: "Relieving Date" }),
         minWidth: 140,
         cellRenderer: (params) => (
           <Typography variant="body2">
-            {params.value ? new Date(params.value).toLocaleDateString() : "N/A"}
+            {params.value ? new Date(params.value).toLocaleDateString() : t("common.na", { defaultValue: "N/A" })}
           </Typography>
         ),
       },
       {
         field: "permanentDate",
-        headerName: "Permanent Date",
+        headerName: t("employeeMgmt.permanentDate", { defaultValue: "Permanent Date" }),
         minWidth: 140,
         cellRenderer: (params) => (
           <Typography variant="body2">
-            {params.value ? new Date(params.value).toLocaleDateString() : "N/A"}
+            {params.value ? new Date(params.value).toLocaleDateString() : t("common.na", { defaultValue: "N/A" })}
           </Typography>
         ),
       },
       {
         field: "actions",
-        headerName: "Actions",
+        headerName: t("employeeMgmt.actions", { defaultValue: "Actions" }),
         minWidth: 120,
         filter: false,
         sortable: false,
         cellRenderer: (params) => {
           return (
             <Box sx={{ display: "flex", gap: 1 }}>
-              <Tooltip title="Edit Employee">
+              <Tooltip title={t("employeeMgmt.editEmployee", { defaultValue: "Edit Employee" })}>
                 <IconButton
                   size="small"
                   color="primary"
@@ -282,7 +310,7 @@ function Employee({ from }) {
                   <Edit fontSize="small" />
                 </IconButton>
               </Tooltip>
-              <Tooltip title="Delete Employee">
+              <Tooltip title={t("employeeMgmt.deleteEmployee", { defaultValue: "Delete Employee" })}>
                 <IconButton
                   size="small"
                   color="error"
@@ -302,7 +330,7 @@ function Employee({ from }) {
         },
       },
     ],
-    []
+    [t]
   );
 
   const defaultColDef = useMemo(
@@ -336,7 +364,7 @@ function Employee({ from }) {
   };
 
   if (loading) {
-    return <Loading message="Loading employees..." />;
+    return <Loading message={t("employeeMgmt.loadingEmployees", { defaultValue: "Loading employees..." })} />;
   }
 
   return (
@@ -346,10 +374,10 @@ function Employee({ from }) {
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
           <Box>
             <Typography variant="h4" fontWeight="bold" gutterBottom>
-              Employee Management
+              {t("employeeMgmt.title", { defaultValue: "Employee Management" })}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Manage and view all employees in your organization
+              {t("employeeMgmt.subtitle", { defaultValue: "Manage and view all employees in your organization" })}
             </Typography>
           </Box>
           <Stack direction="row" spacing={2}>
@@ -359,7 +387,7 @@ function Employee({ from }) {
               onClick={refetch}
               disabled={loading}
             >
-              Refresh
+              {t("common.refresh", { defaultValue: "Refresh" })}
             </Button>
             <Button
               variant="contained"
@@ -378,7 +406,7 @@ function Employee({ from }) {
                 },
               }}
             >
-              Add Employee
+              {t("employeeMgmt.addEmployee", { defaultValue: "Add Employee" })}
             </Button>
           </Stack>
         </Box>
@@ -396,7 +424,7 @@ function Employee({ from }) {
           }}
         >
           <TextField
-            placeholder="Search employees..."
+            placeholder={t("employeeMgmt.searchPlaceholder", { defaultValue: "Search employees..." })}
             variant="outlined"
             size="small"
             value={searchText}
@@ -413,7 +441,7 @@ function Employee({ from }) {
           {selectedRows.length > 0 && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Chip
-                label={`${selectedRows.length} selected`}
+                label={t("common.selectedCount", { defaultValue: "{{count}} selected", count: selectedRows.length })}
                 color="primary"
                 size="small"
               />
@@ -424,7 +452,7 @@ function Employee({ from }) {
                 onClick={handleBulkDelete}
                 size="small"
               >
-                Delete Selected
+                {t("employeeMgmt.deleteSelected", { defaultValue: "Delete Selected" })}
               </Button>
             </Box>
           )}
@@ -479,22 +507,24 @@ function Employee({ from }) {
         <DialogTitle>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Delete color="error" />
-            <Typography variant="h6">Confirm Delete</Typography>
+            <Typography variant="h6">
+              {t("employeeMgmt.confirmDelete", { defaultValue: "Confirm Delete" })}
+            </Typography>
           </Box>
         </DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to delete employee{" "}
-            <strong>{employeeToDelete?.employeeName}</strong> (ID:{" "}
-            {employeeToDelete ? getDisplayEmployeeId(employeeToDelete) : ""})?
-            <br />
-            <br />
-            This action cannot be undone.
+            {t("employeeMgmt.deleteConfirmText", {
+              defaultValue:
+                "Are you sure you want to delete employee {{name}} (ID: {{id}})? This action cannot be undone.",
+              name: employeeToDelete?.employeeName || "",
+              id: employeeToDelete ? getDisplayEmployeeId(employeeToDelete) : "",
+            })}
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
           <Button onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
-            Cancel
+            {t("common.cancel", { defaultValue: "Cancel" })}
           </Button>
           <Button
             onClick={handleDeleteConfirm}
@@ -503,7 +533,9 @@ function Employee({ from }) {
             disabled={deleting}
             startIcon={<Delete />}
           >
-            {deleting ? "Deleting..." : "Delete"}
+            {deleting
+              ? t("employeeMgmt.deleting", { defaultValue: "Deleting..." })
+              : t("employeeMgmt.delete", { defaultValue: "Delete" })}
           </Button>
         </DialogActions>
       </Dialog>

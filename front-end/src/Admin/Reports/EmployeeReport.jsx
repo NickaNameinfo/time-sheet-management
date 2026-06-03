@@ -1,353 +1,215 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Box,
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  Chip,
-  TextField,
-  Stack,
   Grid,
-  Paper,
+  Chip,
+  Stack,
+  Alert,
+  Typography,
 } from "@mui/material";
-import {
-  People,
-  FileDownload,
-  Refresh,
-  CalendarToday,
-  FilterList,
-  Clear,
-} from "@mui/icons-material";
-import api from "../../services/api";
+import { People, Clear } from "@mui/icons-material";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
+import api from "../../services/api";
+import {
+  ReportPageHeader,
+  ReportFilterCard,
+  ReportGridCard,
+  ReportStatsGrid,
+  StatCard,
+  useReportSnackbar,
+  gridStyle,
+  defaultReportColDef,
+} from "../../components/reports/reportPageUi";
+
+const STATUS_OPTIONS = [
+  { key: "all", label: "All active statuses" },
+  { key: "Permanent", label: "Permanent" },
+  { key: "Probation", label: "Probation" },
+  { key: "Ex-Employee", label: "Ex-Employee" },
+];
 
 const EmployeeReport = () => {
-  const containerStyle = { width: "100%", height: "100%" };
-  const gridStyle = { height: "100%", width: "100%" };
-  const [workDetails, setWorkDetails] = useState([]);
-  const [exportApi, setExportApi] = React.useState(null);
-  const [startDate, setStartData] = React.useState(null);
-  const [endDate, setEnddate] = React.useState(null);
-  const [filterValue, setFilterValue] = React.useState({
-    exEmployee: false,
-    permanent: false,
-    probation: false,
-  });
+  const { notify, SnackbarAlert } = useReportSnackbar();
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [exportApi, setExportApi] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
 
-  console.log(filterValue, "workDetailsworkDetails", startDate, endDate);
-
-  React.useEffect(() => {
-    onGetWorkDetails();
-  }, [startDate, endDate, filterValue]);
-
-  React.useEffect(() => {
-    onGetUserData();
+  const loadEmployees = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.get("/getEmployee");
+      if (res.data?.Status === "Success") {
+        setEmployees(res.data.Result || []);
+      } else {
+        throw new Error(res.data?.Message || "Failed to load employees");
+      }
+    } catch (e) {
+      setError(e?.message || "Failed to load employees");
+      setEmployees([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const handleFilterChange = (filterType) => {
-    setFilterValue((prevState) => {
-      if (filterType === "exEmployee") {
-        return {
-          ...prevState,
-          exEmployee: true,
-          permanent: false,
-          probation: false,
-        };
-      } else if (filterType === "permanent") {
-        return {
-          ...prevState,
-          exEmployee: false,
-          permanent: true,
-          probation: false,
-        };
-      } else {
-        return {
-          ...prevState,
-          exEmployee: false,
-          permanent: false,
-          probation: true,
-        };
-      }
+  useEffect(() => {
+    loadEmployees();
+  }, [loadEmployees]);
+
+  const filteredRows = useMemo(() => {
+    let list = employees;
+    if (statusFilter !== "all") {
+      list = list.filter((e) => String(e.employeeStatus || "").trim() === statusFilter);
+    }
+    if (startDate || endDate) {
+      list = list.filter((item) => {
+        const dateField =
+          statusFilter === "Ex-Employee" ? item.relievingDate : item.date;
+        if (!dateField) return false;
+        const d = dayjs(dateField);
+        if (!d.isValid()) return false;
+        if (startDate && d.isBefore(dayjs(startDate), "day")) return false;
+        if (endDate && d.isAfter(dayjs(endDate), "day")) return false;
+        return true;
+      });
+    }
+    return list;
+  }, [employees, statusFilter, startDate, endDate]);
+
+  const summary = useMemo(() => {
+    const counts = { Permanent: 0, Probation: 0, "Ex-Employee": 0, other: 0 };
+    filteredRows.forEach((e) => {
+      const s = String(e.employeeStatus || "").trim();
+      if (counts[s] !== undefined) counts[s] += 1;
+      else counts.other += 1;
     });
-  };
-
-  const onGetUserData = (params) => {
-    console.log(params, "params2342");
-    setExportApi(params?.api);
-  };
-
-  const onGetWorkDetails = (params) => {
-    api
-      .get("/getEmployee")
-      .then((res) => {
-        if (res.data.Status === "Success") {
-          let tempFilter = filterValue.exEmployee
-            ? "Ex-Employee"
-            : filterValue.permanent
-              ? "Permanent"
-              : filterValue.probation
-                ? "Probation"
-                : null;
-          const filteredData = res.data?.Result?.filter((item) => {
-            if (startDate || endDate) {
-              let tempDate = filterValue.exEmployee
-                ? item.relievingDate
-                : item?.date;
-              const itemDate = new Date(tempDate);
-              return (
-                itemDate >= new Date(startDate) && itemDate <= new Date(endDate)
-              );
-            } else {
-              return item?.employeeStatus === tempFilter;
-            }
-          });
-          console.log(filteredData, "filteredData24523");
-          if (filteredData.length > 0) {
-            setWorkDetails(filteredData);
-          } else {
-            setWorkDetails(res.data.Result);
-          }
-        } else {
-          alert("Error");
-        }
-      })
-      .catch((err) => console.log(err));
-  };
+    return { total: filteredRows.length, ...counts };
+  }, [filteredRows]);
 
   const columnDefs = useMemo(
     () => [
-      {
-        field: "employeeName",
-        minWidth: 170,
-        checkboxSelection: false,
-      },
-      { field: "EMPID", headerName: "Employee ID" },
-      { field: "employeeEmail" },
-      { field: "userName" },
-      { field: "role" },
-      { field: "discipline" },
-      { field: "designation" },
-      { field: "employeeStatus" },
-      { field: "date", headerName: "Join Date" },
-      { field: "relievingDate", headerName: "Relieving Date" },
-      { field: "permanentDate", headerName: "Permanent Date" },
+      { field: "employeeName", headerName: "Name", minWidth: 160, pinned: "left" },
+      { field: "EMPID", headerName: "Employee ID", minWidth: 110 },
+      { field: "employeeEmail", headerName: "Email", minWidth: 180 },
+      { field: "userName", minWidth: 120 },
+      { field: "role", minWidth: 90 },
+      { field: "discipline", minWidth: 100 },
+      { field: "designation", minWidth: 120 },
+      { field: "employeeStatus", headerName: "Status", minWidth: 110 },
+      { field: "date", headerName: "Join date", minWidth: 110 },
+      { field: "permanentDate", headerName: "Permanent date", minWidth: 120 },
+      { field: "relievingDate", headerName: "Relieving date", minWidth: 120 },
     ],
     []
   );
 
-  const defaultColDef = useMemo(
-    () => ({
-      editable: false,
-      enableRowGroup: true,
-      enablePivot: true,
-      enableValue: true,
-      sortable: true,
-      resizable: true,
-      filter: true,
-      floatingFilter: true,
-      flex: 1,
-      minWidth: 100,
-    }),
-    []
-  );
+  const clearFilters = () => {
+    setStatusFilter("all");
+    setStartDate(null);
+    setEndDate(null);
+  };
 
-  const onClickExport = () => {
+  const onExport = () => {
     if (exportApi) {
-      exportApi.exportDataAsCsv();
-      alert("Report exported successfully");
-    } else {
-      alert("Please wait for the grid to load");
-    }
-  };
-
-  const onSelectionChanged = (event) => {
-    // Handle selection if needed
-  };
-
-  const handleClearFilter = () => {
-    setStartData(null);
-    setEnddate(null);
-    setFilterValue({
-      exEmployee: false,
-      permanent: false,
-      probation: false,
-    });
+      exportApi.exportDataAsCsv({ fileName: "employee-report.csv" });
+      notify("Report exported successfully");
+    } else notify("Please wait for the grid to load", "warning");
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 2,
-          }}
-        >
-          <Box>
-            <Typography variant="h4" fontWeight="bold" gutterBottom>
-              Employee Report
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              View and filter employee information by status and date range
-            </Typography>
-          </Box>
-          <Stack direction="row" spacing={2}>
-            <Button
-              variant="outlined"
-              startIcon={<Refresh />}
-              onClick={() => {
-                onGetWorkDetails();
-                onGetUserData();
-              }}
-            >
-              Refresh
-            </Button>
-            <Button
-              onClick={onClickExport}
-              variant="contained"
-              startIcon={<FileDownload />}
-              sx={{
-                background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
-                "&:hover": {
-                  background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
-                },
-              }}
-            >
-              Export CSV
-            </Button>
-          </Stack>
-        </Box>
-      </Box>
+    <Box sx={{ maxWidth: 1800, mx: "auto" }}>
+      <ReportPageHeader
+        icon={People}
+        title="Employee Report"
+        subtitle="Employee roster with status and join / relieving date filters."
+        onRefresh={loadEmployees}
+        loading={loading}
+        onExport={onExport}
+        exportDisabled={!filteredRows.length}
+      />
 
-      {/* Filters Card */}
-      <Card sx={{ mb: 3, borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
-        <CardContent>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
-            <FilterList color="primary" />
-            <Typography variant="h6" fontWeight="bold">
-              Filters
+      <ReportFilterCard
+        title="Filters"
+        chips={
+          (statusFilter !== "all" || startDate || endDate) && (
+            <Chip label="Clear all" size="small" icon={<Clear />} onClick={clearFilters} clickable color="warning" variant="outlined" />
+          )
+        }
+      >
+        <Grid container spacing={2}>
+          <Grid item xs={12}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              Status
             </Typography>
-          </Box>
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
-              <Box>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Employee Status
-                </Typography>
-                <Stack direction="row" spacing={1} flexWrap="wrap">
-                  <Chip
-                    label="Ex-Employee"
-                    onClick={() => handleFilterChange("exEmployee")}
-                    color={filterValue.exEmployee ? "success" : "default"}
-                    variant={filterValue.exEmployee ? "filled" : "outlined"}
-                    clickable
-                  />
-                  <Chip
-                    label="Permanent"
-                    onClick={() => handleFilterChange("permanent")}
-                    color={filterValue.permanent ? "success" : "default"}
-                    variant={filterValue.permanent ? "filled" : "outlined"}
-                    clickable
-                  />
-                  <Chip
-                    label="Probation"
-                    onClick={() => handleFilterChange("probation")}
-                    color={filterValue.probation ? "success" : "default"}
-                    variant={filterValue.probation ? "filled" : "outlined"}
-                    clickable
-                  />
-                  <Chip
-                    label="Clear Filter"
-                    onClick={handleClearFilter}
-                    color="warning"
-                    variant="outlined"
-                    icon={<Clear />}
-                    clickable
-                  />
-                </Stack>
-              </Box>
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <LocalizationProvider dateAdapter={AdapterDayjs}>
-                <DatePicker
-                  label="Start Date"
-                  value={startDate ? dayjs(startDate) : null}
-                  slotProps={{
-                    textField: {
-                      fullWidth: true,
-                      InputProps: {
-                        startAdornment: <CalendarToday sx={{ mr: 1, color: "text.secondary" }} />,
-                      },
-                    },
-                  }}
-                  onChange={(newValue) => {
-                    const formattedDate = dayjs(newValue).format("YYYY-MM-DD");
-                    setStartData(formattedDate);
-                  }}
-                  format="YYYY-MM-DD"
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              {STATUS_OPTIONS.map((opt) => (
+                <Chip
+                  key={opt.key}
+                  label={opt.label}
+                  clickable
+                  color={statusFilter === opt.key ? "primary" : "default"}
+                  variant={statusFilter === opt.key ? "filled" : "outlined"}
+                  onClick={() => setStatusFilter(opt.key)}
                 />
-              </LocalizationProvider>
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <LocalizationProvider dateAdapter={AdapterDayjs}>
-                <DatePicker
-                  label="End Date"
-                  value={endDate ? dayjs(endDate) : null}
-                  slotProps={{
-                    textField: {
-                      fullWidth: true,
-                      InputProps: {
-                        startAdornment: <CalendarToday sx={{ mr: 1, color: "text.secondary" }} />,
-                      },
-                    },
-                  }}
-                  onChange={(newValue) => {
-                    const formattedDate = dayjs(newValue).format("YYYY-MM-DD");
-                    setEnddate(formattedDate);
-                  }}
-                  format="YYYY-MM-DD"
-                />
-              </LocalizationProvider>
-            </Grid>
+              ))}
+            </Stack>
           </Grid>
-        </CardContent>
-      </Card>
-
-      {/* Grid Card */}
-      <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
-        <CardContent>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
-            <People color="primary" />
-            <Typography variant="h6" fontWeight="bold">
-              Employee Details
-            </Typography>
-          </Box>
-          <Box sx={{ width: "100%", height: "600px" }}>
-            <div style={gridStyle} className="ag-theme-alpine">
-              <AgGridReact
-                rowData={workDetails}
-                columnDefs={columnDefs}
-                defaultColDef={defaultColDef}
-                suppressRowClickSelection={true}
-                groupSelectsChildren={true}
-                rowGroupPanelShow={"always"}
-                pivotPanelShow={"always"}
-                pagination={true}
-                onGridReady={(value) => onGetUserData(value)}
-                onSelectionChanged={onSelectionChanged}
+          <Grid item xs={12} sm={6} md={3}>
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <DatePicker
+                label={statusFilter === "Ex-Employee" ? "Relieving from" : "Join from"}
+                value={startDate}
+                onChange={(v) => setStartDate(v)}
+                slotProps={{ textField: { size: "small", fullWidth: true } }}
               />
-            </div>
-          </Box>
-        </CardContent>
-      </Card>
+            </LocalizationProvider>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <DatePicker
+                label={statusFilter === "Ex-Employee" ? "Relieving to" : "Join to"}
+                value={endDate}
+                onChange={(v) => setEndDate(v)}
+                minDate={startDate || undefined}
+                slotProps={{ textField: { size: "small", fullWidth: true } }}
+              />
+            </LocalizationProvider>
+          </Grid>
+        </Grid>
+      </ReportFilterCard>
+
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+      {!loading && !error && (
+        <ReportStatsGrid>
+          <StatCard icon={People} label="Shown" value={summary.total} accent="primary" />
+          <StatCard label="Permanent" value={summary.Permanent} accent="success" />
+          <StatCard label="Probation" value={summary.Probation} accent="warning" />
+          <StatCard label="Ex-employee" value={summary["Ex-Employee"]} accent="error" />
+        </ReportStatsGrid>
+      )}
+
+      <ReportGridCard icon={People} title="Employee details" rowCount={filteredRows.length} loading={loading}>
+        <div style={gridStyle} className="ag-theme-alpine">
+          <AgGridReact
+            rowData={filteredRows}
+            columnDefs={columnDefs}
+            defaultColDef={{ ...defaultReportColDef, filter: true, floatingFilter: true }}
+            pagination
+            paginationPageSize={25}
+            onGridReady={(p) => setExportApi(p?.api)}
+          />
+        </div>
+      </ReportGridCard>
+      {SnackbarAlert}
     </Box>
   );
 };

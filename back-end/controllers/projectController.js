@@ -1,6 +1,7 @@
 import { getTenantQuery, biometricQuery, query as primaryQuery } from "../config/database.js";
 import { sendSuccess, sendError } from "../utils/response.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
+import { mapWorkDetailRows, WORKDETAILS_CLOCK_SQL } from "../utils/workdetailsClock.js";
 
 export const createProject = asyncHandler(async (req, res) => {
   const q = getTenantQuery(req);
@@ -498,19 +499,29 @@ export const getWorkDetails = asyncHandler(async (req, res) => {
   const q = getTenantQuery(req);
   const { employeeId, startDate, endDate, tlId } = req.query;
   
-  let sql = "SELECT wd.* FROM workdetails wd";
+  let sql = `SELECT wd.*, ${WORKDETAILS_CLOCK_SQL} FROM workdetails wd`;
   const params = [];
-  
+  const employeeOrParts = [];
+
   if (employeeId) {
-    // Get userName from employeeId first
-    const employeeSql = "SELECT userName FROM employee WHERE EMPID = ? OR id = ? LIMIT 1";
-    const employee = await q(employeeSql, [employeeId, employeeId]);
-    
-    if (employee.length > 0) {
-      sql += " AND userName = ?";
-      params.push(employee[0].userName);
-    } else {
-      // If employee not found, return empty result
+    const employeeSql =
+      "SELECT id, userName, EMPID, employeeEmail, employeeName FROM employee WHERE EMPID = ? OR id = ? OR CAST(id AS CHAR) = ? LIMIT 1";
+    const employee = await q(employeeSql, [employeeId, employeeId, String(employeeId).trim()]);
+    if (employee.length === 0) {
+      return sendSuccess(res, []);
+    }
+    const emp = employee[0];
+    const pushEmpMatch = (col, val) => {
+      const v = val != null ? String(val).trim() : "";
+      if (!v) return;
+      employeeOrParts.push(`(${col} = ? OR LOWER(TRIM(${col})) = LOWER(TRIM(?)))`);
+      params.push(v, v);
+    };
+    pushEmpMatch("wd.userName", emp.userName);
+    pushEmpMatch("wd.employeeNo", emp.EMPID);
+    pushEmpMatch("wd.userName", emp.employeeEmail);
+    pushEmpMatch("wd.employeeName", emp.employeeName);
+    if (!employeeOrParts.length) {
       return sendSuccess(res, []);
     }
   }
@@ -639,6 +650,10 @@ export const getWorkDetails = asyncHandler(async (req, res) => {
   } else {
     sql += " WHERE 1=1";
   }
+
+  if (employeeOrParts.length) {
+    sql += ` AND (${employeeOrParts.join(" OR ")})`;
+  }
   
   if (startDate) {
     // Use sentDate field for date filtering
@@ -655,12 +670,7 @@ export const getWorkDetails = asyncHandler(async (req, res) => {
   sql += " ORDER BY wd.sentDate DESC, wd.id DESC";
   
   const results = await q(sql, params);
-  // Debug: confirm clock-in/out fields exist in API response (prints only keys, not values)
-  if (tlId && Array.isArray(results) && results.length > 0) {
-    const keys = Object.keys(results[0] || {});
-    console.log("[getWorkDetails] tlId response keys:", keys);
-  }
-  return sendSuccess(res, results);
+  return sendSuccess(res, mapWorkDetailRows(results));
 });
 
 // Clock In - Create a new work detail record

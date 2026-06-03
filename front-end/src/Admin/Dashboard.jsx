@@ -2,16 +2,18 @@ import React from "react";
 import { Box } from "@mui/material";
 import { Outlet } from "react-router-dom";
 import CommonSidebar from "../components/CommonSidebar";
+import { useTranslation } from "react-i18next";
 
 /** Matches CommonSidebar narrow rail (desktop) */
 const drawerWidth = 104;
 
 function Dashboard() {
+  const { t } = useTranslation();
   return (
     <Box sx={{ display: "flex", height: "100vh" }}>
       <CommonSidebar 
         drawerWidth={drawerWidth}
-        dashboardTitle="Admin Dashboard"
+        dashboardTitle={t("layout.adminDashboard")}
         basePath="/Dashboard"
       />
       <Box

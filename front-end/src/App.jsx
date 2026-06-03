@@ -1,4 +1,5 @@
 import React from "react";
+import "./i18n";
 import Login from "./Login";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -33,6 +34,7 @@ import AddProjectDetails from "./Employee/addProjectDetails";
 import AddLeaveDetails from "./Employee/addLeaveDetails";
 import ProjectWorkDetails from "./TeamLead/ProjectWorkDetails";
 import TimeManagement from "./Employee/TimeManagement";
+import MyPayslips from "./Employee/MyPayslips";
 import ProjectReport from "./Admin/Reports/ProjectReport";
 import WeeklyReport from "./Admin/Reports/WeeklyReport";
 import YearlyReport from "./Admin/Reports/YearlyReport";
@@ -61,6 +63,7 @@ import OvertimeManagement from "./components/OvertimeManagement";
 import LeaveBalance from "./components/LeaveBalance";
 import ShiftManagement from "./components/ShiftManagement";
 import PayrollExport from "./components/PayrollExport";
+import SalaryAndPayslip from "./components/SalaryAndPayslip";
 import BudgetTracking from "./components/BudgetTracking";
 import BillingManagement from "./components/BillingManagement";
 import ProductivityDashboard from "./components/ProductivityDashboard";
@@ -196,6 +199,7 @@ function App() {
           <Route path="/Dashboard/LeaveBalance" element={<LeaveBalance />}></Route>
           <Route path="/Dashboard/Shifts" element={<ShiftManagement />}></Route>
           <Route path="/Dashboard/Payroll" element={<PayrollExport />}></Route>
+          <Route path="/Dashboard/SalaryPayslip" element={<SalaryAndPayslip />}></Route>
           <Route path="/Dashboard/Budget" element={<BudgetTracking />}></Route>
           <Route path="/Dashboard/Projects/:projectId/Budget" element={<BudgetTracking />}></Route>
           <Route path="/Dashboard/Billing" element={<BillingManagement />}></Route>
@@ -238,6 +242,7 @@ function App() {
           <Route path="/Employee/CompOff" element={<CompOff />}></Route>
           <Route path="/Employee/Profile" element={<Profile />}></Route>
           <Route path="/Employee/ShiftDetails" element={<ShiftManagement />}></Route>
+          <Route path="/Employee/MyPayslips" element={<MyPayslips />}></Route>
         </Route>
 
         <Route path="/TeamLead" element={<ProtectedRoute><TeamLeadDashboard /></ProtectedRoute>}>

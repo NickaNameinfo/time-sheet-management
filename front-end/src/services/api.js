@@ -287,6 +287,14 @@ export const apiService = {
   generatePayrollSummary: (params) => api.get("/payroll/summary", { params }),
   exportToTally: (params) => api.get("/payroll/export/tally", { params, responseType: "blob" }),
   exportToQuickBooks: (params) => api.get("/payroll/export/quickbooks", { params, responseType: "blob" }),
+  getMyPaidPayslips: () => api.get("/payroll/my-payslips"),
+  getMyPayslipPeriodSummary: (params) => api.get("/payroll/my-period-summary", { params }),
+  getSalaryPayslips: (params) => api.get("/payroll/salary-payslips", { params }),
+  getEmployeePayslipAttendance: (employeeId, params) =>
+    api.get(`/payroll/salary-payslips/${employeeId}/attendance`, { params }),
+  getSalaryPayslipDetail: (employeeId, params) =>
+    api.get(`/payroll/salary-payslips/${employeeId}/detail`, { params }),
+  upsertSalaryPayslip: (data) => api.post("/payroll/salary-payslips", data),
 
   // Budget
   getProjectBudget: (projectId) => api.get(`/projects/${projectId}/budget`),

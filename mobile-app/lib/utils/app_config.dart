@@ -3,8 +3,8 @@ class AppConfig {
   // Note: Backend runs on port 8000
   // For web: use localhost:8000
   // For mobile: use your computer's IP address (e.g., http://192.168.1.100:8000)
-  static const String baseUrl = 'https://nicknameinfo.net/timesheet';
-  // static const String baseUrl = 'http://localhost:10000';
+  // static const String baseUrl = 'https://nicknameinfo.net/timesheet';
+  static const String baseUrl = 'http://localhost:10000';
   // For production, use your actual server URL
   // static const String baseUrl = 'https://api.yourcompany.com';
   
@@ -24,6 +24,12 @@ class AppConfig {
   static const String timesheetEndpoint = '/getWorkDetails';
   static const String shiftEndpoint = '/shifts/assignments';
   static const String notificationEndpoint = '/notifications';
+
+  // Employee payroll / payslip (read-only)
+  static const String myPaidPayslipsEndpoint = '/payroll/my-payslips';
+  static const String myPayslipPeriodSummaryEndpoint = '/payroll/my-period-summary';
+  static String salaryPayslipDetailEndpoint(String employeeId) =>
+      '/payroll/salary-payslips/$employeeId/detail';
   
   // Storage Keys
   static const String tokenKey = 'auth_token';
@@ -78,6 +84,20 @@ class AppConfig {
   static const Duration requestTimeout = Duration(seconds: 30);
 
   /// Tenant `employee.id` (dashboard `employeeRecordId`) for API params — required when company JWT has no `id`.
+  /// True for HR/Admin company roles — they use web payroll; employees see My Payslips.
+  static bool isPayrollAdminUser(Map<String, dynamic>? user) {
+    if (user == null) return false;
+    final role = (user['role'] ?? '').toString().trim().toLowerCase();
+    if (role == 'admin' || role == 'hr') return true;
+    final cr = (user['company_role'] ?? '').toString().trim().toLowerCase();
+    if (cr == 'company_admin') return true;
+    final menuRole = (user['company_menu_role'] ?? user['employee_table_role'] ?? '')
+        .toString()
+        .trim()
+        .toLowerCase();
+    return menuRole == 'admin' || menuRole == 'hr';
+  }
+
   static String? employeeDbIdForApi(Map<String, dynamic>? user) {
     if (user == null) return null;
     final er = user['employeeRecordId'];

@@ -1,354 +1,222 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Box,
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  Stack,
+  Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Alert,
+  Chip,
 } from "@mui/material";
-import {
-  DateRange,
-  FileDownload,
-  Refresh,
-} from "@mui/icons-material";
-import api from "../../services/api";
+import { DateRange, Assessment, Schedule, TrendingUp, AccountBalance } from "@mui/icons-material";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
+import {
+  ReportPageHeader,
+  ReportFilterCard,
+  ReportGridCard,
+  ReportStatsGrid,
+  StatCard,
+  useProjectsAndWorkDetails,
+  useReportSnackbar,
+  hoursFromEntry,
+  entryYear,
+  projectNamesFromData,
+  gridStyle,
+  defaultReportColDef,
+} from "../../components/reports/reportPageUi";
+
+function buildYearlyByProject(workDetails) {
+  const map = new Map();
+  workDetails.forEach((item) => {
+    const year = entryYear(item);
+    if (!year || !item.projectName) return;
+    if (!map.has(item.projectName)) map.set(item.projectName, {});
+    const proj = map.get(item.projectName);
+    proj[year] = (proj[year] || 0) + hoursFromEntry(item);
+  });
+  return map;
+}
 
 const YearlyReport = () => {
-  const containerStyle = { width: "100%", height: "100%" };
-  const gridStyle = { height: "100%", width: "100%" };
-  const [projectDetails, setProjectDetails] = useState([]);
-  const [workDetails, setWorkDetails] = useState([]);
-  const [projectWorkHours, setProjectWorkHours] = React.useState(null);
-  const [yearBasedDetails, setYearBasedDetails] = React.useState([]);
-  const [exportApi, setExportApi] = React.useState(null);
+  const { projectDetails, workDetails, loading, error, loadData } = useProjectsAndWorkDetails();
+  const { notify, SnackbarAlert } = useReportSnackbar();
+  const [exportApi, setExportApi] = useState(null);
+  const [projectFilter, setProjectFilter] = useState("");
 
-  console.log(workDetails, "workDetailsworkDetails");
-  React.useEffect(() => {
-    onGetWorkDetails();
-    onGridReady();
-  }, []);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-  React.useEffect(() => {
-    const projectData = workDetails.reduce((acc, entry) => {
-      const projectName = entry.projectName;
-      if (!acc[projectName]) {
-        acc[projectName] = [];
-      }
-      acc[projectName].push(Number(entry.totalHours));
-      return acc;
-    }, {});
+  const yearlyByProject = useMemo(() => buildYearlyByProject(workDetails), [workDetails]);
 
-    const projectTotalHours = Object.keys(projectData).map((projectName) => {
-      const totalHours = projectData[projectName].reduce(
-        (sum, hours) => sum + hours,
-        0
-      );
-      return { projectName, totalHours };
+  const uniqueYears = useMemo(() => {
+    const years = new Set();
+    workDetails.forEach((w) => {
+      const y = entryYear(w);
+      if (y) years.add(y);
     });
-    setProjectWorkHours(projectTotalHours);
-
-    const yearlyDataByProject = [];
-
-    workDetails?.forEach((item) => {
-      const year = new Date(item.sentDate).getFullYear();
-      const projectName = item.projectName;
-
-      // Find the corresponding project's data in the accumulator
-      const projectData = yearlyDataByProject.find(
-        (dataItem) => dataItem.projectName === projectName
-      );
-
-      if (!projectData) {
-        // If the project's data doesn't exist, create it
-        const newProjectData = {
-          projectName,
-          yearlyData: [],
-        };
-
-        const yearData = {
-          year,
-          totalHours: 0,
-          referenceNo: item.referenceNo,
-          allottedHours: item.allottedHours,
-        };
-
-        yearData.totalHours += Number(item.totalHours);
-        newProjectData.yearlyData.push(yearData);
-        yearlyDataByProject.push(newProjectData);
-      } else {
-        // If the project's data already exists, find the corresponding year's data
-        const yearData = projectData.yearlyData.find(
-          (dataItem) => dataItem.year === year
-        );
-
-        if (!yearData) {
-          // If the year's data doesn't exist, create it
-          const newYearData = {
-            year,
-            totalHours: 0,
-            referenceNo: item.referenceNo,
-            allottedHours: item.allottedHours,
-          };
-
-          newYearData.totalHours += Number(item.totalHours);
-          projectData.yearlyData.push(newYearData);
-        } else {
-          // If the year's data already exists, update it
-          yearData.totalHours += Number(item.totalHours);
-        }
-      }
-    });
-    setYearBasedDetails(yearlyDataByProject);
-    console.log(yearlyDataByProject, "totalHoursPerYeartotalHoursPerYear");
+    return [...years].sort((a, b) => a - b);
   }, [workDetails]);
 
-  const onGridReady = (params) => {
-    setExportApi(params?.api);
-    api
-      .get("/getProject")
-      .then((res) => {
-        if (res.data.Status === "Success") {
-          setProjectDetails(res.data.Result);
-        } else {
-          alert("Error");
-        }
-      })
-      .catch((err) => console.log(err));
-  };
+  const filteredProjects = useMemo(() => {
+    if (!projectFilter) return projectDetails;
+    return projectDetails.filter((p) => p.projectName === projectFilter);
+  }, [projectDetails, projectFilter]);
 
-  const onGetWorkDetails = (params) => {
-    api
-      .get("/getWorkDetails")
-      .then((res) => {
-        if (res.data.Status === "Success") {
-          let resultData = res.data.Result?.filter(
-            (item) => item.status === "approved"
-          );
-          setWorkDetails(resultData);
-        } else {
-          alert("Error");
-        }
-      })
-      .catch((err) => console.log(err));
-  };
-  // Extract unique years from all projects' yearlyData arrays
-  const uniqueYears = [
-    ...new Set(
-      yearBasedDetails.flatMap((project) =>
-        project.yearlyData.map((yearData) => yearData.year)
-      )
-    ),
-  ];
-
-  // Map the unique years to header columns
-  const yearColumns = uniqueYears.map((year) => ({
-    field: year.toString(),
-    headerName: year.toString(),
-    valueGetter: (params) => {
-      // Find the corresponding yearlyData for the project
-      const project = yearBasedDetails.find(
-        (item) => item.projectName === params.data.projectName
-      );
-      if (project) {
-        const yearData = project.yearlyData.find((item) => item.year === year);
-        return yearData ? yearData.totalHours : 0;
-      }
-      return 0;
-    },
-    minWidth: 100,
-  }));
-
-  const columnDefs = useMemo(
-    () => [
-      {
-        field: "referenceNo",
-        minWidth: 170,
-      },
-      { field: "projectName", minWidth: 170 },
-      { field: "desciplineCode" },
-      { field: "allotatedHours", headerName: "Allotted Hours" },
-
-      {
-        field: "totalHours",
-        headerName: "Total Work Hours",
-        valueGetter: (params) => {
-          const totalWorkHours = workDetails.reduce((total, entry) => {
-            if (entry.projectName === String(params.data.projectName)) {
-              return total + Number(entry.totalHours);
-            } else {
-              return total;
-            }
-          }, 0);
-          return totalWorkHours || 0;
-        },
-      },
-      {
-        field: "Utilization",
-        valueGetter: (params, index) => {
-          const totalWorkHours = workDetails.reduce((total, entry) => {
-            if (entry.projectName === String(params.data.projectName)) {
-              return total + Number(entry.totalHours);
-            } else {
-              return total;
-            }
-          }, 0);
-          const completionPercentage =
-            (totalWorkHours / params?.data?.allotatedHours) * 100;
-          const remainingPercentage = 100 - completionPercentage;
-
-          return remainingPercentage?.toFixed(2);
-        },
-      },
-      {
-        field: "Idle Hours",
-        valueGetter: (params, index) => {
-          const totalWorkHours = workDetails.reduce((total, entry) => {
-            if (entry.projectName === String(params.data.projectName)) {
-              return total + Number(entry.totalHours);
-            } else {
-              return total;
-            }
-          }, 0);
-          const idleHours = params?.data?.allotatedHours - totalWorkHours;
-
-          return idleHours;
-        },
-      },
-      ...yearColumns,
-    ],
-    [yearBasedDetails, workDetails] // Include workDetails as a dependency if it's used elsewhere
+  const projectOptions = useMemo(
+    () => projectNamesFromData(projectDetails, workDetails),
+    [projectDetails, workDetails]
   );
 
-  const autoGroupColumnDef = useMemo(
-    () => ({
-      headerName: "Group",
-      minWidth: 170,
-      field: "athlete",
+  const totalConsumedAll = useMemo(
+    () => workDetails.reduce((s, w) => s + hoursFromEntry(w), 0),
+    [workDetails]
+  );
+
+  const summary = useMemo(() => {
+    let allotted = 0;
+    filteredProjects.forEach((p) => {
+      allotted += parseFloat(p.allotatedHours) || 0;
+    });
+    const consumed = filteredProjects.reduce((s, p) => {
+      const years = yearlyByProject.get(p.projectName) || {};
+      return s + Object.values(years).reduce((a, b) => a + b, 0);
+    }, 0);
+    return {
+      projects: filteredProjects.length,
+      years: uniqueYears.length,
+      allotted: allotted.toFixed(2),
+      consumed: consumed.toFixed(2),
+    };
+  }, [filteredProjects, yearlyByProject, uniqueYears]);
+
+  const columnDefs = useMemo(() => {
+    const yearCols = uniqueYears.map((year) => ({
+      field: String(year),
+      headerName: String(year),
+      minWidth: 88,
       valueGetter: (params) => {
-        if (params.node.group) {
-          return params.node.key;
-        } else {
-          return params.data[params.colDef.field];
-        }
+        const y = yearlyByProject.get(params.data.projectName);
+        return Number((y?.[year] || 0).toFixed(2));
       },
-      headerCheckboxSelection: false,
-      cellRenderer: "agGroupCellRenderer",
-      cellRendererParams: {
-        checkbox: false,
+      cellStyle: (p) => (p.value > 0 ? { fontWeight: 600 } : null),
+    }));
+
+    return [
+      { field: "projectName", headerName: "Project", minWidth: 180, pinned: "left" },
+      { field: "referenceNo", headerName: "Reference", minWidth: 110 },
+      { field: "desciplineCode", headerName: "Discipline", minWidth: 100 },
+      {
+        field: "allotatedHours",
+        headerName: "Allotted",
+        minWidth: 90,
+        valueFormatter: (p) => Number(p.value || 0).toFixed(2),
       },
-    }),
-    []
-  );
+      {
+        headerName: "Total consumed",
+        minWidth: 120,
+        valueGetter: (params) => {
+          const years = yearlyByProject.get(params.data.projectName) || {};
+          const t = Object.values(years).reduce((s, h) => s + h, 0);
+          return Number(t.toFixed(2));
+        },
+        cellStyle: { fontWeight: 600 },
+      },
+      {
+        headerName: "Utilization %",
+        minWidth: 110,
+        valueGetter: (params) => {
+          const allotted = parseFloat(params.data.allotatedHours) || 0;
+          if (!allotted) return 0;
+          const years = yearlyByProject.get(params.data.projectName) || {};
+          const t = Object.values(years).reduce((s, h) => s + h, 0);
+          return Number(((t / allotted) * 100).toFixed(1));
+        },
+      },
+      {
+        headerName: "Idle hrs",
+        minWidth: 90,
+        valueGetter: (params) => {
+          const allotted = parseFloat(params.data.allotatedHours) || 0;
+          const years = yearlyByProject.get(params.data.projectName) || {};
+          const t = Object.values(years).reduce((s, h) => s + h, 0);
+          return Number(Math.max(0, allotted - t).toFixed(2));
+        },
+      },
+      ...yearCols,
+    ];
+  }, [uniqueYears, yearlyByProject]);
 
-  const defaultColDef = useMemo(
-    () => ({
-      editable: false,
-      enableRowGroup: true,
-      enablePivot: true,
-      enableValue: true,
-      sortable: true,
-      resizable: true,
-      filter: true,
-      floatingFilter: true,
-      flex: 1,
-      minWidth: 100,
-    }),
-    []
-  );
-
-  const onClickExport = () => {
+  const onExport = () => {
     if (exportApi) {
-      exportApi.exportDataAsCsv();
-      alert("Report exported successfully");
-    } else {
-      alert("Please wait for the grid to load");
-    }
-  };
-
-  const onSelectionChanged = (event) => {
-    // Handle selection if needed
+      exportApi.exportDataAsCsv({ fileName: "yearly-project-report.csv" });
+      notify("Report exported successfully");
+    } else notify("Please wait for the grid to load", "warning");
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 2,
-          }}
-        >
-          <Box>
-            <Typography variant="h4" fontWeight="bold" gutterBottom>
-              Project Yearly Report
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              View project hours breakdown by year with utilization and idle hours
-            </Typography>
-          </Box>
-          <Stack direction="row" spacing={2}>
-            <Button
-              variant="outlined"
-              startIcon={<Refresh />}
-              onClick={() => {
-                onGridReady();
-                onGetWorkDetails();
-              }}
-            >
-              Refresh
-            </Button>
-            <Button
-              onClick={onClickExport}
-              variant="contained"
-              startIcon={<FileDownload />}
-              sx={{
-                background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
-                "&:hover": {
-                  background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
-                },
-              }}
-            >
-              Export CSV
-            </Button>
-          </Stack>
-        </Box>
-      </Box>
+    <Box sx={{ maxWidth: 1800, mx: "auto" }}>
+      <ReportPageHeader
+        icon={DateRange}
+        title="Project Yearly Report"
+        subtitle="Approved hours by project and calendar year with utilization and idle hours."
+        onRefresh={loadData}
+        loading={loading}
+        onExport={onExport}
+        exportDisabled={!filteredProjects.length}
+      />
 
-      {/* Grid Card */}
-      <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
-        <CardContent>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
-            <DateRange color="primary" />
-            <Typography variant="h6" fontWeight="bold">
-              Yearly Project Analysis
-            </Typography>
-          </Box>
-          <Box sx={{ width: "100%", height: "600px" }}>
-            <div style={gridStyle} className="ag-theme-alpine">
-              <AgGridReact
-                rowData={projectDetails}
-                columnDefs={columnDefs}
-                autoGroupColumnDef={autoGroupColumnDef}
-                defaultColDef={defaultColDef}
-                suppressRowClickSelection={true}
-                groupSelectsChildren={true}
-                rowSelection={"single"}
-                rowGroupPanelShow={"always"}
-                pivotPanelShow={"always"}
-                pagination={true}
-                onGridReady={onGridReady}
-                onSelectionChanged={onSelectionChanged}
-              />
-            </div>
-          </Box>
-        </CardContent>
-      </Card>
+      <ReportFilterCard
+        chips={
+          projectFilter ? (
+            <Chip label={projectFilter} size="small" color="primary" onDelete={() => setProjectFilter("")} />
+          ) : null
+        }
+      >
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={5}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Project</InputLabel>
+              <Select value={projectFilter} label="Project" onChange={(e) => setProjectFilter(e.target.value)}>
+                <MenuItem value="">All projects</MenuItem>
+                {projectOptions.map((name) => (
+                  <MenuItem key={name} value={name}>
+                    {name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
+      </ReportFilterCard>
+
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+      {!loading && !error && (
+        <ReportStatsGrid>
+          <StatCard icon={Assessment} label="Projects" value={summary.projects} accent="primary" />
+          <StatCard icon={DateRange} label="Years in data" value={summary.years} accent="info" />
+          <StatCard icon={AccountBalance} label="Allotted hrs" value={summary.allotted} accent="secondary" />
+          <StatCard icon={Schedule} label="Consumed (all years)" value={summary.consumed} accent="warning" valueColor="warning.dark" />
+          <StatCard label="Grand total hrs" value={totalConsumedAll.toFixed(2)} sub="All approved entries" accent="success" />
+        </ReportStatsGrid>
+      )}
+
+      <ReportGridCard icon={DateRange} title="Yearly project analysis" rowCount={filteredProjects.length} loading={loading}>
+        <div style={gridStyle} className="ag-theme-alpine">
+          <AgGridReact
+            rowData={filteredProjects}
+            columnDefs={columnDefs}
+            defaultColDef={defaultReportColDef}
+            pagination
+            paginationPageSize={25}
+            onGridReady={(p) => setExportApi(p?.api)}
+          />
+        </div>
+      </ReportGridCard>
+      {SnackbarAlert}
     </Box>
   );
 };

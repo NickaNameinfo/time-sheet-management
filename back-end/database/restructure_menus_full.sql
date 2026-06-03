@@ -92,6 +92,7 @@ ON DUPLICATE KEY UPDATE menu_title = VALUES(menu_title), menu_path = VALUES(menu
 -- ========== PAYROLL & FINANCE ==========
 INSERT INTO `menu_permissions` (`menu_key`, `menu_title`, `menu_path`, `menu_icon`, `parent_menu`, `allowed_roles`, `is_active`, `display_order`) VALUES
 ('payroll_export', 'Payroll Export', '/Dashboard/Payroll', 'Payments', 'payroll_finance', '["Admin", "HR"]', TRUE, 7.1),
+('salary_payslip', 'Salary & Payslip', '/Dashboard/SalaryPayslip', 'Savings', 'payroll_finance', '["Admin", "HR"]', TRUE, 7.15),
 ('billing_invoicing', 'Billing & Invoicing', '/Dashboard/Billing', 'AccountBalance', 'payroll_finance', '["Admin"]', TRUE, 7.2),
 ('budget_tracking', 'Budget Tracking', '/Dashboard/Budget', 'AccountTree', 'payroll_finance', '["Admin"]', TRUE, 7.3)
 ON DUPLICATE KEY UPDATE menu_title = VALUES(menu_title), menu_path = VALUES(menu_path), menu_icon = VALUES(menu_icon), parent_menu = VALUES(parent_menu), allowed_roles = VALUES(allowed_roles), is_active = VALUES(is_active), display_order = VALUES(display_order);

@@ -1,5 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useCallback, useMemo, useState } from "react";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
@@ -27,9 +26,16 @@ import {
   Select,
   MenuItem,
   Grid,
-  Paper,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Divider,
 } from "@mui/material";
+import { alpha, useTheme } from "@mui/material/styles";
 import {
   Assignment,
   CheckCircle,
@@ -41,6 +47,13 @@ import {
   FilterList,
   Search,
   Clear,
+  Schedule,
+  AccessTime,
+  WarningAmber,
+  Login,
+  Logout,
+  Groups,
+  Event,
 } from "@mui/icons-material";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -48,10 +61,78 @@ import dayjs from "dayjs";
 import { apiService } from "../services/api";
 import { useApi, useMutation } from "../hooks/useApi";
 import { useAuth } from "../context/AuthContext";
+import {
+  STANDARD_DAILY_HOURS,
+  enrichRowsWithDayMetrics,
+  summarizeTeam,
+} from "../utils/attendanceSummary";
+import { formatClockDateTime } from "../utils/formatWorkDetailClock";
+
+const pageCardSx = {
+  borderRadius: 3,
+  boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+  border: "1px solid",
+  borderColor: "divider",
+};
+
+function resolveAccent(theme, accent) {
+  if (typeof accent === "string" && accent.startsWith("#")) return accent;
+  if (accent === "text.secondary") return theme.palette.text.secondary;
+  return theme.palette[accent]?.main || theme.palette.primary.main;
+}
+
+function StatCard({ icon: Icon, label, value, sub, accent = "primary", valueColor }) {
+  const theme = useTheme();
+  const main = resolveAccent(theme, accent);
+  return (
+    <Card
+      sx={{
+        ...pageCardSx,
+        height: "100%",
+        borderLeft: `4px solid ${main}`,
+        transition: "transform 0.2s ease, box-shadow 0.2s ease",
+        "&:hover": { transform: "translateY(-2px)", boxShadow: "0 8px 28px rgba(0,0,0,0.1)" },
+      }}
+    >
+      <CardContent sx={{ py: 2, "&:last-child": { pb: 2 } }}>
+        <Stack direction="row" spacing={1.5} alignItems="flex-start">
+          {Icon && (
+            <Box
+              sx={{
+                p: 1,
+                borderRadius: 2,
+                bgcolor: alpha(main, 0.12),
+                color: main,
+                display: "flex",
+                flexShrink: 0,
+              }}
+            >
+              <Icon fontSize="small" />
+            </Box>
+          )}
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography variant="caption" color="text.secondary" display="block">
+              {label}
+            </Typography>
+            <Typography variant="h6" fontWeight={700} color={valueColor || "text.primary"} sx={{ lineHeight: 1.25 }}>
+              {value}
+            </Typography>
+            {sub && (
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.25 }}>
+                {sub}
+              </Typography>
+            )}
+          </Box>
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
 function ProjectWorkDetails() {
   const gridStyle = { height: "100%", width: "100%" };
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const theme = useTheme();
   const gridRef = React.createRef();
   
   const [open, setOpen] = useState(false);
@@ -71,8 +152,8 @@ function ProjectWorkDetails() {
     projectName: "",
     weekNumber: "",
     referenceNo: "",
-    startDate: null,
-    endDate: null,
+    startDate: dayjs().startOf("month"),
+    endDate: dayjs().endOf("month"),
     searchText: "",
   });
 
@@ -121,11 +202,9 @@ function ProjectWorkDetails() {
       });
     }
     
-    // Apply employee name filter
+    // Apply employee filter (exact match from dropdown)
     if (filters.employeeName) {
-      filtered = filtered.filter((item) =>
-        item.employeeName?.toLowerCase().includes(filters.employeeName.toLowerCase())
-      );
+      filtered = filtered.filter((item) => item.employeeName === filters.employeeName);
     }
     
     // Apply project name filter
@@ -149,20 +228,20 @@ function ProjectWorkDetails() {
     
     // Apply date range filter
     if (filters.startDate) {
-      const startDate = dayjs(filters.startDate).startOf('day');
+      const startDate = dayjs(filters.startDate).startOf("day");
       filtered = filtered.filter((item) => {
         if (!item.sentDate) return false;
         const itemDate = dayjs(item.sentDate);
-        return itemDate.isSameOrAfter(startDate);
+        return !itemDate.isBefore(startDate, "day");
       });
     }
-    
+
     if (filters.endDate) {
-      const endDate = dayjs(filters.endDate).endOf('day');
+      const endDate = dayjs(filters.endDate).endOf("day");
       filtered = filtered.filter((item) => {
         if (!item.sentDate) return false;
         const itemDate = dayjs(item.sentDate);
-        return itemDate.isSameOrBefore(endDate);
+        return !itemDate.isAfter(endDate, "day");
       });
     }
     
@@ -181,6 +260,31 @@ function ProjectWorkDetails() {
     
     return filtered;
   }, [workDetails, user, filters]);
+
+  const periodStart = useMemo(
+    () =>
+      filters.startDate
+        ? dayjs(filters.startDate).format("YYYY-MM-DD")
+        : dayjs().startOf("month").format("YYYY-MM-DD"),
+    [filters.startDate]
+  );
+
+  const periodEnd = useMemo(
+    () =>
+      filters.endDate
+        ? dayjs(filters.endDate).format("YYYY-MM-DD")
+        : dayjs().endOf("month").format("YYYY-MM-DD"),
+    [filters.endDate]
+  );
+
+  const periodLabel = `${dayjs(periodStart).format("DD MMM YYYY")} – ${dayjs(periodEnd).format("DD MMM YYYY")}`;
+
+  const teamMetrics = useMemo(
+    () => summarizeTeam(rowData, periodStart, periodEnd),
+    [rowData, periodStart, periodEnd]
+  );
+
+  const enrichedRowData = useMemo(() => enrichRowsWithDayMetrics(rowData), [rowData]);
 
   // Mutation for updating work details (for non-approval updates)
   const { mutate: updateWorkDetailsMutation, loading: updating } = useMutation(
@@ -230,11 +334,20 @@ function ProjectWorkDetails() {
       projectName: "",
       weekNumber: "",
       referenceNo: "",
-      startDate: null,
-      endDate: null,
+      startDate: dayjs().startOf("month"),
+      endDate: dayjs().endOf("month"),
       searchText: "",
     });
   };
+
+  const isDefaultPeriod = useMemo(() => {
+    if (!filters.startDate || !filters.endDate) return false;
+    return (
+      dayjs(filters.startDate).format("YYYY-MM-DD") ===
+        dayjs().startOf("month").format("YYYY-MM-DD") &&
+      dayjs(filters.endDate).format("YYYY-MM-DD") === dayjs().endOf("month").format("YYYY-MM-DD")
+    );
+  }, [filters.startDate, filters.endDate]);
 
   const hasActiveFilters = useMemo(() => {
     return (
@@ -243,11 +356,10 @@ function ProjectWorkDetails() {
       filters.projectName !== "" ||
       filters.weekNumber !== "" ||
       filters.referenceNo !== "" ||
-      filters.startDate !== null ||
-      filters.endDate !== null ||
+      (!isDefaultPeriod && (filters.startDate || filters.endDate)) ||
       filters.searchText !== ""
     );
-  }, [filters]);
+  }, [filters, isDefaultPeriod]);
 
   const handleApprove = (status, params) => {
     setSelectedItem({ ...params.data, status });
@@ -302,56 +414,76 @@ function ProjectWorkDetails() {
       { field: "friday", headerName: "Friday", minWidth: 100 },
       { field: "saturday", headerName: "Saturday", minWidth: 100 },
       { field: "sunday", headerName: "Sunday", minWidth: 100 },
-      { field: "totalHours", headerName: "Total Hours", filter: false, minWidth: 120 },
+      { field: "totalHours", headerName: "Entry Hrs", filter: false, minWidth: 100 },
+      {
+        field: "workDate",
+        headerName: "Work Date",
+        minWidth: 110,
+        valueFormatter: (p) => p.value || "—",
+      },
+      {
+        field: "dayOfWeek",
+        headerName: "Day",
+        minWidth: 72,
+        cellRenderer: (params) => {
+          const weekend = params.data?.isWeekendDay;
+          return (
+            <Chip
+              label={params.value || "—"}
+              size="small"
+              color={weekend ? "secondary" : "default"}
+              variant={weekend ? "filled" : "outlined"}
+              sx={{ height: 22, fontSize: 11 }}
+            />
+          );
+        },
+      },
+      {
+        field: "dayTotalHours",
+        headerName: "Day Total",
+        minWidth: 95,
+        valueFormatter: (p) => (p.value != null ? Number(p.value).toFixed(2) : "—"),
+      },
+      {
+        field: "dayRegularHours",
+        headerName: `Regular (≤${STANDARD_DAILY_HOURS}h)`,
+        minWidth: 120,
+        valueFormatter: (p) =>
+          p.data?.isWeekendDay ? "—" : p.value != null ? Number(p.value).toFixed(2) : "—",
+      },
+      {
+        field: "dayExtraHours",
+        headerName: "Extra (>8h)",
+        minWidth: 100,
+        cellStyle: (params) =>
+          params.data?.dayExtraHours > 0 ? { color: "#ed6c02", fontWeight: 600 } : null,
+        valueFormatter: (p) =>
+          p.data?.isWeekendDay ? "—" : p.value != null ? Number(p.value).toFixed(2) : "—",
+      },
+      {
+        field: "dayWeekendHours",
+        headerName: "Weekend Hrs",
+        minWidth: 105,
+        cellStyle: (params) =>
+          params.data?.isWeekendDay ? { color: "#9c27b0", fontWeight: 600 } : null,
+        valueFormatter: (p) =>
+          p.data?.isWeekendDay && p.value != null ? Number(p.value).toFixed(2) : "—",
+      },
       {
         headerName: "Clock In",
         colId: "clockInTime",
         filter: false,
-        minWidth: 170,
+        minWidth: 160,
         valueGetter: (params) => params?.data?.clockInTime || params?.data?.sentDate || null,
-        valueFormatter: (params) => {
-          if (!params.value) return "-";
-          try {
-            const date = new Date(params.value);
-            if (isNaN(date.getTime())) return String(params.value);
-            return date.toLocaleString("en-US", {
-              year: "numeric",
-              month: "short",
-              day: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
-              hour12: false,
-            });
-          } catch (e) {
-            return String(params.value || "-");
-          }
-        },
+        valueFormatter: (params) => formatClockDateTime(params.value),
       },
       {
         headerName: "Clock Out",
         colId: "clockOutTime",
         filter: false,
-        minWidth: 170,
+        minWidth: 160,
         valueGetter: (params) => params?.data?.clockOutTime || params?.data?.approvedDate || null,
-        valueFormatter: (params) => {
-          if (!params.value) return "-";
-          try {
-            const date = new Date(params.value);
-            if (isNaN(date.getTime())) return String(params.value);
-            return date.toLocaleString("en-US", {
-              year: "numeric",
-              month: "short",
-              day: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
-              hour12: false,
-            });
-          } catch (e) {
-            return String(params.value || "-");
-          }
-        },
+        valueFormatter: (params) => formatClockDateTime(params.value),
       },
       { field: "weekNumber", headerName: "Week Number", filter: false, minWidth: 120 },
       { 
@@ -608,265 +740,475 @@ function ProjectWorkDetails() {
     // Handle selection if needed
   };
 
-  return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 2,
-          }}
-        >
-          <Box>
-            <Typography variant="h4" fontWeight="bold" gutterBottom>
-              Team Project Work Details
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Review and approve team member work submissions
-            </Typography>
-          </Box>
-          <Button
-            variant="outlined"
-            startIcon={<Refresh />}
-            onClick={refetch}
-            disabled={loading}
-          >
-            {loading ? "Refreshing..." : "Refresh"}
-          </Button>
+  const { totals, employeeSummaries, requiredHoursPerEmployee, weekdaysInPeriod } = teamMetrics;
+  const selectedEmployee = filters.employeeName?.trim() || "";
+  const isEmployeeFiltered = Boolean(selectedEmployee);
+  const scopeLabel = isEmployeeFiltered ? selectedEmployee : "Team";
+
+  const filtersCard = (
+    <Card sx={{ ...pageCardSx, mb: 3 }}>
+      <CardContent>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2, flexWrap: "wrap" }}>
+          <FilterList color="primary" />
+          <Typography variant="h6" fontWeight="bold">
+            Filters & period
+          </Typography>
+          <Chip icon={<Event />} label={periodLabel} size="small" variant="outlined" />
+          {isEmployeeFiltered && (
+            <Chip label={selectedEmployee} size="small" color="primary" variant="filled" />
+          )}
+          {hasActiveFilters && (
+            <Chip
+              label="Clear all"
+              onClick={handleClearFilters}
+              color="warning"
+              variant="outlined"
+              icon={<Clear />}
+              clickable
+              size="small"
+              sx={{ ml: "auto" }}
+            />
+          )}
         </Box>
 
-        {/* Filters Card */}
-        <Card sx={{ mb: 3, borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
-          <CardContent>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
-              <FilterList color="primary" />
-              <Typography variant="h6" fontWeight="bold">
-                Filters
-              </Typography>
-              {hasActiveFilters && (
-                <Chip
-                  label="Clear All"
-                  onClick={handleClearFilters}
-                  color="warning"
-                  variant="outlined"
-                  icon={<Clear />}
-                  clickable
-                  size="small"
-                />
-              )}
-            </Box>
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={4}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Employee</InputLabel>
+              <Select
+                value={filters.employeeName}
+                label="Employee"
+                onChange={(e) => handleFilterChange("employeeName", e.target.value)}
+                sx={{
+                  borderRadius: 2,
+                  bgcolor: isEmployeeFiltered ? alpha(theme.palette.primary.main, 0.06) : undefined,
+                }}
+              >
+                <MenuItem value="">All team members</MenuItem>
+                {filterOptions.employees.map((emp) => (
+                  <MenuItem key={emp} value={emp}>
+                    {emp}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+              Select an employee to filter stats, hours table, and submissions below.
+            </Typography>
+          </Grid>
 
-            <Grid container spacing={2}>
-              {/* Quick Search */}
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="Search across all fields..."
-                  value={filters.searchText}
-                  onChange={(e) => handleFilterChange("searchText", e.target.value)}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Search color="action" />
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-              </Grid>
+          <Grid item xs={6} md={2}>
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <DatePicker
+                label="Period start"
+                value={filters.startDate}
+                onChange={(newValue) => handleFilterChange("startDate", newValue)}
+                slotProps={{
+                  textField: {
+                    size: "small",
+                    fullWidth: true,
+                    sx: { "& .MuiOutlinedInput-root": { borderRadius: 2 } },
+                  },
+                }}
+              />
+            </LocalizationProvider>
+          </Grid>
 
-              {/* Status Filter */}
-              <Grid item xs={12} md={2}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Status</InputLabel>
-                  <Select
-                    value={filters.status}
-                    label="Status"
-                    onChange={(e) => handleFilterChange("status", e.target.value)}
-                  >
-                    <MenuItem value="all">All</MenuItem>
-                    <MenuItem value="pending">Pending</MenuItem>
-                    <MenuItem value="approved">Approved</MenuItem>
-                    <MenuItem value="rejected">Rejected</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
+          <Grid item xs={6} md={2}>
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <DatePicker
+                label="Period end"
+                value={filters.endDate}
+                onChange={(newValue) => handleFilterChange("endDate", newValue)}
+                minDate={filters.startDate || undefined}
+                slotProps={{
+                  textField: {
+                    size: "small",
+                    fullWidth: true,
+                    sx: { "& .MuiOutlinedInput-root": { borderRadius: 2 } },
+                  },
+                }}
+              />
+            </LocalizationProvider>
+          </Grid>
 
-              {/* Employee Name Filter */}
-              <Grid item xs={12} md={2}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Employee</InputLabel>
-                  <Select
-                    value={filters.employeeName}
-                    label="Employee"
-                    onChange={(e) => handleFilterChange("employeeName", e.target.value)}
-                  >
-                    <MenuItem value="">All Employees</MenuItem>
-                    {filterOptions.employees.map((emp) => (
-                      <MenuItem key={emp} value={emp}>
-                        {emp}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
+          <Grid item xs={12} md={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Status</InputLabel>
+              <Select
+                value={filters.status}
+                label="Status"
+                onChange={(e) => handleFilterChange("status", e.target.value)}
+              >
+                <MenuItem value="all">All</MenuItem>
+                <MenuItem value="pending">Pending</MenuItem>
+                <MenuItem value="approved">Approved</MenuItem>
+                <MenuItem value="rejected">Rejected</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
 
-              {/* Project Name Filter */}
-              <Grid item xs={12} md={2}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Project</InputLabel>
-                  <Select
-                    value={filters.projectName}
-                    label="Project"
-                    onChange={(e) => handleFilterChange("projectName", e.target.value)}
-                  >
-                    <MenuItem value="">All Projects</MenuItem>
-                    {filterOptions.projects.map((proj) => (
-                      <MenuItem key={proj} value={proj}>
-                        {proj}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
+          <Grid item xs={12} md={4}>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Search across all fields..."
+              value={filters.searchText}
+              onChange={(e) => handleFilterChange("searchText", e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search color="action" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Grid>
 
-              {/* Week Number Filter */}
-              <Grid item xs={12} md={2}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Week Number</InputLabel>
-                  <Select
-                    value={filters.weekNumber}
-                    label="Week Number"
-                    onChange={(e) => handleFilterChange("weekNumber", e.target.value)}
-                  >
-                    <MenuItem value="">All Weeks</MenuItem>
-                    {filterOptions.weekNumbers.map((week) => (
-                      <MenuItem key={week} value={week}>
-                        Week {week}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
+          <Grid item xs={6} md={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Project</InputLabel>
+              <Select
+                value={filters.projectName}
+                label="Project"
+                onChange={(e) => handleFilterChange("projectName", e.target.value)}
+              >
+                <MenuItem value="">All projects</MenuItem>
+                {filterOptions.projects.map((proj) => (
+                  <MenuItem key={proj} value={proj}>
+                    {proj}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
 
-              {/* Reference Number Filter */}
-              <Grid item xs={12} md={2}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Reference No"
-                  placeholder="Search reference..."
-                  value={filters.referenceNo}
-                  onChange={(e) => handleFilterChange("referenceNo", e.target.value)}
-                />
-              </Grid>
+          <Grid item xs={6} md={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Week</InputLabel>
+              <Select
+                value={filters.weekNumber}
+                label="Week"
+                onChange={(e) => handleFilterChange("weekNumber", e.target.value)}
+              >
+                <MenuItem value="">All weeks</MenuItem>
+                {filterOptions.weekNumbers.map((week) => (
+                  <MenuItem key={week} value={week}>
+                    Week {week}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
 
-              {/* Date Range Filters */}
-              <Grid item xs={12} md={3}>
-                <LocalizationProvider dateAdapter={AdapterDayjs}>
-                  <DatePicker
-                    label="Start Date"
-                    value={filters.startDate}
-                    onChange={(newValue) => handleFilterChange("startDate", newValue)}
-                    slotProps={{
-                      textField: {
-                        size: "small",
-                        fullWidth: true,
-                      },
+          <Grid item xs={12} md={2}>
+            <TextField
+              fullWidth
+              size="small"
+              label="Reference no"
+              placeholder="Search..."
+              value={filters.referenceNo}
+              onChange={(e) => handleFilterChange("referenceNo", e.target.value)}
+            />
+          </Grid>
+
+          {hasActiveFilters && (
+            <Grid item xs={12}>
+              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                <Typography variant="body2" color="text.secondary">
+                  Active:
+                </Typography>
+                {filters.status !== "all" && (
+                  <Chip
+                    label={`Status: ${filters.status}`}
+                    size="small"
+                    onDelete={() => handleFilterChange("status", "all")}
+                  />
+                )}
+                {filters.employeeName && (
+                  <Chip
+                    label={`Employee: ${filters.employeeName}`}
+                    size="small"
+                    color="primary"
+                    onDelete={() => handleFilterChange("employeeName", "")}
+                  />
+                )}
+                {filters.projectName && (
+                  <Chip
+                    label={`Project: ${filters.projectName}`}
+                    size="small"
+                    onDelete={() => handleFilterChange("projectName", "")}
+                  />
+                )}
+                {filters.weekNumber && (
+                  <Chip
+                    label={`Week: ${filters.weekNumber}`}
+                    size="small"
+                    onDelete={() => handleFilterChange("weekNumber", "")}
+                  />
+                )}
+                {filters.referenceNo && (
+                  <Chip
+                    label={`Ref: ${filters.referenceNo}`}
+                    size="small"
+                    onDelete={() => handleFilterChange("referenceNo", "")}
+                  />
+                )}
+                {!isDefaultPeriod && (filters.startDate || filters.endDate) && (
+                  <Chip
+                    label="Period"
+                    size="small"
+                    onDelete={() => {
+                      handleFilterChange("startDate", dayjs().startOf("month"));
+                      handleFilterChange("endDate", dayjs().endOf("month"));
                     }}
                   />
-                </LocalizationProvider>
-              </Grid>
-
-              <Grid item xs={12} md={3}>
-                <LocalizationProvider dateAdapter={AdapterDayjs}>
-                  <DatePicker
-                    label="End Date"
-                    value={filters.endDate}
-                    onChange={(newValue) => handleFilterChange("endDate", newValue)}
-                    minDate={filters.startDate || undefined}
-                    slotProps={{
-                      textField: {
-                        size: "small",
-                        fullWidth: true,
-                      },
-                    }}
-                  />
-                </LocalizationProvider>
-              </Grid>
-
-              {/* Active Filters Count */}
-              {hasActiveFilters && (
-                <Grid item xs={12}>
-                  <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                    <Typography variant="body2" color="text.secondary">
-                      Active filters:
-                    </Typography>
-                    {filters.status !== "all" && (
-                      <Chip
-                        label={`Status: ${filters.status}`}
-                        size="small"
-                        onDelete={() => handleFilterChange("status", "all")}
-                      />
-                    )}
-                    {filters.employeeName && (
-                      <Chip
-                        label={`Employee: ${filters.employeeName}`}
-                        size="small"
-                        onDelete={() => handleFilterChange("employeeName", "")}
-                      />
-                    )}
-                    {filters.projectName && (
-                      <Chip
-                        label={`Project: ${filters.projectName}`}
-                        size="small"
-                        onDelete={() => handleFilterChange("projectName", "")}
-                      />
-                    )}
-                    {filters.weekNumber && (
-                      <Chip
-                        label={`Week: ${filters.weekNumber}`}
-                        size="small"
-                        onDelete={() => handleFilterChange("weekNumber", "")}
-                      />
-                    )}
-                    {filters.referenceNo && (
-                      <Chip
-                        label={`Ref: ${filters.referenceNo}`}
-                        size="small"
-                        onDelete={() => handleFilterChange("referenceNo", "")}
-                      />
-                    )}
-                    {(filters.startDate || filters.endDate) && (
-                      <Chip
-                        label="Date Range"
-                        size="small"
-                        onDelete={() => {
-                          handleFilterChange("startDate", null);
-                          handleFilterChange("endDate", null);
-                        }}
-                      />
-                    )}
-                  </Stack>
-                </Grid>
-              )}
+                )}
+              </Stack>
             </Grid>
-          </CardContent>
-        </Card>
-      </Box>
+          )}
+        </Grid>
+      </CardContent>
+    </Card>
+  );
 
-      {/* Grid Card */}
-      <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
-        <CardContent>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
-            <Assignment color="primary" />
-            <Typography variant="h6" fontWeight="bold">
-              Work Submissions
+  return (
+    <Box sx={{ maxWidth: 1680, mx: "auto" }}>
+      <Box
+        sx={{
+          mb: 3,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          flexWrap: "wrap",
+          gap: 2,
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
+          <Box
+            sx={{
+              p: 1.5,
+              borderRadius: 2.5,
+              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.success.main} 100%)`,
+              color: "#fff",
+              display: { xs: "none", sm: "flex" },
+              boxShadow: `0 8px 24px ${alpha(theme.palette.primary.main, 0.35)}`,
+            }}
+          >
+            <Assignment />
+          </Box>
+          <Box>
+            <Typography variant="h4" fontWeight={800} gutterBottom sx={{ letterSpacing: -0.5 }}>
+              Team Project Work Details
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 560 }}>
+              Review submissions · Required = weekdays × {STANDARD_DAILY_HOURS}h/day · Weekday regular
+              capped at {STANDARD_DAILY_HOURS}h · Extra = above {STANDARD_DAILY_HOURS}h · Sat/Sun = weekend
             </Typography>
           </Box>
+        </Box>
+        <Button
+          variant="outlined"
+          startIcon={<Refresh />}
+          onClick={refetch}
+          disabled={loading}
+          sx={{ borderRadius: 2, textTransform: "none", fontWeight: 600 }}
+        >
+          {loading ? "Refreshing..." : "Refresh"}
+        </Button>
+      </Box>
+
+      {filtersCard}
+
+      {rowData.length > 0 ? (
+        <>
+          <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
+            <strong>{scopeLabel}</strong> attendance · <strong>{periodLabel}</strong>
+            {employeeSummaries.length > 0 && (
+              <>
+                {" "}
+                ·{" "}
+                {isEmployeeFiltered
+                  ? `${weekdaysInPeriod} weekday(s) × ${STANDARD_DAILY_HOURS}h = ${requiredHoursPerEmployee.toFixed(2)} required hrs`
+                  : `${employeeSummaries.length} member(s) · ${requiredHoursPerEmployee.toFixed(2)} required hrs each`}
+              </>
+            )}
+          </Alert>
+
+          <Box
+            sx={{
+              mb: 3,
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "repeat(2, 1fr)",
+                sm: "repeat(3, 1fr)",
+                md: "repeat(4, 1fr)",
+                lg: "repeat(5, 1fr)",
+              },
+              gap: 2,
+            }}
+          >
+            {!isEmployeeFiltered && (
+              <StatCard
+                icon={Groups}
+                label="Team members"
+                value={employeeSummaries.length}
+                accent="primary"
+              />
+            )}
+            <StatCard
+              icon={AccessTime}
+              label={isEmployeeFiltered ? "Required hrs" : "Required hrs (each)"}
+              value={requiredHoursPerEmployee.toFixed(2)}
+              sub={`${weekdaysInPeriod} weekdays × ${STANDARD_DAILY_HOURS}h`}
+              accent="primary"
+              valueColor="primary.main"
+            />
+            <StatCard
+              icon={Schedule}
+              label={`${scopeLabel} reg. logged`}
+              value={totals.loggedHours.toFixed(2)}
+              sub="Regular (≤8h/day)"
+              accent="info"
+            />
+            <StatCard
+              icon={WarningAmber}
+              label={`${scopeLabel} not logged`}
+              value={totals.missingHours.toFixed(2)}
+              sub="Required − regular logged"
+              accent="error"
+              valueColor="error.main"
+            />
+            <StatCard
+              label={`${scopeLabel} extra hrs`}
+              value={totals.extraHours.toFixed(2)}
+              sub={`Above ${STANDARD_DAILY_HOURS}h on weekdays`}
+              accent="warning"
+              valueColor="warning.dark"
+            />
+            <StatCard
+              label={`${scopeLabel} weekend hrs`}
+              value={totals.weekendHours.toFixed(2)}
+              sub="Saturday & Sunday"
+              accent="#9C27B0"
+              valueColor="#9C27B0"
+            />
+            <StatCard
+              icon={Login}
+              label="Check-ins"
+              value={totals.checkInCount}
+              accent="success"
+            />
+            <StatCard
+              icon={Logout}
+              label="Check-outs"
+              value={totals.checkOutCount}
+              accent="text.secondary"
+            />
+          </Box>
+
+          {!isEmployeeFiltered && employeeSummaries.length > 0 && (
+            <Card sx={{ ...pageCardSx, mb: 3 }}>
+              <CardContent>
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+                  <Groups color="primary" />
+                  <Typography variant="h6" fontWeight={700}>
+                    Hours by team member
+                  </Typography>
+                  <Chip label={periodLabel} size="small" variant="outlined" sx={{ ml: "auto" }} />
+                </Stack>
+                <TableContainer sx={{ borderRadius: 2, border: 1, borderColor: "divider" }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 700, bgcolor: "grey.50" }}>Employee</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 700, bgcolor: "grey.50" }}>
+                          Required
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 700, bgcolor: "grey.50" }}>
+                          Reg. logged
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 700, bgcolor: "grey.50" }}>
+                          Not logged
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 700, bgcolor: "grey.50" }}>
+                          Extra
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 700, bgcolor: "grey.50" }}>
+                          Weekend
+                        </TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 700, bgcolor: "grey.50" }}>
+                          Check-in/out
+                        </TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {employeeSummaries.map((emp, idx) => (
+                        <TableRow
+                          key={emp.key}
+                          hover
+                          sx={{ bgcolor: idx % 2 === 0 ? "background.paper" : "grey.50" }}
+                        >
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={600}>
+                              {emp.employeeName}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">{emp.requiredHours.toFixed(2)}</TableCell>
+                          <TableCell align="right">
+                            <Typography fontWeight={600}>{emp.loggedHours.toFixed(2)}</Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            {emp.missingHours > 0 ? (
+                              <Typography fontWeight={700} color="error.main">
+                                {emp.missingHours.toFixed(2)}
+                              </Typography>
+                            ) : (
+                              <Typography color="text.secondary">0.00</Typography>
+                            )}
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography color="warning.dark" fontWeight={600}>
+                              {emp.extraHours.toFixed(2)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography sx={{ color: "#9C27B0" }} fontWeight={600}>
+                              {emp.weekendHours.toFixed(2)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="center">
+                            <Typography variant="caption">
+                              {emp.checkInCount} / {emp.checkOutCount}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      ) : (
+        <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
+          No work details match the current filters.
+          {isEmployeeFiltered && ` Try another period or clear the employee filter for ${selectedEmployee}.`}
+        </Alert>
+      )}
+
+      <Card sx={pageCardSx}>
+        <CardContent>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+            <Assignment color="primary" />
+            <Typography variant="h6" fontWeight="bold">
+              Work submissions
+              {isEmployeeFiltered ? ` — ${selectedEmployee}` : ""}
+            </Typography>
+            <Chip label={`${enrichedRowData.length} rows`} size="small" sx={{ ml: 1 }} />
+          </Box>
+          <Divider sx={{ mb: 2 }} />
           <Box sx={{ width: "100%", height: "600px", position: "relative" }}>
             {loading && (
               <Box
@@ -889,7 +1231,7 @@ function ProjectWorkDetails() {
             <div style={gridStyle} className="ag-theme-alpine">
               <AgGridReact
                 ref={gridRef}
-                rowData={rowData || []}
+                rowData={enrichedRowData || []}
                 columnDefs={columnDefs}
                 autoGroupColumnDef={autoGroupColumnDef}
                 defaultColDef={defaultColDef}

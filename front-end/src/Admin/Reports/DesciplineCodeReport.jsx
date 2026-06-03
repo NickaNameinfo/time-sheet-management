@@ -1,253 +1,175 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Box,
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  Stack,
+  Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Alert,
+  Chip,
 } from "@mui/material";
-import {
-  Category,
-  FileDownload,
-  Refresh,
-} from "@mui/icons-material";
-import api from "../../services/api";
+import { Category, Assessment, Schedule } from "@mui/icons-material";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
+import {
+  ReportPageHeader,
+  ReportFilterCard,
+  ReportGridCard,
+  ReportStatsGrid,
+  StatCard,
+  useProjectsAndWorkDetails,
+  useReportSnackbar,
+  hoursFromEntry,
+  entryYear,
+  gridStyle,
+  defaultReportColDef,
+} from "../../components/reports/reportPageUi";
+
+function buildDisciplineByYear(workDetails) {
+  const byYear = {};
+  workDetails.forEach((item) => {
+    const year = entryYear(item);
+    const code = item.desciplineCode || item.discipline || "Unknown";
+    if (!year) return;
+    if (!byYear[year]) byYear[year] = {};
+    byYear[year][code] = (byYear[year][code] || 0) + hoursFromEntry(item);
+  });
+  return Object.keys(byYear)
+    .map((y) => ({
+      year: parseInt(y, 10),
+      disciplineCodeTotals: byYear[y],
+      totalHours: Object.values(byYear[y]).reduce((s, h) => s + h, 0),
+    }))
+    .sort((a, b) => b.year - a.year);
+}
 
 const DesciplineCodeReport = () => {
-  const containerStyle = { width: "100%", height: "100%" };
-  const gridStyle = { height: "100%", width: "100%" };
-  const [projectDetails, setProjectDetails] = useState([]);
-  const [workDetails, setWorkDetails] = useState([]);
-  const [projectWorkHours, setProjectWorkHours] = React.useState(null);
-  const [exportApi, setExportApi] = React.useState(null);
+  const { workDetails, loading, error, loadData } = useProjectsAndWorkDetails();
+  const { notify, SnackbarAlert } = useReportSnackbar();
+  const [exportApi, setExportApi] = useState(null);
+  const [yearFilter, setYearFilter] = useState("");
 
-  console.log(workDetails, "workDetailsworkDetails", projectWorkHours);
-  React.useEffect(() => {
-    onGetWorkDetails();
-    onGridReady();
-  }, []);
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-  React.useEffect(() => {
-    const disciplineCodeTotals = {};
+  const allRows = useMemo(() => buildDisciplineByYear(workDetails), [workDetails]);
 
-    // Iterate through the data and calculate the totals
-    workDetails.forEach((item) => {
-      const year = new Date(item.sentDate).getFullYear();
-      const disciplineCode = item.desciplineCode;
+  const filteredRows = useMemo(() => {
+    if (!yearFilter) return allRows;
+    return allRows.filter((r) => String(r.year) === String(yearFilter));
+  }, [allRows, yearFilter]);
 
-      // Initialize the disciplineCode's total for the year if not already created
-      if (!disciplineCodeTotals[year]) {
-        disciplineCodeTotals[year] = {};
-      }
-
-      // Initialize the disciplineCode's total for the specific disciplineCode if not already created
-      if (!disciplineCodeTotals[year][disciplineCode]) {
-        disciplineCodeTotals[year][disciplineCode] = 0;
-      }
-
-      // Add the totalHours to the disciplineCode's total for the year and disciplineCode
-      disciplineCodeTotals[year][disciplineCode] += Number(item.totalHours);
+  const disciplineCodes = useMemo(() => {
+    const codes = new Set();
+    allRows.forEach((row) => {
+      Object.keys(row.disciplineCodeTotals || {}).forEach((c) => codes.add(c));
     });
+    return [...codes].sort();
+  }, [allRows]);
 
-    // Convert the disciplineCodeTotals object into an array of objects
-    const resultArray = Object.keys(disciplineCodeTotals).map((year) => ({
-      year: parseInt(year),
-      disciplineCodeTotals: disciplineCodeTotals[year],
-    }));
+  const yearOptions = useMemo(() => allRows.map((r) => r.year), [allRows]);
 
-    setProjectWorkHours(resultArray);
-  }, [workDetails]);
-
-  const onGridReady = (params) => {
-    setExportApi(params?.api);
-    api
-      .get("/getProject")
-      .then((res) => {
-        if (res.data.Status === "Success") {
-          setProjectDetails(res.data.Result);
-        } else {
-          alert("Error");
-        }
-      })
-      .catch((err) => console.log(err));
-  };
-
-  const onGetWorkDetails = (params) => {
-    api
-      .get("/getWorkDetails")
-      .then((res) => {
-        if (res.data.Status === "Success") {
-          let resultData = res.data.Result?.filter(
-            (item) => item.status === "approved"
-          );
-          setWorkDetails(resultData);
-        } else {
-          alert("Error");
-        }
-      })
-      .catch((err) => console.log(err));
-  };
+  const summary = useMemo(() => {
+    const totalHrs = filteredRows.reduce((s, r) => s + r.totalHours, 0);
+    return {
+      years: filteredRows.length,
+      codes: disciplineCodes.length,
+      totalHours: totalHrs.toFixed(2),
+    };
+  }, [filteredRows, disciplineCodes]);
 
   const columnDefs = useMemo(
-    () => {
-      // Extract all unique discipline codes from the data
-      const uniqueDisciplineCodes = Array.from(
-        new Set(
-          projectWorkHours?.reduce((codes, item) => {
-            return codes.concat(Object.keys(item.disciplineCodeTotals));
-          }, [])
-        )
-      );
-
-      // Generate column definitions for "year" and each discipline code
-      const columns = [
-        {
-          field: "year",
-          headerName: "Year",
-          minWidth: 170,
+    () => [
+      { field: "year", headerName: "Year", minWidth: 90, pinned: "left" },
+      {
+        headerName: "Total",
+        minWidth: 90,
+        valueGetter: (p) => Number((p.data.totalHours || 0).toFixed(2)),
+        cellStyle: { fontWeight: 700 },
+      },
+      ...disciplineCodes.map((code) => ({
+        headerName: code,
+        minWidth: 100,
+        valueGetter: (params) => {
+          const v = params.data.disciplineCodeTotals?.[code];
+          return v != null ? Number(v.toFixed(2)) : 0;
         },
-        ...uniqueDisciplineCodes.map((code) => ({
-          field: `disciplineCodeTotals.${code}`,
-          headerName: `${code}`,
-          minWidth: 170,
-        })),
-      ];
-
-      return columns;
-    },
-    [projectWorkHours] // Include "data" as a dependency
+        cellStyle: (p) => (p.value > 0 ? { fontWeight: 600 } : null),
+      })),
+    ],
+    [disciplineCodes]
   );
 
-  const autoGroupColumnDef = useMemo(
-    () => ({
-      headerName: "Group",
-      minWidth: 170,
-      field: "athlete",
-      valueGetter: (params) => {
-        if (params.node.group) {
-          return params.node.key;
-        } else {
-          return params.data[params.colDef.field];
-        }
-      },
-      headerCheckboxSelection: false,
-      cellRenderer: "agGroupCellRenderer",
-      cellRendererParams: {
-        checkbox: false,
-      },
-    }),
-    []
-  );
-
-  const defaultColDef = useMemo(
-    () => ({
-      editable: false,
-      enableRowGroup: true,
-      enablePivot: true,
-      enableValue: true,
-      sortable: true,
-      resizable: true,
-      filter: true,
-      floatingFilter: true,
-      flex: 1,
-      minWidth: 100,
-    }),
-    []
-  );
-
-  const onClickExport = () => {
+  const onExport = () => {
     if (exportApi) {
-      exportApi.exportDataAsCsv();
-      alert("Report exported successfully");
-    } else {
-      alert("Please wait for the grid to load");
-    }
-  };
-
-  const onSelectionChanged = (event) => {
-    // Handle selection if needed
+      exportApi.exportDataAsCsv({ fileName: "discipline-code-report.csv" });
+      notify("Report exported successfully");
+    } else notify("Please wait for the grid to load", "warning");
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 2,
-          }}
-        >
-          <Box>
-            <Typography variant="h4" fontWeight="bold" gutterBottom>
-              Project Discipline Code Report
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              View project hours by discipline code and year
-            </Typography>
-          </Box>
-          <Stack direction="row" spacing={2}>
-            <Button
-              variant="outlined"
-              startIcon={<Refresh />}
-              onClick={() => {
-                onGridReady();
-                onGetWorkDetails();
-              }}
-            >
-              Refresh
-            </Button>
-            <Button
-              onClick={onClickExport}
-              variant="contained"
-              startIcon={<FileDownload />}
-              sx={{
-                background: "linear-gradient(135deg, #4C86F9 0%, #49A84C 100%)",
-                "&:hover": {
-                  background: "linear-gradient(135deg, #3d6dd1 0%, #3d8b40 100%)",
-                },
-              }}
-            >
-              Export CSV
-            </Button>
-          </Stack>
-        </Box>
-      </Box>
+    <Box sx={{ maxWidth: 1800, mx: "auto" }}>
+      <ReportPageHeader
+        icon={Category}
+        title="Discipline Code Report"
+        subtitle="Approved work hours grouped by year and discipline code."
+        onRefresh={loadData}
+        loading={loading}
+        onExport={onExport}
+        exportDisabled={!filteredRows.length}
+      />
 
-      {/* Grid Card */}
-      <Card sx={{ borderRadius: 3, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}>
-        <CardContent>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
-            <Category color="primary" />
-            <Typography variant="h6" fontWeight="bold">
-              Discipline Code Analysis
-            </Typography>
-          </Box>
-          <Box sx={{ width: "100%", height: "600px" }}>
-            <div style={gridStyle} className="ag-theme-alpine">
-              <AgGridReact
-                rowData={projectWorkHours}
-                columnDefs={columnDefs}
-                autoGroupColumnDef={autoGroupColumnDef}
-                defaultColDef={defaultColDef}
-                suppressRowClickSelection={true}
-                groupSelectsChildren={true}
-                rowSelection={"single"}
-                rowGroupPanelShow={"always"}
-                pivotPanelShow={"always"}
-                pagination={true}
-                onGridReady={onGridReady}
-                onSelectionChanged={onSelectionChanged}
-              />
-            </div>
-          </Box>
-        </CardContent>
-      </Card>
+      <ReportFilterCard
+        chips={
+          yearFilter ? (
+            <Chip label={`Year ${yearFilter}`} size="small" color="primary" onDelete={() => setYearFilter("")} />
+          ) : (
+            <Chip label="All years" size="small" variant="outlined" />
+          )
+        }
+      >
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={4} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Year</InputLabel>
+              <Select value={yearFilter} label="Year" onChange={(e) => setYearFilter(e.target.value)}>
+                <MenuItem value="">All years</MenuItem>
+                {yearOptions.map((y) => (
+                  <MenuItem key={y} value={String(y)}>
+                    {y}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
+      </ReportFilterCard>
+
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
+      {!loading && !error && (
+        <ReportStatsGrid>
+          <StatCard icon={Assessment} label="Year rows" value={summary.years} accent="primary" />
+          <StatCard icon={Category} label="Discipline codes" value={summary.codes} accent="info" />
+          <StatCard icon={Schedule} label="Total hours" value={summary.totalHours} accent="warning" valueColor="warning.dark" />
+        </ReportStatsGrid>
+      )}
+
+      <ReportGridCard icon={Category} title="Discipline code analysis" rowCount={filteredRows.length} loading={loading}>
+        <div style={gridStyle} className="ag-theme-alpine">
+          <AgGridReact
+            rowData={filteredRows}
+            columnDefs={columnDefs}
+            defaultColDef={defaultReportColDef}
+            pagination
+            paginationPageSize={25}
+            onGridReady={(p) => setExportApi(p?.api)}
+          />
+        </div>
+      </ReportGridCard>
+      {SnackbarAlert}
     </Box>
   );
 };

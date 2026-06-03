@@ -14,6 +14,122 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:timesheet_mobile/theme/app_brand_colors.dart';
 import 'dart:ui'; // Added for FontFeature
 
+double? _parsePlanHours(dynamic value) {
+  if (value == null) return null;
+  if (value is num) return value.toDouble();
+  final s = value.toString().trim();
+  if (s.isEmpty) return null;
+  return double.tryParse(s);
+}
+
+double _planProgressCap(Map<String, dynamic> plan) {
+  final allotted = _parsePlanHours(plan['allotted_hours'] ?? plan['allottedHours']);
+  final planTotal = _parsePlanHours(
+        plan['plan_total_hours'] ?? plan['planTotalHours'] ?? plan['total_allotted_hours'],
+      ) ??
+      0;
+  if (allotted != null && allotted > 0) return allotted;
+  return planTotal;
+}
+
+/// Match web AuthContext: `id = employeeRecordId ?? dashboard id`.
+String? _employeeIdForPlanProgress(Map<String, dynamic>? user) {
+  final er = user?['employeeRecordId']?.toString().trim();
+  if (er != null && er.isNotEmpty && er != 'null') return er;
+  final id = user?['id']?.toString().trim();
+  if (id != null && id.isNotEmpty && id != 'null') return id;
+  return AppConfig.employeeDbIdForApi(user);
+}
+
+String? _planDateOnly(dynamic value) {
+  if (value == null) return null;
+  final s = value.toString().trim();
+  if (s.isEmpty) return null;
+  // Same as web: String(sentDate).slice(0, 10) — avoids timezone shifting ISO strings.
+  if (s.length >= 10) return s.substring(0, 10);
+  final dt = DateTime.tryParse(s);
+  if (dt != null) return DateFormat('yyyy-MM-dd').format(dt);
+  return s;
+}
+
+double _hoursFromWorkRow(Map<String, dynamic> w) {
+  final total = _parsePlanHours(w['totalHours'] ?? w['totalhours']);
+  if (total != null && total > 0) return total;
+  final calculated = _parsePlanHours(w['calculatedHours']);
+  if (calculated != null && calculated > 0) return calculated;
+  return 0;
+}
+
+bool _workMatchesPlanAssignment(Map<String, dynamic> w, Map<String, dynamic> a) {
+  final wNo = w['projectNo']?.toString().trim() ?? '';
+  final aNo = a['projectNo']?.toString().trim() ?? '';
+  final wName = (w['projectName']?.toString() ?? '').trim().toLowerCase();
+  final aName = (a['projectName']?.toString() ?? '').trim().toLowerCase();
+  final wRef = w['referenceNo']?.toString().trim() ?? '';
+  final aRef = a['referenceNo']?.toString().trim() ?? '';
+  final projectMatch = (wNo.isNotEmpty && aNo.isNotEmpty && wNo == aNo) ||
+      (wName.isNotEmpty && aName.isNotEmpty && wName == aName) ||
+      (wRef.isNotEmpty && aRef.isNotEmpty && wRef == aRef);
+  if (!projectMatch) return false;
+  var s0 = _planDateOnly(a['start_date'] ?? a['startDate']);
+  var e0 = _planDateOnly(a['end_date'] ?? a['endDate']);
+  if (s0 != null && e0 != null && s0.compareTo(e0) > 0) {
+    final tmp = s0;
+    s0 = e0;
+    e0 = tmp;
+  }
+  final sd = _planDateOnly(w['sentDate']);
+  if (s0 == null || e0 == null || sd == null) return true;
+  return sd.compareTo(s0) >= 0 && sd.compareTo(e0) <= 0;
+}
+
+({String startDate, String endDate})? _planWorkDateRange(List<dynamic> plans) {
+  if (plans.isEmpty) return null;
+  String? min;
+  String? max;
+  for (final raw in plans) {
+    if (raw is! Map) continue;
+    final a = Map<String, dynamic>.from(raw);
+    final s = _planDateOnly(a['start_date'] ?? a['startDate']);
+    final e = _planDateOnly(a['end_date'] ?? a['endDate']);
+    if (s != null && (min == null || s.compareTo(min) < 0)) min = s;
+    if (e != null && (max == null || e.compareTo(max) > 0)) max = e;
+  }
+  if (min == null || max == null) return null;
+  return (startDate: min, endDate: max);
+}
+
+List<Map<String, dynamic>> _assignedPlansWithProgress(
+  List<dynamic> assignedProjectsList,
+  List<dynamic> planWorkDetailsRows,
+) {
+  return assignedProjectsList.map((raw) {
+    final a = raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+    final rows = planWorkDetailsRows
+        .where((w) => w is Map && _workMatchesPlanAssignment(Map<String, dynamic>.from(w), a))
+        .toList();
+    var usedHours = 0.0;
+    for (final w in rows) {
+      usedHours += _hoursFromWorkRow(Map<String, dynamic>.from(w as Map));
+    }
+    final cap = _planProgressCap(a);
+    final pct = cap > 0 ? (usedHours / cap * 100).clamp(0.0, 100.0) : 0.0;
+    final roundedPct = (pct * 10).round() / 10;
+    final roundedUsed = (usedHours * 100).round() / 100;
+    final allotted = _parsePlanHours(a['allotted_hours']);
+    final hasPersonalCap = allotted != null && allotted > 0;
+    return {
+      ...a,
+      'usedHours': roundedUsed,
+      'progressCap': cap,
+      'progressPercent': roundedPct,
+      'progressLabel': hasPersonalCap
+          ? 'Your hours vs plan allotment'
+          : 'Your hours vs plan total (no per-person allotment)',
+    };
+  }).toList();
+}
+
 class EmployeeHomeScreen extends StatefulWidget {
   const EmployeeHomeScreen({super.key});
 
@@ -84,7 +200,10 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final auth = Provider.of<AuthProvider>(context, listen: false);
       await auth.refreshUserFromApi();
-      if (mounted) setState(() {});
+      if (mounted) {
+        setState(() {});
+        await _loadAssignedProjectPlans();
+      }
     });
   }
 
@@ -188,13 +307,31 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final user = authProvider.user;
-      final employeeId = AppConfig.employeeDbIdForApi(user);
+      final employeeId = _employeeIdForPlanProgress(user) ?? AppConfig.employeeDbIdForApi(user);
       
       if (employeeId != null && employeeId.isNotEmpty) {
         try {
           final projectPlans = await _apiService.getEmployeeAssignedProjects(employeeId: employeeId);
+          // Always load work details and compute client-side (same as web hook).
+          List<dynamic> workRows = [];
+          final range = _planWorkDateRange(projectPlans);
+          try {
+            if (range != null) {
+              workRows = await _apiService.getWorkDetails(
+                employeeId: employeeId,
+                startDate: range.startDate,
+                endDate: range.endDate,
+              );
+            }
+            if (workRows.isEmpty) {
+              workRows = await _apiService.getWorkDetails(employeeId: employeeId);
+            }
+          } catch (e) {
+            debugPrint('Error fetching plan work details for progress: $e');
+          }
+          final withProgress = _assignedPlansWithProgress(projectPlans, workRows);
           setState(() {
-            _assignedProjectPlans = projectPlans;
+            _assignedProjectPlans = withProgress;
             _loadingProjectPlans = false;
           });
         } catch (e) {
@@ -1782,10 +1919,12 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
     final projectName = plan['project_name']?.toString() ?? 
                        plan['projectName']?.toString() ?? 
                        plan['project']?['projectName']?.toString() ?? 'N/A';
-    final allottedHours = plan['allotted_hours']?.toString() ?? 
-                         plan['allottedHours']?.toString() ?? 
-                         plan['employee_hours']?.toString() ?? 
-                         '0';
+    final capHours = _planProgressCap(plan);
+    final allottedHours = capHours > 0
+        ? (capHours == capHours.roundToDouble()
+            ? capHours.round().toString()
+            : capHours.toStringAsFixed(2))
+        : '0';
     final timePeriod = plan['time_period']?.toString() ?? 
                       plan['timePeriod']?.toString() ?? 'N/A';
     final status = plan['plan_status']?.toString() ??
@@ -1949,10 +2088,79 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
                 ],
               ),
             ],
+            _buildPlanProgressSection(plan),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildPlanProgressSection(Map<String, dynamic> plan) {
+    final used = (plan['usedHours'] as num?)?.toDouble() ?? 0;
+    var cap = (plan['progressCap'] as num?)?.toDouble() ?? 0;
+    if (cap <= 0) cap = _planProgressCap(plan);
+    var pct = (plan['progressPercent'] as num?)?.toDouble() ?? 0;
+    if (cap > 0 && (plan['progressPercent'] == null)) {
+      pct = (used / cap * 100).clamp(0.0, 100.0);
+      pct = (pct * 10).round() / 10;
+    }
+    final label = plan['progressLabel']?.toString() ?? 'Your hours vs plan allotment';
+    final allotted = _parsePlanHours(plan['allotted_hours']) ?? 0;
+    final capSuffix = cap > 0
+        ? (allotted > 0 ? ' (your allotment)' : ' (plan total)')
+        : '';
+
+    String formatHours(double h) {
+      if (h == h.roundToDouble()) return h.round().toString();
+      return h.toStringAsFixed(2);
+    }
+
+    final pctLabel = cap > 0
+        ? (pct == pct.roundToDouble() ? '${pct.round()}%' : '${pct.toStringAsFixed(1)}%')
+        : '—';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 12),
+        Divider(height: 1, color: Colors.grey[300]),
+        const SizedBox(height: 10),
+        Text(
+          label,
+          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: cap > 0 ? (pct / 100).clamp(0.0, 1.0) : 0,
+                  minHeight: 8,
+                  backgroundColor: Colors.grey[200],
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              pctLabel,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Logged ${formatHours(used)}h${cap > 0 ? ' / ${formatHours(cap)}h' : ''}$capSuffix',
+          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+        ),
+      ],
     );
   }
 
@@ -1975,7 +2183,7 @@ class _EmployeeHomeScreenState extends State<EmployeeHomeScreen> {
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final user = authProvider.user;
-      final employeeId = AppConfig.employeeDbIdForApi(user);
+      final employeeId = _employeeIdForPlanProgress(user) ?? AppConfig.employeeDbIdForApi(user);
       
       if (employeeId == null || employeeId.isEmpty) {
         Navigator.pop(context); // Close loading

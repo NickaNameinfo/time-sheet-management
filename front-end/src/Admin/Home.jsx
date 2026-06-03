@@ -28,6 +28,7 @@ import Loading from "../components/Loading";
 import ClockInOutCard from "../components/ClockInOutCard";
 import EmployeeAssignedProjectPlansCard from "../components/EmployeeAssignedProjectPlansCard";
 import { useEmployeePlanAssignments } from "../hooks/useEmployeePlanAssignments";
+import { useTranslation } from "react-i18next";
 
 function projectProgressPercent(project) {
   const raw = project?.completion;
@@ -38,6 +39,7 @@ function projectProgressPercent(project) {
 }
 
 const StatCard = ({ title, value, icon, color, delay = 0 }) => {
+  const { t } = useTranslation();
   const [displayValue, setDisplayValue] = useState(0);
 
   useEffect(() => {
@@ -93,7 +95,7 @@ const StatCard = ({ title, value, icon, color, delay = 0 }) => {
                 {displayValue}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                Total
+                {t("dashboard.total")}
               </Typography>
             </Box>
           </Box>
@@ -122,6 +124,7 @@ const StatCard = ({ title, value, icon, color, delay = 0 }) => {
 
 function Home() {
   const theme = useTheme();
+  const { t } = useTranslation();
   const { user, isAdmin, isHR, isCompanyAdmin, isTeamLead } = useAuth();
   const [employee, setEmployee] = useState(null);
   const [project, setProject] = useState(null);
@@ -244,18 +247,18 @@ function Home() {
   }, [planAssignments.assignedPlansWithProgress]);
 
   if (projectsLoading || plansLoading || (showAdminOverview && employeesLoading)) {
-    return <Loading message="Loading dashboard..." />;
+    return <Loading message={t("dashboard.loading", { defaultValue: "Loading dashboard..." })} />;
   }
 
   const stats = [
     {
-      title: "Employees",
+      title: t("dashboard.employees", { defaultValue: "Employees" }),
       value: employee || 0,
       icon: <People sx={{ fontSize: 32 }} />,
       color: ["#f093fb", "#f5576c"],
     },
     {
-      title: "Projects",
+      title: t("dashboard.projects", { defaultValue: "Projects" }),
       value: project || 0,
       icon: <Business sx={{ fontSize: 32 }} />,
       color: ["#43e97b", "#38f9d7"],
@@ -279,12 +282,12 @@ function Home() {
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 1, mb: 2 }}>
           <Box>
             <Typography variant="h5" fontWeight="bold" gutterBottom>
-              Projects &amp; progress
+              {t("dashboard.projectsAndProgress")}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {isAdmin() || isHR() || isCompanyAdmin()
-                ? "All company projects and current completion."
-                : "Projects you are assigned to or lead, with completion progress."}
+                ? t("dashboard.allCompanyProjects")
+                : t("dashboard.assignedProjects")}
             </Typography>
           </Box>
           <Button
@@ -294,13 +297,13 @@ function Home() {
             endIcon={<ArrowForward />}
             variant="outlined"
           >
-            View all
+            {t("dashboard.viewAll")}
           </Button>
         </Box>
         {visibleProjects.length === 0 ? (
           <Card variant="outlined" sx={{ borderRadius: 2, p: 2 }}>
             <Typography variant="body2" color="text.secondary">
-              No projects to show yet. Assign team members on a project or open Projects to get started.
+              {t("dashboard.noProjects")}
             </Typography>
           </Card>
         ) : (
@@ -352,7 +355,7 @@ function Home() {
                           </Avatar>
                           <Box sx={{ minWidth: 0 }}>
                             <Typography variant="subtitle1" fontWeight={700} noWrap title={p.projectName}>
-                              {p.projectName || "Untitled project"}
+                              {p.projectName || t("dashboard.untitledProject")}
                             </Typography>
                             <Typography variant="caption" color="text.secondary" noWrap>
                               {p.projectNo ? `#${p.projectNo}` : `ID ${p.id}`}
@@ -363,7 +366,7 @@ function Home() {
                         <Chip size="small" label={status} color={status === "active" ? "success" : "default"} variant="outlined" />
                       </Stack>
                       <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
-                        Completion
+                        {t("dashboard.completion")}
                       </Typography>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
                         <LinearProgress
@@ -398,24 +401,24 @@ function Home() {
                           size="small"
                           variant="outlined"
                           color="info"
-                          label={`Utilized: ${utilizedHours.toFixed(2)} hrs`}
+                          label={`${t("dashboard.utilized")}: ${utilizedHours.toFixed(2)} hrs`}
                         />
                         <Chip
                           size="small"
                           variant="outlined"
                           color="primary"
-                          label={`Allotted: ${projectAllotted.toFixed(2)} hrs`}
+                          label={`${t("dashboard.allotted")}: ${projectAllotted.toFixed(2)} hrs`}
                         />
                         <Chip
                           size="small"
                           variant="outlined"
                           color={plannedRemaining <= 0 ? "success" : "warning"}
-                          label={`Remaining: ${plannedRemaining.toFixed(2)} hrs`}
+                          label={`${t("dashboard.remaining")}: ${plannedRemaining.toFixed(2)} hrs`}
                         />
                       </Stack>
                       {!seeAll && used != null && cap != null && cap > 0 && (
                         <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.75 }}>
-                          {used.toFixed(2)} / {cap.toFixed(2)} hrs
+                          {used.toFixed(2)} / {cap.toFixed(2)} {t("common.hrs", { defaultValue: "hrs" })}
                         </Typography>
                       )}
                       <Button
@@ -426,7 +429,7 @@ function Home() {
                         fullWidth
                         variant="text"
                       >
-                        {canOpenEditor ? "Open project" : "View projects"}
+                        {canOpenEditor ? t("dashboard.openProject") : t("dashboard.viewProjects")}
                       </Button>
                     </CardContent>
                   </Card>
@@ -442,10 +445,10 @@ function Home() {
         <>
           <Box sx={{ mt: 4, mb: 4 }}>
             <Typography variant="h4" fontWeight="bold" gutterBottom>
-              Dashboard Overview
+              {t("dashboard.dashboardOverview")}
             </Typography>
             <Typography variant="body1" color="text.secondary">
-              {"Welcome back! Here's what's happening with your organization today."}
+              {t("dashboard.welcomeBack")}
             </Typography>
           </Box>
 

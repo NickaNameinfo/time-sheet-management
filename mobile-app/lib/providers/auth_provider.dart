@@ -67,9 +67,11 @@ class AuthProvider with ChangeNotifier {
     required String fallbackUserName,
   }) {
     final isCompany = apiResponse['isCompanyUser'] == true;
+    final resolvedEmployeePk =
+        apiResponse['employeeRecordId'] ?? apiResponse['id'] ?? loginResult?['id'];
     return {
-      'id': apiResponse['id'] ?? loginResult?['id'],
-      'employeeRecordId': apiResponse['employeeRecordId'] ?? apiResponse['id'] ?? loginResult?['id'],
+      'id': resolvedEmployeePk,
+      'employeeRecordId': resolvedEmployeePk,
       'userName': apiResponse['userName'] ?? loginResult?['userName'] ?? fallbackUserName,
       'employeeName': apiResponse['employeeName'] ??
           loginResult?['tlName'] ??
